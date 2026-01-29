@@ -3,7 +3,10 @@
 namespace App\Http\Middleware;
 
 use Illuminate\Http\Request;
+use App\Models\AppSetting;
 use Inertia\Middleware;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -29,12 +32,23 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $orgProfile = null;
+
+        if (Schema::hasTable('app_settings')) {
+            $orgProfile = AppSetting::query()->first();
+        }
+
         return [
             ...parent::share($request),
             'auth' => [
                 'user' => $request->user(),
                 'roles' => $request->user()?->getRoleNames() ?? [],
                 'permissions' => $request->user()?->getAllPermissions()->pluck('name') ?? [],
+            ],
+            'orgProfile' => [
+                'org_name' => $orgProfile?->org_name ?? 'Aplikasi Keuangan Organisasi',
+                'brand_color' => $orgProfile?->brand_color ?? '#1677ff',
+                'logo_url' => $orgProfile?->logo_path ? asset($orgProfile->logo_path) : null,
             ],
         ];
     }

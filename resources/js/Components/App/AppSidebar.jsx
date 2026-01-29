@@ -37,9 +37,17 @@ function toAntdItems(menu, userPermissions) {
     });
 }
 
-export default function AppSidebar({ collapsed, onCollapse }) {
+export default function AppSidebar({ collapsed, onCollapse, orgName }) {
   const { props } = usePage();
   const permissions = props?.auth?.permissions || [];
+  const resolvedOrgName = orgName || "Aplikasi Keuangan";
+  const collapsedLabel = resolvedOrgName
+    .split(" ")
+    .filter(Boolean)
+    .map((word) => word[0])
+    .join("")
+    .slice(0, 3)
+    .toUpperCase();
 
   const items = useMemo(() => toAntdItems(appMenu, permissions), [permissions]);
 
@@ -105,7 +113,7 @@ if (route().current("reports.*")) return "reports.main";
       style={{ background: "#fff" }}
     >
       <div style={{ padding: 16, fontWeight: 700 }}>
-        {!collapsed ? "Aplikasi Keuangan" : "AK"}
+        {!collapsed ? resolvedOrgName : collapsedLabel || "AK"}
       </div>
 
       <Menu

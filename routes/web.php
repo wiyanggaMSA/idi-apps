@@ -24,6 +24,7 @@ use App\Http\Controllers\Settings\SettingsController;
 use App\Http\Controllers\Settings\Access\PermissionsController;
 use App\Http\Controllers\Settings\Access\RolesController;
 use App\Http\Controllers\Settings\Access\UsersController;
+use App\Http\Controllers\Settings\OrganizationProfileController;
 use App\Http\Controllers\Settings\DuesSettingsController;
 use App\Http\Controllers\Settings\MasterData\CashCategoriesController;
 use App\Http\Controllers\Settings\MasterData\CashMethodsController;
@@ -64,6 +65,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     //SETTINGS
     Route::middleware(['role:Admin'])->group(function () {
         Route::get('/settings', SettingsController::class)->name('settings.index');
+        Route::patch('/settings/profile', [OrganizationProfileController::class, 'update'])->name('settings.profile.update');
         Route::patch('/settings/dues', [DuesSettingsController::class, 'update'])->name('settings.dues.update');
         Route::prefix('settings/master-data')->name('settings.master-data.')->group(function () {
             Route::post('/divisions', [DivisionsController::class, 'store'])->name('divisions.store');

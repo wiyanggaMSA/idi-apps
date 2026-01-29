@@ -11,10 +11,15 @@ export default function AppLayout({ title, children }) {
   const { props } = usePage();
   const auth = props?.auth || {};
   const user = auth?.user || null;
+  const orgProfile = props?.orgProfile || {};
 
   return (
     <Layout style={{ minHeight: "100vh" }}>
-      <AppSidebar collapsed={collapsed} onCollapse={setCollapsed} />
+      <AppSidebar
+        collapsed={collapsed}
+        onCollapse={setCollapsed}
+        orgName={orgProfile?.org_name}
+      />
 
       <Layout>
         <AppHeader
@@ -22,6 +27,8 @@ export default function AppLayout({ title, children }) {
           user={user}
           collapsed={collapsed}
           onToggle={() => setCollapsed((v) => !v)}
+          orgName={orgProfile?.org_name}
+          brandColor={orgProfile?.brand_color}
         />
 
         <Content style={{ padding: 16 }}>

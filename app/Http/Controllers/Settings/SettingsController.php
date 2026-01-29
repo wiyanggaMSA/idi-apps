@@ -10,8 +10,10 @@ use App\Models\PaymentStatus;
 use App\Models\Position;
 use App\Models\CashMethod;
 use App\Models\User;
+use App\Models\AppSetting;
 use Inertia\Inertia;
 use Inertia\Response;
+use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
@@ -19,6 +21,12 @@ class SettingsController extends Controller
 {
     public function __invoke(): Response
     {
+        $orgProfile = null;
+
+        if (Schema::hasTable('app_settings')) {
+            $orgProfile = AppSetting::query()->first();
+        }
+
         $divisions = Division::query()
             ->orderBy('name')
             ->get(['id', 'name', 'code', 'is_active']);
@@ -70,11 +78,14 @@ class SettingsController extends Controller
 
         return Inertia::render('Settings/Index', [
             'profile' => [
-                'name' => 'IDI Cabang Purwakarta',
-                'address' => 'Sekretariat IDI Purwakarta',
-                'phone' => '',
-                'email' => '',
-                'logo_url' => null,
+                'org_name' => $orgProfile?->org_name ?? 'IDI Cabang Purwakarta',
+                'address' => $orgProfile?->address ?? 'Sekretariat IDI Purwakarta',
+                'phone' => $orgProfile?->phone ?? '',
+                'email' => $orgProfile?->email ?? '',
+                'currency' => $orgProfile?->currency ?? 'IDR',
+                'timezone' => $orgProfile?->timezone ?? 'Asia/Jakarta',
+                'brand_color' => $orgProfile?->brand_color ?? '#1677ff',
+                'logo_url' => $orgProfile?->logo_path ? asset($orgProfile->logo_path) : null,
             ],
             'counts' => [
                 'divisions' => $divisions->count(),

@@ -5,7 +5,7 @@ import { router } from "@inertiajs/react";
 
 const { Header } = Layout;
 
-export default function AppHeader({ title, user, collapsed, onToggle }) {
+export default function AppHeader({ title, user, collapsed, onToggle, orgName, brandColor }) {
   const items = [
     { key: "profile", label: "Profil" },
     {
@@ -18,7 +18,7 @@ export default function AppHeader({ title, user, collapsed, onToggle }) {
   return (
     <Header
       style={{
-        background: "#1677ff",
+        background: brandColor || "#1677ff",
         padding: "0 16px",
         display: "flex",
         alignItems: "center",
@@ -31,9 +31,16 @@ export default function AppHeader({ title, user, collapsed, onToggle }) {
           onClick={onToggle}
           icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
         />
-        <Typography.Text style={{ color: "#fff", fontWeight: 600 }}>
-          {title}
-        </Typography.Text>
+        <Space direction="vertical" size={0}>
+          <Typography.Text style={{ color: "#fff", fontWeight: 600 }}>
+            {title}
+          </Typography.Text>
+          {orgName && (
+            <Typography.Text style={{ color: "#e6f4ff", fontSize: 12 }}>
+              {orgName}
+            </Typography.Text>
+          )}
+        </Space>
       </Space>
 
       <Dropdown menu={{ items }} trigger={["click"]}>

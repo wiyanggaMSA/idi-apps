@@ -21,6 +21,7 @@ import {
   Tabs,
   Tag,
   Typography,
+  Upload,
   message,
 } from "antd";
 import {
@@ -38,6 +39,7 @@ const { Text } = Typography;
 export default function SettingsIndex() {
   const { props } = usePage();
   const access = props.access || { users: [], roles: [], permissions: [] };
+  const profile = props.profile || {};
   const users = access.users || [];
   const roles = access.roles || [];
   const permissions = access.permissions || [];
@@ -51,6 +53,7 @@ export default function SettingsIndex() {
   const [cashCategoryForm] = Form.useForm();
   const [cashMethodForm] = Form.useForm();
   const [paymentStatusForm] = Form.useForm();
+  const [logoFile, setLogoFile] = useState(null);
   
   const [assignRoleForm] = Form.useForm();
   const [roleForm] = Form.useForm();
@@ -94,10 +97,39 @@ export default function SettingsIndex() {
     duesForm.setFieldsValue(duesSettings);
   }, [duesForm, duesSettings]);
 
+  const defaultOrgProfile = {
+    org_name: "IDI Cabang Purwakarta",
+    address: "Alamat sekretariat...",
+    phone: "",
+    email: "",
+    currency: "IDR",
+    timezone: "Asia/Jakarta",
+    brand_color: "#1677ff",
+  };
+
+  useEffect(() => {
+    orgForm.setFieldsValue({
+      ...defaultOrgProfile,
+      ...profile,
+    });
+  }, [orgForm, profile]);
+
   const saveOrg = async () => {
     try {
-      await orgForm.validateFields();
-      message.success("Profil organisasi tersimpan (dummy).");
+      const values = await orgForm.validateFields();
+      const payload = {
+        ...values,
+        logo: logoFile || undefined,
+        _method: "patch",
+      };
+
+      router.post(route("settings.profile.update"), payload, {
+        preserveScroll: true,
+        forceFormData: true,
+        onSuccess: () => {
+          message.success("Profil organisasi tersimpan.");
+        },
+      });
     } catch {}
   };
 
@@ -453,15 +485,7 @@ export default function SettingsIndex() {
                   form={orgForm}
                   layout="vertical"
                   requiredMark={false}
-                  initialValues={{
-                    org_name: "IDI Cabang Purwakarta",
-                    address: "Alamat sekretariat...",
-                    phone: "08xx-xxxx-xxxx",
-                    email: "idi.purwakarta@org.id",
-                    currency: "IDR",
-                    timezone: "Asia/Jakarta",
-                    brand_color: "#1677ff",
-                  }}
+                  initialValues={defaultOrgProfile}
                 >
                   <Row gutter={[12, 12]}>
                     <Col xs={24} md={12}>
@@ -521,6 +545,32 @@ export default function SettingsIndex() {
                     </Col>
 
                     <Col xs={24} md={12}>
+                      <Form.Item label="Logo Organisasi">
+                        <Space direction="vertical" size={8} style={{ width: "100%" }}>
+                          {profile?.logo_url && (
+                            <img
+                              src={profile.logo_url}
+                              alt="Logo organisasi"
+                              style={{ width: 64, height: 64, borderRadius: 8, objectFit: "cover" }}
+                            />
+                          )}
+                          <Upload
+                            maxCount={1}
+                            accept="image/*"
+                            beforeUpload={(file) => {
+                              setLogoFile(file);
+                              return false;
+                            }}
+                            onRemove={() => setLogoFile(null)}
+                          >
+                            <Button icon={<CloudDownloadOutlined />}>Pilih Logo</Button>
+                          </Upload>
+                          <Text type="secondary">PNG/JPG max 2MB.</Text>
+                        </Space>
+                      </Form.Item>
+                    </Col>
+
+                    <Col xs={24} md={12}>
                       <Form.Item label="Mode Gelap">
                         <Switch onChange={() => message.info("TODO: dark mode")} />
                       </Form.Item>
@@ -538,11 +588,10 @@ export default function SettingsIndex() {
 
             <Col xs={24} lg={10}>
               <Card style={{ borderRadius: 12, background: "#f5f7fb" }} title={<Text strong>Catatan</Text>}>
-                <ul style={{ margin: 0, paddingLeft: 18, color: "#595959" }}>
-                  <li>Profil organisasi disimpan ke <code>app_settings</code>.</li>
-                  <li>Logo & brand color dipakai untuk header/sidebar.</li>
-                  <li>Timezone dipakai untuk tanggal transaksi/surat.</li>
-                </ul>
+                <li>Profil organisasi disimpan ke <code>app_settings</code> untuk tampilan aplikasi.</li>
+                  <li>Nama organisasi tampil di header & sidebar sebagai identitas.</li>
+                  <li>Brand color dipakai untuk warna header dan highlight.</li>
+                  <li>Timezone dipakai untuk tanggal transaksi & surat.</li>
               </Card>
             </Col>
           </Row>
