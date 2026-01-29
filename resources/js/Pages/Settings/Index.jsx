@@ -557,9 +557,10 @@ export default function SettingsIndex() {
                           <Upload
                             maxCount={1}
                             accept="image/*"
-                            beforeUpload={(file) => {
-                              setLogoFile(file);
-                              return false;
+                            beforeUpload={() => false}
+                            onChange={({ fileList }) => {
+                              const latestFile = fileList[0]?.originFileObj ?? null;
+                              setLogoFile(latestFile);
                             }}
                             onRemove={() => setLogoFile(null)}
                           >

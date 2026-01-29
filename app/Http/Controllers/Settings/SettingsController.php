@@ -14,6 +14,7 @@ use App\Models\AppSetting;
 use Inertia\Inertia;
 use Inertia\Response;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
@@ -85,7 +86,7 @@ class SettingsController extends Controller
                 'currency' => $orgProfile?->currency ?? 'IDR',
                 'timezone' => $orgProfile?->timezone ?? 'Asia/Jakarta',
                 'brand_color' => $orgProfile?->brand_color ?? '#1677ff',
-                'logo_url' => $orgProfile?->logo_path ? asset($orgProfile->logo_path) : null,
+                'logo_url' => $orgProfile?->logo_path ? Storage::url($orgProfile->logo_path) : null,
             ],
             'counts' => [
                 'divisions' => $divisions->count(),

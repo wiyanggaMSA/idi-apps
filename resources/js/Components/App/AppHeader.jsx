@@ -31,15 +31,10 @@ export default function AppHeader({ title, user, collapsed, onToggle, orgName, b
           onClick={onToggle}
           icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
         />
-        <Space direction="vertical" size={0}>
+        <Space orientation="vertical" size={0}>
           <Typography.Text style={{ color: "#fff", fontWeight: 600 }}>
             {title}
           </Typography.Text>
-          {orgName && (
-            <Typography.Text style={{ color: "#e6f4ff", fontSize: 12 }}>
-              {orgName}
-            </Typography.Text>
-          )}
         </Space>
       </Space>
 
