@@ -3,6 +3,12 @@
 namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
+use App\Models\CashCategory;
+use App\Models\Division;
+use App\Models\DuesSetting;
+use App\Models\PaymentStatus;
+use App\Models\Position;
+use App\Models\CashMethod;
 use App\Models\User;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -13,6 +19,28 @@ class SettingsController extends Controller
 {
     public function __invoke(): Response
     {
+        $divisions = Division::query()
+            ->orderBy('name')
+            ->get(['id', 'name', 'code', 'is_active']);
+
+        $positions = Position::query()
+            ->orderBy('name')
+            ->get(['id', 'name', 'code', 'is_active']);
+
+        $cashCategories = CashCategory::query()
+            ->orderBy('type')
+            ->orderBy('name')
+            ->get(['id', 'type', 'name', 'code', 'is_active']);
+        
+        $cashMethods = CashMethod::query()
+            ->orderBy('name')
+            ->get(['id', 'name', 'is_active']);
+
+        $paymentStatuses = PaymentStatus::query()
+            ->orderBy('name')
+            ->get(['id', 'code', 'name', 'color', 'is_active']);
+
+        $duesSettings = DuesSetting::query()->first();
         $users = User::query()
             ->with(['roles', 'permissions'])
             ->orderBy('name')
@@ -49,10 +77,25 @@ class SettingsController extends Controller
                 'logo_url' => null,
             ],
             'counts' => [
-                'divisions' => 0,
-                'positions' => 0,
-                'cash_categories' => 0,
-                'payment_statuses' => 0,
+                'divisions' => $divisions->count(),
+                'positions' => $positions->count(),
+                'cash_categories' => $cashCategories->count(),
+                'cash_methods' => $cashMethods->count(),
+                'payment_statuses' => $paymentStatuses->count(),
+            ],
+            'masterData' => [
+                'divisions' => $divisions,
+                'positions' => $positions,
+                'cash_categories' => $cashCategories,
+                'cash_methods' => $cashMethods,
+                'payment_statuses' => $paymentStatuses,
+            ],
+            'duesSettings' => [
+                'dues_amount' => $duesSettings?->dues_amount ?? 100000,
+                'due_day' => $duesSettings?->due_day ?? 10,
+                'grace_days' => $duesSettings?->grace_days ?? 7,
+                'auto_mark_arrears' => $duesSettings?->auto_mark_arrears ?? true,
+                'allow_partial' => $duesSettings?->allow_partial ?? false,
             ],
             'backups' => [
                 ['id' => 1, 'scope' => 'members', 'created_at' => '2026-01-12 10:11', 'file' => 'backups/members_20260112.sql'],

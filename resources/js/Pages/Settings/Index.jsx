@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { router, usePage } from "@inertiajs/react";
 import AppLayout from "@/layouts/AppLayout";
 import PageShell from "@/components/app/PageShell";
@@ -45,6 +45,12 @@ export default function SettingsIndex() {
   const [orgForm] = Form.useForm();
   const [duesForm] = Form.useForm();
   const [userForm] = Form.useForm();
+
+  const [divisionForm] = Form.useForm();
+  const [positionForm] = Form.useForm();
+  const [cashCategoryForm] = Form.useForm();
+  const [cashMethodForm] = Form.useForm();
+  const [paymentStatusForm] = Form.useForm();
   
   const [assignRoleForm] = Form.useForm();
   const [roleForm] = Form.useForm();
@@ -54,34 +60,19 @@ export default function SettingsIndex() {
   const [editUserForm] = Form.useForm();
   
 
-  // ✅ Master Data: Divisi
-  const [divisions, setDivisions] = useState(() => [
-    { key: 1, name: "Umum" },
-    { key: 2, name: "Keuangan" },
-    { key: 3, name: "Komite" },
-  ]);
-
-  // ✅ Master Data: Jabatan (baru)
-  const [positions, setPositions] = useState(() => [
-    { key: 1, name: "Ketua" },
-    { key: 2, name: "Sekretaris" },
-    { key: 3, name: "Bendahara" },
-  ]);
-
-  // ✅ Master Data: Kategori Cashflow (masuk/keluar)
-  const [cashCategories, setCashCategories] = useState(() => [
-    { key: 1, type: "in", name: "Iuran Anggota" },
-    { key: 2, type: "in", name: "Donasi" },
-    { key: 3, type: "out", name: "Operasional" },
-    { key: 4, type: "out", name: "Rapat" },
-  ]);
-
-  // ✅ Master Data: Status Bayar (baru)
-  const [paymentStatuses, setPaymentStatuses] = useState(() => [
-    { key: 1, code: "PAID", name: "Sudah Bayar", color: "green" },
-    { key: 2, code: "UNPAID", name: "Belum Bayar", color: "gold" },
-    { key: 3, code: "OVERDUE", name: "Menunggak", color: "red" },
-  ]);
+  const masterData = props.masterData || {};
+  const divisions = masterData.divisions || [];
+  const positions = masterData.positions || [];
+  const cashCategories = masterData.cash_categories || [];
+  const cashMethods = masterData.cash_methods || [];
+  const paymentStatuses = masterData.payment_statuses || [];
+  const duesSettings = props.duesSettings || {
+    dues_amount: 100000,
+    due_day: 10,
+    grace_days: 7,
+    auto_mark_arrears: true,
+    allow_partial: false,
+  };
 
   // Dummy Users (untuk tab User & Permission)
   const [assignRoleModal, setAssignRoleModal] = useState({ open: false, user: null });
@@ -92,16 +83,16 @@ export default function SettingsIndex() {
   const [editRoleModal, setEditRoleModal] = useState({ open: false, role: null });
   const [editPermissionModal, setEditPermissionModal] = useState({ open: false, permission: null });
   const [editUserModal, setEditUserModal] = useState({ open: false, user: null });
+  const [divisionModalOpen, setDivisionModalOpen] = useState(false);
+  const [positionModalOpen, setPositionModalOpen] = useState(false);
+  const [cashCategoryModalOpen, setCashCategoryModalOpen] = useState(false);
+  const [cashMethodModalOpen, setCashMethodModalOpen] = useState(false);
+  const [paymentStatusModalOpen, setPaymentStatusModalOpen] = useState(false);
 
   // --- helpers CRUD dummy ---
-  const addRow = (setter, row) => {
-    setter((p) => [{ key: Date.now(), ...row }, ...p]);
-    message.success("Ditambah (dummy).");
-  };
-  const removeRow = (setter, key) => {
-    setter((p) => p.filter((x) => x.key !== key));
-    message.info("Dihapus (dummy).");
-  };
+  useEffect(() => {
+    duesForm.setFieldsValue(duesSettings);
+  }, [duesForm, duesSettings]);
 
   const saveOrg = async () => {
     try {
@@ -112,8 +103,12 @@ export default function SettingsIndex() {
 
   const saveDues = async () => {
     try {
-      await duesForm.validateFields();
-      message.success("Pengaturan iuran tersimpan (dummy).");
+      const v = await duesForm.validateFields();
+      router.patch(route("settings.dues.update"), v, {
+        onSuccess: () => {
+          message.success("Pengaturan iuran tersimpan.");
+        },
+      });
     } catch {}
   };
 
@@ -151,6 +146,151 @@ export default function SettingsIndex() {
         },
       });
     } catch {}
+  };
+
+  const submitDivision = async () => {
+    try {
+      const v = await divisionForm.validateFields();
+      router.post(route("settings.master-data.divisions.store"), v, {
+        preserveScroll: true,
+        onSuccess: () => {
+          divisionForm.resetFields();
+          setDivisionModalOpen(false);
+          message.success("Divisi berhasil ditambahkan.");
+        },
+      });
+    } catch {}
+  };
+
+  const submitPosition = async () => {
+    try {
+      const v = await positionForm.validateFields();
+      router.post(route("settings.master-data.positions.store"), v, {
+        preserveScroll: true,
+        onSuccess: () => {
+          positionForm.resetFields();
+          setPositionModalOpen(false);
+          message.success("Jabatan berhasil ditambahkan.");
+        },
+      });
+    } catch {}
+  };
+
+  const submitCashCategory = async () => {
+    try {
+      const v = await cashCategoryForm.validateFields();
+      router.post(route("settings.master-data.cash-categories.store"), v, {
+        preserveScroll: true,
+        onSuccess: () => {
+          cashCategoryForm.resetFields();
+          setCashCategoryModalOpen(false);
+          message.success("Kategori cashflow berhasil ditambahkan.");
+        },
+      });
+    } catch {}
+  };
+
+  const submitCashMethod = async () => {
+    try {
+      const v = await cashMethodForm.validateFields();
+      router.post(route("settings.master-data.cash-methods.store"), v, {
+        preserveScroll: true,
+        onSuccess: () => {
+          cashMethodForm.resetFields();
+          setCashMethodModalOpen(false);
+          message.success("Metode bayar berhasil ditambahkan.");
+        },
+      });
+    } catch {}
+  };
+
+  const submitPaymentStatus = async () => {
+    try {
+      const v = await paymentStatusForm.validateFields();
+      router.post(route("settings.master-data.payment-statuses.store"), v, {
+        preserveScroll: true,
+        onSuccess: () => {
+          paymentStatusForm.resetFields();
+          setPaymentStatusModalOpen(false);
+          message.success("Status bayar berhasil ditambahkan.");
+        },
+      });
+    } catch {}
+  };
+
+  const confirmDeleteDivision = (division) => {
+    Modal.confirm({
+      title: "Hapus divisi?",
+      content: `${division.name} akan dihapus.`,
+      okText: "Hapus",
+      okButtonProps: { danger: true },
+      cancelText: "Batal",
+      onOk: () =>
+        router.delete(route("settings.master-data.divisions.destroy", division.id), {
+          preserveScroll: true,
+          onSuccess: () => message.success("Divisi berhasil dihapus."),
+        }),
+    });
+  };
+
+  const confirmDeletePosition = (position) => {
+    Modal.confirm({
+      title: "Hapus jabatan?",
+      content: `${position.name} akan dihapus.`,
+      okText: "Hapus",
+      okButtonProps: { danger: true },
+      cancelText: "Batal",
+      onOk: () =>
+        router.delete(route("settings.master-data.positions.destroy", position.id), {
+          preserveScroll: true,
+          onSuccess: () => message.success("Jabatan berhasil dihapus."),
+        }),
+    });
+  };
+
+  const confirmDeleteCashCategory = (category) => {
+    Modal.confirm({
+      title: "Hapus kategori cashflow?",
+      content: `${category.name} akan dihapus.`,
+      okText: "Hapus",
+      okButtonProps: { danger: true },
+      cancelText: "Batal",
+      onOk: () =>
+        router.delete(route("settings.master-data.cash-categories.destroy", category.id), {
+          preserveScroll: true,
+          onSuccess: () => message.success("Kategori cashflow berhasil dihapus."),
+        }),
+    });
+  };
+
+  const confirmDeleteCashMethod = (method) => {
+    Modal.confirm({
+      title: "Hapus metode bayar?",
+      content: `${method.name} akan dihapus.`,
+      okText: "Hapus",
+      okButtonProps: { danger: true },
+      cancelText: "Batal",
+      onOk: () =>
+        router.delete(route("settings.master-data.cash-methods.destroy", method.id), {
+          preserveScroll: true,
+          onSuccess: () => message.success("Metode bayar berhasil dihapus."),
+        }),
+    });
+  };
+
+  const confirmDeletePaymentStatus = (status) => {
+    Modal.confirm({
+      title: "Hapus status bayar?",
+      content: `${status.name} akan dihapus.`,
+      okText: "Hapus",
+      okButtonProps: { danger: true },
+      cancelText: "Batal",
+      onOk: () =>
+        router.delete(route("settings.master-data.payment-statuses.destroy", status.id), {
+          preserveScroll: true,
+          onSuccess: () => message.success("Status bayar berhasil dihapus."),
+        }),
+    });
   };
 
   const confirmDisableUser = (user) => {
@@ -431,11 +571,11 @@ export default function SettingsIndex() {
                       size="small"
                       pagination={false}
                       dataSource={divisions}
-                      rowKey="key"
+                      rowKey="id"
                       title={() => (
                         <Space>
                           <Text strong>Divisi</Text>
-                          <Button size="small" icon={<PlusOutlined />} onClick={() => addRow(setDivisions, { name: "Divisi Baru" })}>
+                          <Button size="small" icon={<PlusOutlined />} onClick={() => setDivisionModalOpen(true)}>
                             Tambah
                           </Button>
                         </Space>
@@ -448,7 +588,7 @@ export default function SettingsIndex() {
                           width: 80,
                           align: "right",
                           render: (_, r) => (
-                            <Button size="small" danger icon={<DeleteOutlined />} onClick={() => removeRow(setDivisions, r.key)} />
+                            <Button size="small" danger icon={<DeleteOutlined />} onClick={() => confirmDeleteDivision(r)} />
                           ),
                         },
                       ]}
@@ -463,11 +603,11 @@ export default function SettingsIndex() {
                       size="small"
                       pagination={false}
                       dataSource={positions}
-                      rowKey="key"
+                      rowKey="id"
                       title={() => (
                         <Space>
                           <Text strong>Jabatan</Text>
-                          <Button size="small" icon={<PlusOutlined />} onClick={() => addRow(setPositions, { name: "Jabatan Baru" })}>
+                          <Button size="small" icon={<PlusOutlined />} onClick={() => setPositionModalOpen(true)}>
                             Tambah
                           </Button>
                         </Space>
@@ -480,7 +620,7 @@ export default function SettingsIndex() {
                           width: 80,
                           align: "right",
                           render: (_, r) => (
-                            <Button size="small" danger icon={<DeleteOutlined />} onClick={() => removeRow(setPositions, r.key)} />
+                            <Button size="small" danger icon={<DeleteOutlined />} onClick={() => confirmDeletePosition(r)} />
                           ),
                         },
                       ]}
@@ -495,15 +635,11 @@ export default function SettingsIndex() {
                       size="small"
                       pagination={false}
                       dataSource={cashCategories}
-                      rowKey="key"
+                      rowKey="id"
                       title={() => (
                         <Space>
                           <Text strong>Kategori Cashflow</Text>
-                          <Button
-                            size="small"
-                            icon={<PlusOutlined />}
-                            onClick={() => addRow(setCashCategories, { type: "out", name: "Kategori Baru" })}
-                          >
+                          <Button size="small" icon={<PlusOutlined />} onClick={() => setCashCategoryModalOpen(true)}>
                             Tambah
                           </Button>
                         </Space>
@@ -523,7 +659,39 @@ export default function SettingsIndex() {
                           width: 80,
                           align: "right",
                           render: (_, r) => (
-                            <Button size="small" danger icon={<DeleteOutlined />} onClick={() => removeRow(setCashCategories, r.key)} />
+                            <Button size="small" danger icon={<DeleteOutlined />} onClick={() => confirmDeleteCashCategory(r)} />
+                          ),
+                        },
+                      ]}
+                    />
+                  ),
+                },
+                {
+                  key: "cash_methods",
+                  label: "Metode Bayar",
+                  children: (
+                    <Table
+                      size="small"
+                      pagination={false}
+                      dataSource={cashMethods}
+                      rowKey="id"
+                      title={() => (
+                        <Space>
+                          <Text strong>Metode Bayar</Text>
+                          <Button size="small" icon={<PlusOutlined />} onClick={() => setCashMethodModalOpen(true)}>
+                            Tambah
+                          </Button>
+                        </Space>
+                      )}
+                      columns={[
+                        { title: "Nama Metode", dataIndex: "name", key: "name" },
+                        {
+                          title: "Aksi",
+                          key: "aksi",
+                          width: 80,
+                          align: "right",
+                          render: (_, r) => (
+                            <Button size="small" danger icon={<DeleteOutlined />} onClick={() => confirmDeleteCashMethod(r)} />
                           ),
                         },
                       ]}
@@ -538,17 +706,11 @@ export default function SettingsIndex() {
                       size="small"
                       pagination={false}
                       dataSource={paymentStatuses}
-                      rowKey="key"
+                      rowKey="id"
                       title={() => (
                         <Space>
                           <Text strong>Status Bayar</Text>
-                          <Button
-                            size="small"
-                            icon={<PlusOutlined />}
-                            onClick={() =>
-                              addRow(setPaymentStatuses, { code: "NEW", name: "Status Baru", color: "blue" })
-                            }
-                          >
+                          <Button size="small" icon={<PlusOutlined />} onClick={() => setPaymentStatusModalOpen(true)}>
                             Tambah
                           </Button>
                         </Space>
@@ -569,7 +731,7 @@ export default function SettingsIndex() {
                           width: 80,
                           align: "right",
                           render: (_, r) => (
-                            <Button size="small" danger icon={<DeleteOutlined />} onClick={() => removeRow(setPaymentStatuses, r.key)} />
+                            <Button size="small" danger icon={<DeleteOutlined />} onClick={() => confirmDeletePaymentStatus(r)} />
                           ),
                         },
                       ]}
@@ -585,13 +747,7 @@ export default function SettingsIndex() {
                         form={duesForm}
                         layout="vertical"
                         requiredMark={false}
-                        initialValues={{
-                          dues_amount: 100000,
-                          due_day: 10,
-                          grace_days: 7,
-                          auto_mark_arrears: true,
-                          allow_partial: false,
-                        }}
+                        initialValues={duesSettings}
                       >
                         <Row gutter={[12, 12]}>
                           <Col xs={24} md={12}>
@@ -1017,6 +1173,130 @@ export default function SettingsIndex() {
             </Form.Item>
           </Form>
         </Modal>
+
+        <Modal
+          title="Tambah Divisi"
+          open={divisionModalOpen}
+          onCancel={() => {
+            setDivisionModalOpen(false);
+            divisionForm.resetFields();
+          }}
+          onOk={submitDivision}
+          okText="Simpan"
+        >
+          <Form form={divisionForm} layout="vertical" initialValues={{ is_active: true }}>
+            <Form.Item name="name" label="Nama Divisi" rules={[{ required: true, message: "Nama divisi wajib" }]}>
+              <Input placeholder="Contoh: Keuangan" />
+            </Form.Item>
+            <Form.Item name="code" label="Kode (opsional)">
+              <Input placeholder="DIV-KEU" />
+            </Form.Item>
+            <Form.Item name="is_active" label="Aktif" valuePropName="checked">
+              <Switch />
+            </Form.Item>
+          </Form>
+        </Modal>
+
+        <Modal
+          title="Tambah Jabatan"
+          open={positionModalOpen}
+          onCancel={() => {
+            setPositionModalOpen(false);
+            positionForm.resetFields();
+          }}
+          onOk={submitPosition}
+          okText="Simpan"
+        >
+          <Form form={positionForm} layout="vertical" initialValues={{ is_active: true }}>
+            <Form.Item name="name" label="Nama Jabatan" rules={[{ required: true, message: "Nama jabatan wajib" }]}>
+              <Input placeholder="Contoh: Ketua" />
+            </Form.Item>
+            <Form.Item name="code" label="Kode (opsional)">
+              <Input placeholder="JBT-KETUA" />
+            </Form.Item>
+            <Form.Item name="is_active" label="Aktif" valuePropName="checked">
+              <Switch />
+            </Form.Item>
+          </Form>
+        </Modal>
+
+        <Modal
+          title="Tambah Kategori Cashflow"
+          open={cashCategoryModalOpen}
+          onCancel={() => {
+            setCashCategoryModalOpen(false);
+            cashCategoryForm.resetFields();
+          }}
+          onOk={submitCashCategory}
+          okText="Simpan"
+        >
+          <Form form={cashCategoryForm} layout="vertical" initialValues={{ type: "out", is_active: true }}>
+            <Form.Item name="type" label="Tipe" rules={[{ required: true, message: "Tipe wajib" }]}>
+              <Select
+                options={[
+                  { value: "in", label: "Masuk" },
+                  { value: "out", label: "Keluar" },
+                ]}
+              />
+            </Form.Item>
+            <Form.Item name="name" label="Nama Kategori" rules={[{ required: true, message: "Nama kategori wajib" }]}>
+              <Input placeholder="Contoh: Operasional" />
+            </Form.Item>
+            <Form.Item name="code" label="Kode (opsional)">
+              <Input placeholder="CASH-OPS" />
+            </Form.Item>
+            <Form.Item name="is_active" label="Aktif" valuePropName="checked">
+              <Switch />
+            </Form.Item>
+          </Form>
+        </Modal>
+
+        <Modal
+          title="Tambah Metode Bayar"
+          open={cashMethodModalOpen}
+          onCancel={() => {
+            setCashMethodModalOpen(false);
+            cashMethodForm.resetFields();
+          }}
+          onOk={submitCashMethod}
+          okText="Simpan"
+        >
+          <Form form={cashMethodForm} layout="vertical" initialValues={{ is_active: true }}>
+            <Form.Item name="name" label="Nama Metode" rules={[{ required: true, message: "Nama metode wajib" }]}>
+              <Input placeholder="Contoh: Transfer Bank" />
+            </Form.Item>
+            <Form.Item name="is_active" label="Aktif" valuePropName="checked">
+              <Switch />
+            </Form.Item>
+          </Form>
+        </Modal>
+
+        <Modal
+          title="Tambah Status Bayar"
+          open={paymentStatusModalOpen}
+          onCancel={() => {
+            setPaymentStatusModalOpen(false);
+            paymentStatusForm.resetFields();
+          }}
+          onOk={submitPaymentStatus}
+          okText="Simpan"
+        >
+          <Form form={paymentStatusForm} layout="vertical" initialValues={{ color: "blue", is_active: true }}>
+            <Form.Item name="code" label="Kode" rules={[{ required: true, message: "Kode wajib" }]}>
+              <Input placeholder="PAID" />
+            </Form.Item>
+            <Form.Item name="name" label="Nama Status" rules={[{ required: true, message: "Nama status wajib" }]}>
+              <Input placeholder="Lunas" />
+            </Form.Item>
+            <Form.Item name="color" label="Warna Tag">
+              <Input placeholder="blue" />
+            </Form.Item>
+            <Form.Item name="is_active" label="Aktif" valuePropName="checked">
+              <Switch />
+            </Form.Item>
+          </Form>
+        </Modal>
+
 
         <Modal
           title={`Sync Permission User: ${syncUserModal.user?.name || ""}`}

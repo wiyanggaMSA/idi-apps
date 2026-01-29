@@ -24,6 +24,12 @@ use App\Http\Controllers\Settings\SettingsController;
 use App\Http\Controllers\Settings\Access\PermissionsController;
 use App\Http\Controllers\Settings\Access\RolesController;
 use App\Http\Controllers\Settings\Access\UsersController;
+use App\Http\Controllers\Settings\DuesSettingsController;
+use App\Http\Controllers\Settings\MasterData\CashCategoriesController;
+use App\Http\Controllers\Settings\MasterData\CashMethodsController;
+use App\Http\Controllers\Settings\MasterData\DivisionsController;
+use App\Http\Controllers\Settings\MasterData\PaymentStatusesController;
+use App\Http\Controllers\Settings\MasterData\PositionsController;
 
 
 Route::get('/', function () {
@@ -58,6 +64,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
     //SETTINGS
     Route::middleware(['role:Admin'])->group(function () {
         Route::get('/settings', SettingsController::class)->name('settings.index');
+        Route::patch('/settings/dues', [DuesSettingsController::class, 'update'])->name('settings.dues.update');
+        Route::prefix('settings/master-data')->name('settings.master-data.')->group(function () {
+            Route::post('/divisions', [DivisionsController::class, 'store'])->name('divisions.store');
+            Route::delete('/divisions/{division}', [DivisionsController::class, 'destroy'])->name('divisions.destroy');
+            Route::post('/positions', [PositionsController::class, 'store'])->name('positions.store');
+            Route::delete('/positions/{position}', [PositionsController::class, 'destroy'])->name('positions.destroy');
+            Route::post('/cash-categories', [CashCategoriesController::class, 'store'])->name('cash-categories.store');
+            Route::delete('/cash-categories/{cashCategory}', [CashCategoriesController::class, 'destroy'])->name('cash-categories.destroy');
+            Route::post('/cash-methods', [CashMethodsController::class, 'store'])->name('cash-methods.store');
+            Route::delete('/cash-methods/{cashMethod}', [CashMethodsController::class, 'destroy'])->name('cash-methods.destroy');
+            Route::post('/payment-statuses', [PaymentStatusesController::class, 'store'])->name('payment-statuses.store');
+            Route::delete('/payment-statuses/{paymentStatus}', [PaymentStatusesController::class, 'destroy'])->name('payment-statuses.destroy');
+        });
         Route::prefix('settings/access')->name('settings.access.')->group(function () {
             Route::post('/users', [UsersController::class, 'store'])->name('users.store');
             Route::patch('/users/{user}', [UsersController::class, 'update'])->name('users.update');
