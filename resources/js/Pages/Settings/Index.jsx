@@ -685,12 +685,17 @@ export default function SettingsIndex() {
                                 <Form.Item name="role" label="Role" rules={[{ required: true, message: "Role wajib" }]}>
                                   <Select
                                     placeholder="Pilih role"
-                                    options={[
-                                      { value: "Admin", label: "Admin" },
-                                      { value: "Keuangan", label: "Keuangan" },
-                                      { value: "Viewer", label: "Viewer" },
-                                    ]}
+                                    options={roles.map((role) => ({ value: role.name, label: role.name }))}
                                   />
+                                </Form.Item>
+                              </Col>
+                              <Col xs={24} md={12}>
+                                <Form.Item
+                                  name="password"
+                                  label="Password"
+                                  rules={[{ required: true, message: "Password wajib" }, { min: 8, message: "Minimal 8 karakter" }]}
+                                >
+                                  <Input.Password placeholder="Password sementara..." />
                                 </Form.Item>
                               </Col>
 
@@ -709,46 +714,184 @@ export default function SettingsIndex() {
                           <Table
                             size="small"
                             dataSource={users}
-                            rowKey="key"
+                            rowKey="id"
                             pagination={false}
                             columns={[
                               { title: "Nama", dataIndex: "name", key: "name" },
                               { title: "Email", dataIndex: "email", key: "email" },
                               {
                                 title: "Role",
-                                dataIndex: "role",
+                                dataIndex: "roles",
                                 key: "role",
-                                width: 120,
-                                render: (v) => <Tag color="blue">{v}</Tag>,
+                                width: 180,
+                                render: (roles) =>
+                                  roles?.length ? (
+                                    <Space wrap>
+                                      {roles.map((role) => (
+                                        <Tag key={role} color="blue">
+                                          {role}
+                                        </Tag>
+                                      ))}
+                                    </Space>
+                                  ) : (
+                                    <Tag color="default">Tanpa Role</Tag>
+                                  ),
                               },
                               {
                                 title: "Status",
-                                dataIndex: "status",
+                                dataIndex: "is_active",
                                 key: "status",
                                 width: 100,
-                                render: (v) => <Tag color="green">{v}</Tag>,
+                                render: (v) => <Tag color={v ? "green" : "red"}>{v ? "AKTIF" : "NONAKTIF"}</Tag>,
                               },
                               {
                                 title: "Aksi",
                                 key: "aksi",
-                                width: 70,
+                                width: 260,
                                 align: "right",
                                 render: (_, r) => (
-                                  <Button size="small" danger icon={<DeleteOutlined />} onClick={() => removeRow(setUsers, r.key)} />
+                                  <Space>
+                                    <Button size="small" onClick={() => openEditUser(r)}>
+                                      Edit
+                                    </Button>
+                                    <Button size="small" onClick={() => openAssignRole(r)}>
+                                      Assign Role
+                                    </Button>
+                                    <Button size="small" onClick={() => openSyncUserPermissions(r)}>
+                                      Sync Permission
+                                    </Button>
+                                    <Button size="small" danger icon={<DeleteOutlined />} onClick={() => confirmDisableUser(r)} />
+                                  </Space>
                                 ),
                               },
                             ]}
                           />
                           <Text type="secondary" style={{ display: "block", marginTop: 8 }}>
-                            *Nanti connect ke Spatie Permission (roles/permissions).
+                            *Data diambil dari Spatie Permission (roles/permissions).
                           </Text>
                         </Card>
                       </Col>
                     </Row>
                   ),
                 },
-                { key: "roles", label: "Roles", children: "TODO: UI roles (Spatie)" },
-                { key: "permissions", label: "Permissions", children: "TODO: UI permissions (Spatie)" },
+                {
+                  key: "roles",
+                  label: "Roles",
+                  children: (
+                    <Row gutter={[12, 12]}>
+                      <Col xs={24} lg={12}>
+                        <Card style={{ borderRadius: 12 }} title={<Text strong>Tambah Role</Text>}>
+                          <Form form={roleForm} layout="vertical" requiredMark={false}>
+                            <Form.Item name="name" label="Nama Role" rules={[{ required: true, message: "Nama role wajib" }]}>
+                              <Input placeholder="Contoh: Admin" />
+                            </Form.Item>
+                            <Button type="primary" icon={<PlusOutlined />} onClick={addRole}>
+                              Tambah Role
+                            </Button>
+                          </Form>
+                        </Card>
+                      </Col>
+                      <Col xs={24} lg={12}>
+                        <Card style={{ borderRadius: 12 }} title={<Text strong>Daftar Role</Text>}>
+                          <Table
+                            size="small"
+                            dataSource={roles}
+                            rowKey="id"
+                            pagination={false}
+                            columns={[
+                              { title: "Nama", dataIndex: "name", key: "name" },
+                              {
+                                title: "Permissions",
+                                dataIndex: "permissions",
+                                key: "permissions",
+                                render: (value) => (
+                                  <Space wrap>
+                                    {(value || []).map((permission) => (
+                                      <Tag key={permission}>{permission}</Tag>
+                                    ))}
+                                  </Space>
+                                ),
+                              },
+                              {
+                                title: "Aksi",
+                                key: "aksi",
+                                width: 220,
+                                align: "right",
+                                render: (_, role) => (
+                                  <Space>
+                                    <Button size="small" onClick={() => openEditRole(role)}>
+                                      Edit
+                                    </Button>
+                                    <Button size="small" onClick={() => openSyncRolePermissions(role)}>
+                                      Sync Permission
+                                    </Button>
+                                    <Button size="small" danger icon={<DeleteOutlined />} onClick={() => confirmDeleteRole(role)} />
+                                  </Space>
+                                ),
+                              },
+                            ]}
+                          />
+                        </Card>
+                      </Col>
+                    </Row>
+                  ),
+                },
+                {
+                  key: "permissions",
+                  label: "Permissions",
+                  children: (
+                    <Row gutter={[12, 12]}>
+                      <Col xs={24} lg={12}>
+                        <Card style={{ borderRadius: 12 }} title={<Text strong>Tambah Permission</Text>}>
+                          <Form form={permissionForm} layout="vertical" requiredMark={false}>
+                            <Form.Item
+                              name="name"
+                              label="Nama Permission"
+                              rules={[{ required: true, message: "Nama permission wajib" }]}
+                            >
+                              <Input placeholder="Contoh: users.view" />
+                            </Form.Item>
+                            <Button type="primary" icon={<PlusOutlined />} onClick={addPermission}>
+                              Tambah Permission
+                            </Button>
+                          </Form>
+                        </Card>
+                      </Col>
+                      <Col xs={24} lg={12}>
+                        <Card style={{ borderRadius: 12 }} title={<Text strong>Daftar Permission</Text>}>
+                          <Table
+                            size="small"
+                            dataSource={permissions}
+                            rowKey="id"
+                            pagination={false}
+                            columns={[
+                              { title: "Nama", dataIndex: "name", key: "name" },
+                              {
+                                title: "Aksi",
+                                key: "aksi",
+                                width: 140,
+                                align: "right",
+                                render: (_, permission) => (
+                                  <Space>
+                                    <Button size="small" onClick={() => openEditPermission(permission)}>
+                                      Edit
+                                    </Button>
+                                    <Button
+                                      size="small"
+                                      danger
+                                      icon={<DeleteOutlined />}
+                                      onClick={() => confirmDeletePermission(permission)}
+                                    />
+                                  </Space>
+                                ),
+                              },
+                            ]}
+                          />
+                        </Card>
+                      </Col>
+                    </Row>
+                  ),
+                },
               ]}
             />
           </Card>
@@ -798,13 +941,121 @@ export default function SettingsIndex() {
         ),
       },
     ];
-  }, [cashCategories, divisions, positions, paymentStatuses, users]);
+  }, [cashCategories, divisions, positions, paymentStatuses, users, roles, permissions]);
 
   return (
     <AppLayout title="Pengaturan">
       <PageShell>
         <PageHeader title="Pengaturan" />
         <Tabs items={tabs} defaultActiveKey="profile" tabBarStyle={{ marginBottom: 12 }} />
+        <Modal
+          title={`Assign Role: ${assignRoleModal.user?.name || ""}`}
+          open={assignRoleModal.open}
+          onCancel={() => setAssignRoleModal({ open: false, user: null })}
+          onOk={submitAssignRole}
+          okText="Simpan"
+        >
+          <Form form={assignRoleForm} layout="vertical">
+            <Form.Item name="role" label="Role" rules={[{ required: true, message: "Role wajib" }]}>
+              <Select placeholder="Pilih role" options={roles.map((role) => ({ value: role.name, label: role.name }))} />
+            </Form.Item>
+          </Form>
+        </Modal>
+
+        <Modal
+          title={`Edit User: ${editUserModal.user?.name || ""}`}
+          open={editUserModal.open}
+          onCancel={() => setEditUserModal({ open: false, user: null })}
+          onOk={submitEditUser}
+          okText="Simpan"
+        >
+          <Form form={editUserForm} layout="vertical">
+            <Form.Item name="name" label="Nama" rules={[{ required: true, message: "Nama wajib" }]}>
+              <Input />
+            </Form.Item>
+            <Form.Item name="email" label="Email" rules={[{ required: true, message: "Email wajib" }]}>
+              <Input />
+            </Form.Item>
+          </Form>
+        </Modal>
+
+        <Modal
+          title={`Sync Permission Role: ${syncRoleModal.role?.name || ""}`}
+          open={syncRoleModal.open}
+          onCancel={() => setSyncRoleModal({ open: false, role: null })}
+          onOk={submitSyncRolePermissions}
+          okText="Simpan"
+          width={640}
+        >
+          <Text type="secondary">Pilih permission yang diberikan ke role.</Text>
+          <Divider />
+          <Checkbox.Group
+            style={{ width: "100%" }}
+            value={selectedRolePermissions}
+            onChange={(value) => setSelectedRolePermissions(value)}
+          >
+            <Row gutter={[8, 8]}>
+              {permissions.map((permission) => (
+                <Col key={permission.id} span={12}>
+                  <Checkbox value={permission.name}>{permission.name}</Checkbox>
+                </Col>
+              ))}
+            </Row>
+          </Checkbox.Group>
+        </Modal>
+
+        <Modal
+          title={`Edit Role: ${editRoleModal.role?.name || ""}`}
+          open={editRoleModal.open}
+          onCancel={() => setEditRoleModal({ open: false, role: null })}
+          onOk={submitEditRole}
+          okText="Simpan"
+        >
+          <Form form={editRoleForm} layout="vertical">
+            <Form.Item name="name" label="Nama Role" rules={[{ required: true, message: "Nama role wajib" }]}>
+              <Input />
+            </Form.Item>
+          </Form>
+        </Modal>
+
+        <Modal
+          title={`Sync Permission User: ${syncUserModal.user?.name || ""}`}
+          open={syncUserModal.open}
+          onCancel={() => setSyncUserModal({ open: false, user: null })}
+          onOk={submitSyncUserPermissions}
+          okText="Simpan"
+          width={640}
+        >
+          <Text type="secondary">Permission tambahan khusus user (override per user).</Text>
+          <Divider />
+          <Checkbox.Group
+            style={{ width: "100%" }}
+            value={selectedUserPermissions}
+            onChange={(value) => setSelectedUserPermissions(value)}
+          >
+            <Row gutter={[8, 8]}>
+              {permissions.map((permission) => (
+                <Col key={permission.id} span={12}>
+                  <Checkbox value={permission.name}>{permission.name}</Checkbox>
+                </Col>
+              ))}
+            </Row>
+          </Checkbox.Group>
+        </Modal>
+
+        <Modal
+          title={`Edit Permission: ${editPermissionModal.permission?.name || ""}`}
+          open={editPermissionModal.open}
+          onCancel={() => setEditPermissionModal({ open: false, permission: null })}
+          onOk={submitEditPermission}
+          okText="Simpan"
+        >
+          <Form form={editPermissionForm} layout="vertical">
+            <Form.Item name="name" label="Nama Permission" rules={[{ required: true, message: "Nama permission wajib" }]}>
+              <Input />
+            </Form.Item>
+          </Form>
+        </Modal>
       </PageShell>
     </AppLayout>
   );
