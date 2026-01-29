@@ -11,7 +11,7 @@ use App\Http\Controllers\Secretariat\LettersController;
 use App\Http\Controllers\Secretariat\AgendaController;
 use App\Http\Controllers\Secretariat\ArchiveController;
 use App\Http\Controllers\Members\MemberController;
-use App\Http\Controllers\Members\MemberImportController;
+use App\Http\Controllers\Members\MemberImportExportController;
 use App\Http\Controllers\Dues\DuesController;
 use App\Http\Controllers\Dues\DuesRecapController;
 use App\Http\Controllers\Cash\CashController;
@@ -49,8 +49,39 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/secretariat/agenda', AgendaController::class)->name('secretariat.agenda');
     Route::get('/secretariat/archive', ArchiveController::class)->name('secretariat.archive');
     //MEMBERS
-    Route::get('/members', MemberController::class)->name('members.index');
-    Route::get('/members/import', MemberImportController::class)->name('members.import');
+    Route::prefix('members')->name('members.')->group(function () {
+        Route::get('/', [MemberController::class, 'index'])
+            ->middleware('permission:members.view')
+            ->name('index');
+        Route::post('/', [MemberController::class, 'store'])
+            ->middleware('permission:members.create')
+            ->name('store');
+        Route::patch('/{member}', [MemberController::class, 'update'])
+            ->middleware('permission:members.update')
+            ->name('update');
+        Route::delete('/{member}', [MemberController::class, 'destroy'])
+            ->middleware('permission:members.delete')
+            ->name('destroy');
+
+        Route::get('/import-export', [MemberImportExportController::class, 'index'])
+            ->middleware('permission:members.import|members.export|members.resolve_import')
+            ->name('import-export');
+        Route::get('/template', [MemberImportExportController::class, 'template'])
+            ->middleware('permission:members.import')
+            ->name('template');
+        Route::post('/import', [MemberImportExportController::class, 'import'])
+            ->middleware('permission:members.import')
+            ->name('import');
+        Route::get('/import/{batch}/conflicts', [MemberImportExportController::class, 'conflicts'])
+            ->middleware('permission:members.resolve_import')
+            ->name('conflicts');
+        Route::post('/import/{batch}/resolve', [MemberImportExportController::class, 'resolve'])
+            ->middleware('permission:members.resolve_import')
+            ->name('resolve');
+        Route::get('/export', [MemberImportExportController::class, 'export'])
+            ->middleware('permission:members.export')
+            ->name('export');
+    });
     //DUES
     Route::get('/dues', DuesController::class)->name('dues.index');
     Route::get('/dues/recap', DuesRecapController::class)->name('dues.recap');

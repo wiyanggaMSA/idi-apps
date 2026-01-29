@@ -60,15 +60,17 @@ export const appMenu = [
         children: [
             {
                 key: "members.center",
-                label: "Member Center",
+                label: "Data Anggota",
                 icon: <IdcardOutlined />,
                 routeName: "members.index",
+                Permission: "members.view",
             },
             {
                 key: "members.import",
                 label: "Import / Export",
                 icon: <ImportOutlined />,
-                routeName: "members.import",
+                routeName: "members.import-export",
+                Permission: "members.import",
             },
         ],
     },
