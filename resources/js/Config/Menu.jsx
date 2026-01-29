@@ -149,5 +149,6 @@ export const appMenu = [
         label: "Pengaturan",
         icon: <SettingOutlined />,
         routeName: "settings.index",
+        Permission: "settings.view",
     },
 ];

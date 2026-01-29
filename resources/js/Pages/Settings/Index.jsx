@@ -1,14 +1,18 @@
 import React, { useMemo, useState } from "react";
+import { router, usePage } from "@inertiajs/react";
 import AppLayout from "@/layouts/AppLayout";
 import PageShell from "@/components/app/PageShell";
 import PageHeader from "@/components/app/PageHeader";
 import {
   Button,
   Card,
+  Checkbox,
   Col,
+  Divider,
   Form,
   Input,
   InputNumber,
+  Modal,
   Row,
   Select,
   Space,
@@ -32,9 +36,23 @@ import {
 const { Text } = Typography;
 
 export default function SettingsIndex() {
+  const { props } = usePage();
+  const access = props.access || { users: [], roles: [], permissions: [] };
+  const users = access.users || [];
+  const roles = access.roles || [];
+  const permissions = access.permissions || [];
+
   const [orgForm] = Form.useForm();
   const [duesForm] = Form.useForm();
   const [userForm] = Form.useForm();
+  
+  const [assignRoleForm] = Form.useForm();
+  const [roleForm] = Form.useForm();
+  const [permissionForm] = Form.useForm();
+  const [editRoleForm] = Form.useForm();
+  const [editPermissionForm] = Form.useForm();
+  const [editUserForm] = Form.useForm();
+  
 
   // ✅ Master Data: Divisi
   const [divisions, setDivisions] = useState(() => [
@@ -66,10 +84,14 @@ export default function SettingsIndex() {
   ]);
 
   // Dummy Users (untuk tab User & Permission)
-  const [users, setUsers] = useState(() => [
-    { key: 1, name: "Budi Admin", email: "budi@org.id", role: "Admin", status: "AKTIF" },
-    { key: 2, name: "Siti Staff", email: "siti@org.id", role: "Keuangan", status: "AKTIF" },
-  ]);
+  const [assignRoleModal, setAssignRoleModal] = useState({ open: false, user: null });
+  const [syncRoleModal, setSyncRoleModal] = useState({ open: false, role: null });
+  const [selectedRolePermissions, setSelectedRolePermissions] = useState([]);
+  const [selectedUserPermissions, setSelectedUserPermissions] = useState([]);
+  const [syncUserModal, setSyncUserModal] = useState({ open: false, user: null });
+  const [editRoleModal, setEditRoleModal] = useState({ open: false, role: null });
+  const [editPermissionModal, setEditPermissionModal] = useState({ open: false, permission: null });
+  const [editUserModal, setEditUserModal] = useState({ open: false, user: null });
 
   // --- helpers CRUD dummy ---
   const addRow = (setter, row) => {
@@ -98,15 +120,179 @@ export default function SettingsIndex() {
   const addUser = async () => {
     try {
       const v = await userForm.validateFields();
-      setUsers((p) => [
-        { key: Date.now(), name: v.name, email: v.email, role: v.role, status: "AKTIF" },
-        ...p,
-      ]);
-      userForm.resetFields();
-      message.success("User ditambah (dummy).");
+      router.post(route("settings.access.users.store"), v, {
+        onSuccess: () => {
+          userForm.resetFields();
+          message.success("User berhasil ditambahkan.");
+        },
+      });
     } catch {}
   };
 
+  const addRole = async () => {
+    try {
+      const v = await roleForm.validateFields();
+      router.post(route("settings.access.roles.store"), v, {
+        onSuccess: () => {
+          roleForm.resetFields();
+          message.success("Role berhasil ditambahkan.");
+        },
+      });
+    } catch {}
+  };
+
+  const addPermission = async () => {
+    try {
+      const v = await permissionForm.validateFields();
+      router.post(route("settings.access.permissions.store"), v, {
+        onSuccess: () => {
+          permissionForm.resetFields();
+          message.success("Permission berhasil ditambahkan.");
+        },
+      });
+    } catch {}
+  };
+
+  const confirmDisableUser = (user) => {
+    Modal.confirm({
+      title: "Nonaktifkan user?",
+      content: `${user.name} akan dinonaktifkan.`,
+      okText: "Nonaktifkan",
+      okButtonProps: { danger: true },
+      cancelText: "Batal",
+      onOk: () => router.patch(route("settings.access.users.disable", user.id)),
+    });
+  };
+
+  const openEditUser = (user) => {
+    setEditUserModal({ open: true, user });
+    editUserForm.setFieldsValue({ name: user.name, email: user.email });
+  };
+
+  const submitEditUser = async () => {
+    try {
+      const v = await editUserForm.validateFields();
+      router.patch(route("settings.access.users.update", editUserModal.user.id), v, {
+        onSuccess: () => {
+          setEditUserModal({ open: false, user: null });
+          editUserForm.resetFields();
+          message.success("User berhasil diperbarui.");
+        },
+      });
+    } catch {}
+  };
+
+  const openAssignRole = (user) => {
+    setAssignRoleModal({ open: true, user });
+    assignRoleForm.setFieldsValue({ role: user.roles?.[0] || undefined });
+  };
+
+  const submitAssignRole = async () => {
+    try {
+      const v = await assignRoleForm.validateFields();
+      router.patch(route("settings.access.users.assign-role", assignRoleModal.user.id), v, {
+        onSuccess: () => {
+          setAssignRoleModal({ open: false, user: null });
+          assignRoleForm.resetFields();
+          message.success("Role user diperbarui.");
+        },
+      });
+    } catch {}
+  };
+
+  const openSyncRolePermissions = (role) => {
+    setSelectedRolePermissions(role.permissions || []);
+    setSyncRoleModal({ open: true, role });
+  };
+
+  const openEditRole = (role) => {
+    setEditRoleModal({ open: true, role });
+    editRoleForm.setFieldsValue({ name: role.name });
+  };
+
+  const submitEditRole = async () => {
+    try {
+      const v = await editRoleForm.validateFields();
+      router.patch(route("settings.access.roles.update", editRoleModal.role.id), v, {
+        onSuccess: () => {
+          setEditRoleModal({ open: false, role: null });
+          editRoleForm.resetFields();
+          message.success("Role berhasil diperbarui.");
+        },
+      });
+    } catch {}
+  };
+
+  const confirmDeleteRole = (role) => {
+    Modal.confirm({
+      title: "Hapus role?",
+      content: `Role ${role.name} akan dihapus.`,
+      okText: "Hapus",
+      okButtonProps: { danger: true },
+      cancelText: "Batal",
+      onOk: () => router.delete(route("settings.access.roles.destroy", role.id)),
+    });
+  };
+
+  const submitSyncRolePermissions = () => {
+    router.patch(
+      route("settings.access.roles.sync-permissions", syncRoleModal.role.id),
+      { permissions: selectedRolePermissions },
+      {
+        onSuccess: () => {
+          setSyncRoleModal({ open: false, role: null });
+          message.success("Permission role diperbarui.");
+        },
+      }
+    );
+  };
+
+  const openSyncUserPermissions = (user) => {
+    setSelectedUserPermissions(user.permissions || []);
+    setSyncUserModal({ open: true, user });
+  };
+
+  const openEditPermission = (permission) => {
+    setEditPermissionModal({ open: true, permission });
+    editPermissionForm.setFieldsValue({ name: permission.name });
+  };
+
+  const submitEditPermission = async () => {
+    try {
+      const v = await editPermissionForm.validateFields();
+      router.patch(route("settings.access.permissions.update", editPermissionModal.permission.id), v, {
+        onSuccess: () => {
+          setEditPermissionModal({ open: false, permission: null });
+          editPermissionForm.resetFields();
+          message.success("Permission berhasil diperbarui.");
+        },
+      });
+    } catch {}
+  };
+
+  const confirmDeletePermission = (permission) => {
+    Modal.confirm({
+      title: "Hapus permission?",
+      content: `${permission.name} akan dihapus.`,
+      okText: "Hapus",
+      okButtonProps: { danger: true },
+      cancelText: "Batal",
+      onOk: () => router.delete(route("settings.access.permissions.destroy", permission.id)),
+    });
+  };
+
+  const submitSyncUserPermissions = () => {
+    router.patch(
+      route("settings.access.users.sync-permissions", syncUserModal.user.id),
+      { permissions: selectedUserPermissions },
+      {
+        onSuccess: () => {
+          setSyncUserModal({ open: false, user: null });
+          message.success("Permission user diperbarui.");
+        },
+      }
+    );
+  };
   // --- tabs ---
   const tabs = useMemo(() => {
     return [

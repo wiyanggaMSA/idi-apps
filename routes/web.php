@@ -21,6 +21,9 @@ use App\Http\Controllers\Reports\ReportsController;
 use App\Http\Controllers\Reports\ReportsResumeController;
 use App\Http\Controllers\Reports\ReportsExportController;
 use App\Http\Controllers\Settings\SettingsController;
+use App\Http\Controllers\Settings\Access\PermissionsController;
+use App\Http\Controllers\Settings\Access\RolesController;
+use App\Http\Controllers\Settings\Access\UsersController;
 
 
 Route::get('/', function () {
@@ -53,7 +56,25 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/reports/resume', ReportsResumeController::class)->name('reports.resume');
     Route::get('/reports/export', ReportsExportController::class)->name('reports.export');
     //SETTINGS
-    Route::get('/settings', SettingsController::class)->name('settings.index');
+    Route::middleware(['role:Admin'])->group(function () {
+        Route::get('/settings', SettingsController::class)->name('settings.index');
+        Route::prefix('settings/access')->name('settings.access.')->group(function () {
+            Route::post('/users', [UsersController::class, 'store'])->name('users.store');
+            Route::patch('/users/{user}', [UsersController::class, 'update'])->name('users.update');
+            Route::patch('/users/{user}/disable', [UsersController::class, 'disable'])->name('users.disable');
+            Route::patch('/users/{user}/assign-role', [UsersController::class, 'assignRole'])->name('users.assign-role');
+            Route::patch('/users/{user}/sync-permissions', [UsersController::class, 'syncPermissions'])->name('users.sync-permissions');
+
+            Route::post('/roles', [RolesController::class, 'store'])->name('roles.store');
+            Route::patch('/roles/{role}', [RolesController::class, 'update'])->name('roles.update');
+            Route::delete('/roles/{role}', [RolesController::class, 'destroy'])->name('roles.destroy');
+            Route::patch('/roles/{role}/sync-permissions', [RolesController::class, 'syncPermissions'])->name('roles.sync-permissions');
+
+            Route::post('/permissions', [PermissionsController::class, 'store'])->name('permissions.store');
+            Route::patch('/permissions/{permission}', [PermissionsController::class, 'update'])->name('permissions.update');
+            Route::delete('/permissions/{permission}', [PermissionsController::class, 'destroy'])->name('permissions.destroy');
+        });
+    });
 
 });
     
