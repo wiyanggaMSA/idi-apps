@@ -62,8 +62,10 @@ export default function AppSidebar({ collapsed, onCollapse, orgName }) {
         if (route().current("dashboard")) return "dashboard";
 
         // ✅ Sekretariat child highlight
-        if (route().current("secretariat.index")) return "secretariat.letters";
-        if (route().current("secretariat.agenda")) return "secretariat.agenda";
+        if (route().current("secretariat.letters.index"))
+            return "secretariat.letters";
+        if (route().current("secretariat.agenda.index"))
+            return "secretariat.agenda";
         if (route().current("secretariat.archive"))
             return "secretariat.archive";
         if (route().current("secretariat.*")) return "secretariat.letters";

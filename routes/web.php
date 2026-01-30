@@ -10,6 +10,9 @@ use App\Http\Controllers\Dashboard\DashboardController;
 use App\Http\Controllers\Secretariat\LettersController;
 use App\Http\Controllers\Secretariat\AgendaController;
 use App\Http\Controllers\Secretariat\ArchiveController;
+use App\Http\Controllers\Secretariat\LetterTemplatesController;
+use App\Http\Controllers\Secretariat\LetterNumberingProfilesController;
+use App\Http\Controllers\PublicVerifyLetterController;
 use App\Http\Controllers\Members\MemberController;
 use App\Http\Controllers\Members\MemberImportExportController;
 use App\Http\Controllers\Dues\DuesController;
@@ -47,10 +50,80 @@ Route::get('/', function () {
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
-    // Secre
-    Route::get('/secretariat', LettersController::class)->name('secretariat.index');
-    Route::get('/secretariat/agenda', AgendaController::class)->name('secretariat.agenda');
-    Route::get('/secretariat/archive', ArchiveController::class)->name('secretariat.archive');
+    // Secretariat
+    Route::prefix('secretariat')->name('secretariat.')->group(function () {
+        Route::redirect('/', '/secretariat/letters');
+        Route::get('/letters', [LettersController::class, 'index'])
+            ->middleware('permission:letters.view')
+            ->name('letters.index');
+        Route::get('/letters/create', [LettersController::class, 'create'])
+            ->middleware('permission:letters.create')
+            ->name('letters.create');
+        Route::get('/letters/{letter}', [LettersController::class, 'edit'])
+            ->middleware('permission:letters.update')
+            ->name('letters.edit');
+        Route::post('/letters', [LettersController::class, 'storeDraft'])
+            ->middleware('permission:letters.create')
+            ->name('letters.store');
+        Route::patch('/letters/{letter}', [LettersController::class, 'updateDraft'])
+            ->middleware('permission:letters.update')
+            ->name('letters.update');
+        Route::post('/letters/{letter}/finalize', [LettersController::class, 'finalize'])
+            ->middleware('permission:letters.finalize')
+            ->name('letters.finalize');
+        Route::get('/letters/{letter}/versions', [LettersController::class, 'versions'])
+            ->middleware('permission:letters.versions.view')
+            ->name('letters.versions');
+        Route::get('/letters/{letter}/pdf', [LettersController::class, 'downloadPdf'])
+            ->middleware('permission:letters.export_pdf')
+            ->name('letters.pdf');
+        Route::patch('/letters/{letter}/revoke', [LettersController::class, 'revoke'])
+            ->middleware('permission:letters.revoke')
+            ->name('letters.revoke');
+
+        Route::get('/templates', [LetterTemplatesController::class, 'index'])
+            ->middleware('permission:templates.manage')
+            ->name('templates.index');
+        Route::post('/templates', [LetterTemplatesController::class, 'store'])
+            ->middleware('permission:templates.manage')
+            ->name('templates.store');
+        Route::patch('/templates/{template}', [LetterTemplatesController::class, 'update'])
+            ->middleware('permission:templates.manage')
+            ->name('templates.update');
+        Route::delete('/templates/{template}', [LetterTemplatesController::class, 'destroy'])
+            ->middleware('permission:templates.manage')
+            ->name('templates.destroy');
+
+        Route::get('/settings/numbering', [LetterNumberingProfilesController::class, 'index'])
+            ->middleware('permission:numbering.manage')
+            ->name('numbering.index');
+        Route::post('/settings/numbering', [LetterNumberingProfilesController::class, 'store'])
+            ->middleware('permission:numbering.manage')
+            ->name('numbering.store');
+        Route::patch('/settings/numbering/{profile}', [LetterNumberingProfilesController::class, 'update'])
+            ->middleware('permission:numbering.manage')
+            ->name('numbering.update');
+        Route::delete('/settings/numbering/{profile}', [LetterNumberingProfilesController::class, 'destroy'])
+            ->middleware('permission:numbering.manage')
+            ->name('numbering.destroy');
+
+        Route::get('/agenda', [AgendaController::class, 'index'])
+            ->middleware('permission:agenda.view')
+            ->name('agenda.index');
+        Route::post('/agenda', [AgendaController::class, 'store'])
+            ->middleware('permission:agenda.manage')
+            ->name('agenda.store');
+        Route::patch('/agenda/{agenda}', [AgendaController::class, 'update'])
+            ->middleware('permission:agenda.manage')
+            ->name('agenda.update');
+        Route::delete('/agenda/{agenda}', [AgendaController::class, 'destroy'])
+            ->middleware('permission:agenda.manage')
+            ->name('agenda.destroy');
+
+        Route::get('/archive', ArchiveController::class)
+            ->middleware('permission:secretariat.view')
+            ->name('archive');
+    });
     //MEMBERS
     Route::prefix('members')->name('members.')->group(function () {
         Route::get('/', [MemberController::class, 'index'])

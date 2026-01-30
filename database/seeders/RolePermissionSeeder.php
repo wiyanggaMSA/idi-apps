@@ -15,6 +15,18 @@ class RolePermissionSeeder extends Seeder
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $permissions = [
+            'secretariat.view',
+            'letters.view',
+            'letters.create',
+            'letters.update',
+            'letters.finalize',
+            'letters.export_pdf',
+            'letters.versions.view',
+            'letters.revoke',
+            'templates.manage',
+            'numbering.manage',
+            'agenda.view',
+            'agenda.manage',
             'members.view',
             'members.create',
             'members.update',
