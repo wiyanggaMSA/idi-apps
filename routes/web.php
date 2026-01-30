@@ -83,8 +83,27 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('export');
     });
     //DUES
-    Route::get('/dues', DuesController::class)->name('dues.index');
-    Route::get('/dues/recap', DuesRecapController::class)->name('dues.recap');
+    Route::get('/dues', [DuesController::class, 'index'])
+        ->middleware('permission:dues.view')
+        ->name('dues.index');
+    Route::post('/dues/generate', [DuesController::class, 'generatePeriodInvoices'])
+        ->middleware('permission:dues.generate')
+        ->name('dues.generate');
+    Route::post('/dues/{invoice}/pay', [DuesController::class, 'storePayment'])
+        ->middleware('permission:dues.collect')
+        ->name('dues.pay');
+    Route::get('/dues/{invoice}/detail', [DuesController::class, 'memberInvoiceDetail'])
+        ->middleware('permission:dues.view')
+        ->name('dues.detail');
+    Route::get('/dues/{payment}/receipt', [DuesController::class, 'downloadReceipt'])
+        ->middleware('permission:dues.print')
+        ->name('dues.receipt');
+    Route::get('/dues/recap', [DuesRecapController::class, 'index'])
+        ->middleware('permission:dues.recap.view')
+        ->name('dues.recap');
+    Route::get('/dues/recap/export', [DuesRecapController::class, 'exportXlsx'])
+        ->middleware('permission:dues.export')
+        ->name('dues.recap.export');
     //CASH
     Route::get('/cash', CashController::class)->name('cash.index');
     Route::get('/cash/reports', CashReportsController::class)->name('cash.reports');
