@@ -27,7 +27,9 @@ function toAntdItems(menu, userPermissions) {
                             key: c.key,
                             icon: c.icon,
                             label: (
-                                <Link href={route(c.routeName)}>{c.label}</Link>
+                               <Link href={route(c.routeName, c.routeParams || {})}>
+                                    {c.label}
+                                </Link>
                             ),
                         })),
                 };
@@ -36,13 +38,17 @@ function toAntdItems(menu, userPermissions) {
             return {
                 key: m.key,
                 icon: m.icon,
-                label: <Link href={route(m.routeName)}>{m.label}</Link>,
+                label: (
+                    <Link href={route(m.routeName, m.routeParams || {})}>
+                        {m.label}
+                    </Link>
+                ),
             };
         });
 }
 
 export default function AppSidebar({ collapsed, onCollapse, orgName }) {
-    const { props } = usePage();
+    const { props, url } = usePage();
     const permissions = props?.auth?.permissions || [];
     const resolvedOrgName = orgName || "Aplikasi Keuangan";
     const collapsedLabel = resolvedOrgName
@@ -59,6 +65,9 @@ export default function AppSidebar({ collapsed, onCollapse, orgName }) {
     );
 
     const selectedKey = useMemo(() => {
+        const queryString = url?.split("?")[1] || "";
+        const searchParams = new URLSearchParams(queryString);
+        const createAction = searchParams.get("create");
         if (route().current("dashboard")) return "dashboard";
 
         // ✅ Sekretariat child highlight
@@ -66,6 +75,16 @@ export default function AppSidebar({ collapsed, onCollapse, orgName }) {
             return "secretariat.letters";
         if (route().current("secretariat.agenda.index"))
             return "secretariat.agenda";
+        if (route().current("secretariat.templates.*")) {
+            return createAction === "template"
+                ? "secretariat.templates.create"
+                : "secretariat.templates";
+        }
+        if (route().current("secretariat.numbering.*")) {
+            return createAction === "numbering"
+                ? "secretariat.numbering.create"
+                : "secretariat.numbering";
+        }
         if (route().current("secretariat.archive"))
             return "secretariat.archive";
         if (route().current("secretariat.*")) return "secretariat.letters";
@@ -87,7 +106,7 @@ export default function AppSidebar({ collapsed, onCollapse, orgName }) {
         if (route().current("settings.*")) return "settings";
 
         return "dashboard";
-    }, []);
+    }, [url]);
 
     const [openKeys, setOpenKeys] = useState([]);
 

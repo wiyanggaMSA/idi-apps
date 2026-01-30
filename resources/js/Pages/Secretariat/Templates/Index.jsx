@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { router, usePage } from "@inertiajs/react";
 import { Button, Card, Drawer, Form, Input, Select, Space, Switch, Table } from "antd";
 import AppLayout from "@/Layouts/AppLayout";
@@ -6,9 +6,20 @@ import PageShell from "@/Components/App/PageShell";
 import PageHeader from "@/Components/App/PageHeader";
 
 export default function TemplatesIndex() {
-    const { templates = [], numberingProfiles = [] } = usePage().props;
+    const { props, url } = usePage();
+    const { templates = [], numberingProfiles = [] } = props;
     const [open, setOpen] = useState(false);
     const [form] = Form.useForm();
+    const createAction = useMemo(() => {
+        const queryString = url?.split("?")[1] || "";
+        return new URLSearchParams(queryString).get("create");
+    }, [url]);
+
+    useEffect(() => {
+        if (createAction === "template") {
+            setOpen(true);
+        }
+    }, [createAction]);
 
     const onSubmit = (values) => {
         router.post(route("secretariat.templates.store"), values);
@@ -42,7 +53,13 @@ export default function TemplatesIndex() {
                     <Table rowKey="id" columns={columns} dataSource={templates} pagination={false} />
                 </Card>
 
-                <Drawer title="Tambah Template" open={open} onClose={() => setOpen(false)} width={520} destroyOnClose>
+                <Drawer
+                    title="Tambah Template"
+                    open={open}
+                    onClose={() => setOpen(false)}
+                    width={520}
+                    destroyOnClose
+                >
                     <Form layout="vertical" form={form} onFinish={onSubmit}>
                         <Form.Item name="name" label="Nama" rules={[{ required: true }]}
                         >
