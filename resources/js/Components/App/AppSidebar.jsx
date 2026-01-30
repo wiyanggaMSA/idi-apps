@@ -76,16 +76,12 @@ export default function AppSidebar({ collapsed, onCollapse, orgName }) {
         if (route().current("dues.recap")) return "dues.recap";
         if (route().current("dues.*")) return "dues.payments";
         // ✅ Cash child highlight
-        if (route().current("cash.index")) return "cash.transactions";
-        if (route().current("cash.reports")) return "cash.reports";
-        if (route().current("cash.export")) return "cash.export";
-        if (route().current("cash.*")) return "cash.transactions";
+        if (route().current("transactions.index")) return "cash.transactions";
+        if (route().current("transactions.*")) return "cash.transactions";
         // ✅ Reports child highlight
-        if (route().current("reports.index")) return "reports.main";
-        if (route().current("reports.resume")) return "reports.resume";
-        if (route().current("reports.export")) return "reports.export";
-        if (route().current("reports.*")) return "reports.main";
-
+        if (route().current("reports.cash")) return "reports.main";
+        if (route().current("reports.financial-summary"))
+            return "reports.resume";
         if (route().current("settings.*")) return "settings";
 
         return "dashboard";

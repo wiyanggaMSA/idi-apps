@@ -51,4 +51,9 @@ class CashTransaction extends Model
     {
         return $this->belongsTo(CashCategory::class, 'category_id');
     }
+
+    public function attachmentDocument(): BelongsTo
+    {
+        return $this->belongsTo(Document::class, 'attachment_document_id');
+    }
 }

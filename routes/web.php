@@ -17,9 +17,12 @@ use App\Http\Controllers\Dues\DuesRecapController;
 use App\Http\Controllers\Cash\CashController;
 use App\Http\Controllers\Cash\CashReportsController;
 use App\Http\Controllers\Cash\CashExportController;
+use App\Http\Controllers\Cash\TransactionsController;
 use App\Http\Controllers\Reports\ReportsController;
 use App\Http\Controllers\Reports\ReportsResumeController;
 use App\Http\Controllers\Reports\ReportsExportController;
+use App\Http\Controllers\Reports\CashReportController;
+use App\Http\Controllers\Reports\FinancialSummaryController;
 use App\Http\Controllers\Settings\SettingsController;
 use App\Http\Controllers\Settings\Access\PermissionsController;
 use App\Http\Controllers\Settings\Access\RolesController;
@@ -108,10 +111,38 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/cash', CashController::class)->name('cash.index');
     Route::get('/cash/reports', CashReportsController::class)->name('cash.reports');
     Route::get('/cash/export', CashExportController::class)->name('cash.export');
+
+    Route::prefix('transactions')->name('transactions.')->group(function () {
+        Route::get('/', [TransactionsController::class, 'index'])
+            ->middleware('permission:transactions.view')
+            ->name('index');
+        Route::post('/', [TransactionsController::class, 'store'])
+            ->middleware('permission:transactions.create')
+            ->name('store');
+        Route::patch('/{transaction}', [TransactionsController::class, 'update'])
+            ->middleware('permission:transactions.update')
+            ->name('update');
+        Route::delete('/{transaction}', [TransactionsController::class, 'destroy'])
+            ->middleware('permission:transactions.delete')
+            ->name('destroy');
+    });
+
     //REPORTS
     Route::get('/reports', ReportsController::class)->name('reports.index');
     Route::get('/reports/resume', ReportsResumeController::class)->name('reports.resume');
     Route::get('/reports/export', ReportsExportController::class)->name('reports.export');
+    Route::get('/reports/cash', [CashReportController::class, 'index'])
+        ->middleware('permission:reports.cash.view')
+        ->name('reports.cash');
+    Route::get('/reports/cash/pdf', [CashReportController::class, 'pdf'])
+        ->middleware('permission:reports.export|reports.print')
+        ->name('reports.cash.pdf');
+    Route::get('/reports/financial-summary', [FinancialSummaryController::class, 'index'])
+        ->middleware('permission:reports.financial.view')
+        ->name('reports.financial-summary');
+    Route::get('/reports/financial-summary/pdf', [FinancialSummaryController::class, 'pdf'])
+        ->middleware('permission:reports.export|reports.print')
+        ->name('reports.financial-summary.pdf');
     //SETTINGS
     Route::middleware(['role:Admin'])->group(function () {
         Route::get('/settings', SettingsController::class)->name('settings.index');
