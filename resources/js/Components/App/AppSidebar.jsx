@@ -75,16 +75,10 @@ export default function AppSidebar({ collapsed, onCollapse, orgName }) {
             return "secretariat.letters";
         if (route().current("secretariat.agenda.index"))
             return "secretariat.agenda";
-        if (route().current("secretariat.templates.*")) {
-            return createAction === "template"
-                ? "secretariat.templates.create"
-                : "secretariat.templates";
-        }
-        if (route().current("secretariat.numbering.*")) {
-            return createAction === "numbering"
-                ? "secretariat.numbering.create"
-                : "secretariat.numbering";
-        }
+        if (route().current("secretariat.templates.*"))
+            return "secretariat.templates";
+        if (route().current("secretariat.numbering.*"))
+            return "secretariat.numbering";
         if (route().current("secretariat.archive"))
             return "secretariat.archive";
         if (route().current("secretariat.*")) return "secretariat.letters";

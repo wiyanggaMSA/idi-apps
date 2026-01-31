@@ -37,7 +37,7 @@ export default function Agenda() {
       <PageShell>
         <PageHeader
           title="Sekretariat — Agenda & Kegiatan"
-          right={
+          extra={
             <Space>
               <Link href={route("secretariat.index")}>Surat</Link>
               <Link href={route("secretariat.archive")}>Arsip</Link>

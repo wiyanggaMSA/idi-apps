@@ -71,6 +71,9 @@ class LettersController extends Controller
 
         return Inertia::render('Secretariat/Letters/Index', [
             'letters' => $query->paginate(10)->withQueryString(),
+            'templates' => LetterTemplate::query()
+                ->where('is_active', true)
+                ->get(['id', 'name', 'classification', 'numbering_profile_id', 'blocks_json']),
             'filters' => [
                 'search' => $search,
                 'classification' => $classification,
@@ -272,6 +275,48 @@ class LettersController extends Controller
         ]);
     }
 
+    public function showHtml(
+        Letter $letter,
+        LetterHtmlRenderer $htmlRenderer,
+        QrCodeService $qrCodeService
+    ) {
+        $version = (int) ($letter->versions()->max('version') ?? 1);
+        $verificationUrl = $letter->public_hash
+            ? route('letters.verify', ['public_hash' => $letter->public_hash, 'v' => $version])
+            : null;
+        $logoPath = public_path('images/idi-logo.png');
+        $qrDataUri = $verificationUrl
+            ? $qrCodeService->generateQrWithCenterLogo(
+                $verificationUrl,
+                file_exists($logoPath) ? $logoPath : null
+            )
+            : '';
+
+        $placeholders = [
+            'org.name' => config('app.name'),
+            'org.address' => config('app.org_address', ''),
+            'letter.number' => $letter->number,
+            'letter.date' => optional($letter->date)->format('d/m/Y'),
+            'letter.subject' => $letter->subject,
+            'letter.signer_name' => $letter->signer_name,
+            'letter.signer_title' => $letter->signer_title,
+            'letter.cc' => $letter->cc_text,
+            'recipient.name' => $letter->recipient_text,
+            'qr' => $qrDataUri,
+        ];
+
+        $margins = $letter->template?->margin_json ?? [
+            'top_mm' => 20,
+            'right_mm' => 20,
+            'bottom_mm' => 20,
+            'left_mm' => 20,
+        ];
+        $blocks = $letter->content_blocks_json ?? [];
+        $html = $htmlRenderer->render($blocks, $margins, $placeholders);
+
+        return response($html)->header('Content-Type', 'text/html');
+    }
+
     public function downloadPdf(Request $request, Letter $letter)
     {
         $version = $request->integer('v');
@@ -285,7 +330,7 @@ class LettersController extends Controller
             abort(404);
         }
 
-        return Storage::disk('public')->download($path);
+        return response()->download(storage_path('app/public/' . $path));
     }
 
     public function revoke(Letter $letter, Request $request): RedirectResponse

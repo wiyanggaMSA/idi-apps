@@ -74,6 +74,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/letters/{letter}/versions', [LettersController::class, 'versions'])
             ->middleware('permission:letters.versions.view')
             ->name('letters.versions');
+        Route::get('/letters/{letter}/html', [LettersController::class, 'showHtml'])
+            ->middleware('permission:secretariat.view')
+            ->name('letters.html');
         Route::get('/letters/{letter}/pdf', [LettersController::class, 'downloadPdf'])
             ->middleware('permission:letters.export_pdf')
             ->name('letters.pdf');

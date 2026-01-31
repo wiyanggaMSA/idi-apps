@@ -1,6 +1,6 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { Link, router, usePage } from "@inertiajs/react";
-import { Button, Card, DatePicker, Input, Select, Space, Table, Tag, Typography } from "antd";
+import { Button, Card, DatePicker, Input, Modal, Select, Space, Table, Tag, Typography } from "antd";
 import AppLayout from "@/Layouts/AppLayout";
 import PageShell from "@/Components/App/PageShell";
 import PageHeader from "@/Components/App/PageHeader";
@@ -9,8 +9,10 @@ const { RangePicker } = DatePicker;
 const { Text } = Typography;
 
 export default function LettersIndex() {
-    const { letters, filters = {} } = usePage().props;
+    const { letters, filters = {}, templates = [] } = usePage().props;
     const data = letters?.data || [];
+    const [createOpen, setCreateOpen] = useState(false);
+    const [selectedTemplate, setSelectedTemplate] = useState(null);
 
     const onSearch = (value) => {
         router.get(route("secretariat.letters.index"), { ...filters, search: value }, { preserveState: true });
@@ -98,6 +100,14 @@ export default function LettersIndex() {
         []
     );
 
+    const onCreateLetter = () => {
+        if (selectedTemplate) {
+            router.get(route("secretariat.letters.create"), { template_id: selectedTemplate });
+            return;
+        }
+        router.get(route("secretariat.letters.create"));
+    };
+
     return (
         <AppLayout title="Sekretariat - Surat">
             <PageShell>
@@ -107,8 +117,7 @@ export default function LettersIndex() {
                         <Space>
                             <Link href={route("secretariat.templates.index")}>Template</Link>
                             <Link href={route("secretariat.numbering.index")}>Penomoran</Link>
-                            <Button type="primary" href={route("secretariat.letters.create")}
-                            >
+                            <Button type="primary" onClick={() => setCreateOpen(true)}>
                                 Buat Surat
                             </Button>
                         </Space>
@@ -159,6 +168,37 @@ export default function LettersIndex() {
                         }}
                     />
                 </Card>
+                <Modal
+                    title="Buat Surat"
+                    open={createOpen}
+                    onCancel={() => {
+                        setCreateOpen(false);
+                        setSelectedTemplate(null);
+                    }}
+                    onOk={() => {
+                        setCreateOpen(false);
+                        onCreateLetter();
+                        setSelectedTemplate(null);
+                    }}
+                    okText="Lanjutkan"
+                    cancelText="Batal"
+                >
+                    <Space direction="vertical" style={{ width: "100%" }}>
+                        <Typography.Text>
+                            Pilih format surat agar form mengikuti template yang tersedia.
+                        </Typography.Text>
+                        <Select
+                            placeholder="Pilih template (opsional)"
+                            value={selectedTemplate}
+                            onChange={(value) => setSelectedTemplate(value)}
+                            allowClear
+                            options={templates.map((template) => ({
+                                label: template.name,
+                                value: template.id,
+                            }))}
+                        />
+                    </Space>
+                </Modal>
             </PageShell>
         </AppLayout>
     );

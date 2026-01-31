@@ -1,9 +1,12 @@
 import React, { useMemo } from "react";
-import { usePage, Link } from "@inertiajs/react";
+import { Link, router, usePage } from "@inertiajs/react";
+import dayjs from "dayjs";
 import AppLayout from "@/layouts/AppLayout";
 import PageShell from "@/components/app/PageShell";
 import PageHeader from "@/components/app/PageHeader";
-import { Card, Col, Row, Space, Table, Tag, Typography } from "antd";
+import { BarChartOutlined, LineChartOutlined, PlusOutlined } from "@ant-design/icons";
+import { Button, Card, Col, DatePicker, Row, Space, Table, Tag, Typography } from "antd";
+import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 const { Text } = Typography;
 
@@ -17,57 +20,6 @@ function formatIDR(n) {
   } catch {
     return `Rp ${String(n || 0)}`;
   }
-}
-
-function MiniLineChart({ series }) {
-  const w = 640;
-  const h = 170;
-  const pad = 26;
-
-  const maxY = Math.max(...series.flatMap((s) => [s.in, s.out]), 1);
-  const xStep = (w - pad * 2) / Math.max(series.length - 1, 1);
-  const mapY = (v) => h - pad - (v / maxY) * (h - pad * 2);
-
-  const pointsIn = series.map((s, i) => `${pad + i * xStep},${mapY(s.in)}`).join(" ");
-  const pointsOut = series.map((s, i) => `${pad + i * xStep},${mapY(s.out)}`).join(" ");
-
-  return (
-    <div style={{ overflowX: "auto" }}>
-      <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
-        {[0.25, 0.5, 0.75].map((t) => {
-          const y = pad + t * (h - pad * 2);
-          return <line key={t} x1={pad} y1={y} x2={w - pad} y2={y} stroke="#f0f0f0" />;
-        })}
-
-        <line x1={pad} y1={h - pad} x2={w - pad} y2={h - pad} stroke="#d9d9d9" />
-        <line x1={pad} y1={pad} x2={pad} y2={h - pad} stroke="#d9d9d9" />
-
-        <polyline fill="none" stroke="#1677ff" strokeWidth="3" points={pointsIn} />
-        <polyline fill="none" stroke="#fa541c" strokeWidth="3" points={pointsOut} />
-
-        {series.map((s, i) => (
-          <g key={s.m}>
-            <circle cx={pad + i * xStep} cy={mapY(s.in)} r="4" fill="#1677ff" />
-            <circle cx={pad + i * xStep} cy={mapY(s.out)} r="4" fill="#fa541c" />
-            <text x={pad + i * xStep} y={h - 8} textAnchor="middle" fontSize="11" fill="#8c8c8c">
-              {s.m}
-            </text>
-          </g>
-        ))}
-      </svg>
-
-      <div style={{ display: "flex", gap: 14, marginTop: 8 }}>
-        <Space>
-          <span style={{ width: 10, height: 10, background: "#1677ff", display: "inline-block", borderRadius: 2 }} />
-          <Text type="secondary">Pemasukan</Text>
-        </Space>
-        <Space>
-          <span style={{ width: 10, height: 10, background: "#fa541c", display: "inline-block", borderRadius: 2 }} />
-          <Text type="secondary">Pengeluaran</Text>
-        </Space>
-      </div>
-    </div>
-  );
 }
 
 function KPI({ title, value, tone }) {
@@ -88,11 +40,27 @@ function KPI({ title, value, tone }) {
 }
 
 export default function DashboardIndex() {
-  const { kpi, trend, recentTransactions, recentLetters } = usePage().props;
+  const { filters, kpi, charts, tables } = usePage().props;
+  const selectedMonth = filters?.month ? dayjs(`${filters.month}-01`) : dayjs();
+
+  const handleMonthChange = (value) => {
+    const nextMonth = (value || dayjs()).format("YYYY-MM");
+    router.get(route("dashboard"), { month: nextMonth }, { preserveScroll: true, preserveState: true });
+  };
+
+  const cashTrend = charts?.cash_trend || [];
+  const duesTrend = charts?.dues_trend || [];
+  const expenseCategories = charts?.expense_categories || [];
 
   const txCols = useMemo(
     () => [
-      { title: "Tanggal", dataIndex: "date", key: "date", width: 120 },
+      {
+        title: "Tanggal",
+        dataIndex: "date",
+        key: "date",
+        width: 120,
+        render: (v) => (v ? dayjs(v).format("DD/MM/YYYY") : "-"),
+      },
       {
         title: "Tipe",
         dataIndex: "type",
@@ -101,7 +69,7 @@ export default function DashboardIndex() {
         render: (v) => (v === "in" ? <Tag color="green">MASUK</Tag> : <Tag color="red">KELUAR</Tag>),
       },
       { title: "Kategori", dataIndex: "category", key: "category", width: 140 },
-      { title: "Keterangan", dataIndex: "desc", key: "desc" },
+      { title: "Keterangan", dataIndex: "description", key: "description" },
       {
         title: "Nominal",
         dataIndex: "amount",
@@ -121,10 +89,44 @@ export default function DashboardIndex() {
   const letterCols = useMemo(
     () => [
       { title: "Tipe", dataIndex: "type", key: "type", width: 90, render: (v) => (v === "in" ? <Tag>IN</Tag> : <Tag color="blue">OUT</Tag>) },
-      { title: "Nomor", dataIndex: "no", key: "no", width: 180 },
+      { title: "Nomor", dataIndex: "number", key: "number", width: 180 },
       { title: "Perihal", dataIndex: "subject", key: "subject" },
-      { title: "Tanggal", dataIndex: "date", key: "date", width: 120 },
-      { title: "Status", dataIndex: "status", key: "status", width: 110, render: (v) => <Tag color={v === "sent" ? "green" : "gold"}>{String(v).toUpperCase()}</Tag> },
+      { title: "Tanggal", dataIndex: "date", key: "date", width: 120, render: (v) => (v ? dayjs(v).format("DD/MM/YYYY") : "-") },
+      {
+        title: "Status",
+        dataIndex: "status",
+        key: "status",
+        width: 110,
+        render: (v) => {
+          const color = v === "archived" ? "green" : v === "sent" ? "blue" : "gold";
+          return <Tag color={color}>{String(v || "").toUpperCase()}</Tag>;
+        },
+      },
+    ],
+    []
+  );
+
+  const arrearsCols = useMemo(
+    () => [
+      { title: "Anggota", dataIndex: "member_name", key: "member_name" },
+      {
+        title: "Tunggakan",
+        dataIndex: "outstanding",
+        key: "outstanding",
+        width: 160,
+        align: "right",
+        render: (v) => <Text style={{ fontWeight: 700, color: "#cf1322" }}>{formatIDR(v)}</Text>,
+      },
+    ],
+    []
+  );
+
+  const agendaCols = useMemo(
+    () => [
+      { title: "Tanggal", dataIndex: "start_at", key: "start_at", width: 170, render: (v) => (v ? dayjs(v).format("DD/MM/YYYY HH:mm") : "-") },
+      { title: "Agenda", dataIndex: "title", key: "title" },
+      { title: "Lokasi", dataIndex: "location", key: "location", width: 160, render: (v) => v || "-" },
+      { title: "Tipe", dataIndex: "type", key: "type", width: 120, render: (v) => <Tag>{String(v || "").toUpperCase()}</Tag> },
     ],
     []
   );
@@ -132,55 +134,134 @@ export default function DashboardIndex() {
   return (
     <AppLayout title="Dashboard">
       <PageShell>
-        <PageHeader title="Dashboard" />
+        <PageHeader
+          title="Dashboard"
+          extra={(
+            <DatePicker
+              picker="month"
+              value={selectedMonth}
+              format="MMMM YYYY"
+              onChange={handleMonthChange}
+              allowClear={false}
+            />
+          )}
+        />
 
         {/* KPI */}
         <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
-          <Col xs={24} md={8}>
-            <KPI title="Total Pemasukan (bulan ini)" value={formatIDR(kpi?.cash_in)} tone="green" />
-          </Col>
-          <Col xs={24} md={8}>
-            <KPI title="Total Pengeluaran (bulan ini)" value={formatIDR(kpi?.cash_out)} tone="orange" />
-          </Col>
-          <Col xs={24} md={8}>
-            <KPI title="Saldo Kas" value={formatIDR(kpi?.balance)} tone="blue" />
-          </Col>
-        </Row>
-
-        <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
-          <Col xs={24} md={8}>
+          <Col xs={24} sm={12} lg={8} xl={6}>
             <KPI title="Total Anggota" value={kpi?.members_total ?? 0} tone="gray" />
           </Col>
-          <Col xs={24} md={8}>
+          <Col xs={24} sm={12} lg={8} xl={6}>
             <KPI title="Anggota Aktif" value={kpi?.members_active ?? 0} tone="gray" />
           </Col>
           <Col xs={24} md={8}>
-            <KPI title="Menunggak Iuran" value={kpi?.dues_overdue ?? 0} tone="gray" />
+            <KPI title="Anggota Baru (bulan ini)" value={kpi?.members_new ?? 0} tone="blue" />
+          </Col>
+        </Row>
+        <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
+          <Col xs={24} sm={12} lg={8} xl={6}>
+            <KPI title="Iuran Ditagih" value={formatIDR(kpi?.dues_billed)} tone="orange" />
+          </Col>
+          <Col xs={24} md={8}>
+            <KPI title="Iuran Terkumpul" value={formatIDR(kpi?.dues_collected)} tone="green" />
+          </Col>
+          <Col xs={24} sm={12} lg={8} xl={6}>
+            <KPI title="Tunggakan Iuran" value={formatIDR(kpi?.dues_outstanding)} tone="orange" />
+          </Col>
+          <Col xs={24} sm={12} lg={8} xl={6}>
+            <KPI title="Rasio Kolektif" value={`${kpi?.dues_collection_rate ?? 0}%`} tone="blue" />
+          </Col>
+          <Col xs={24} sm={12} lg={8} xl={6}>
+            <KPI title="Pemasukan Kas (bulan ini)" value={formatIDR(kpi?.cash_in)} tone="green" />
+          </Col>
+          <Col xs={24} sm={12} lg={8} xl={6}>
+            <KPI title="Pengeluaran Kas (bulan ini)" value={formatIDR(kpi?.cash_out)} tone="orange" />
+          </Col>
+          <Col xs={24} sm={12} lg={8} xl={6}>
+            <KPI title="Net Kas (bulan ini)" value={formatIDR(kpi?.cash_net)} tone="blue" />
+          </Col>
+          <Col xs={24} sm={12} lg={8} xl={6}>
+            <KPI title="Saldo Kas (total)" value={formatIDR(kpi?.cash_balance)} tone="green" />
+          </Col>
+          <Col xs={24} sm={12} lg={8} xl={6}>
+            <KPI title="Surat Diarsipkan" value={kpi?.letters_archived ?? 0} tone="gray" />
+          </Col>
+          <Col xs={24} sm={12} lg={8} xl={6}>
+            <KPI title="Agenda 7 Hari ke Depan" value={kpi?.agenda_upcoming ?? 0} tone="gray" />
           </Col>
         </Row>
 
         {/* Chart + Recent */}
         <Row gutter={[12, 12]}>
           <Col xs={24} lg={14}>
-            <Card title={<Text strong>Tren Pemasukan & Pengeluaran</Text>} style={{ borderRadius: 12 }}>
-              <MiniLineChart series={trend || []} />
+            <Card title={<Text strong>Tren Kas (Masuk vs Keluar)</Text>} style={{ borderRadius: 12 }}>
+              <ResponsiveContainer width="100%" height={260}>
+                <LineChart data={cashTrend}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" tickFormatter={(v) => dayjs(v).format("D")} />
+                  <YAxis tickFormatter={(v) => `${Number(v) / 1000}k`} />
+                  <Tooltip formatter={(value) => formatIDR(value)} labelFormatter={(v) => dayjs(v).format("DD MMM YYYY")} />
+                  <Legend />
+                  <Line type="monotone" dataKey="cash_in" stroke="#1677ff" name="Pemasukan" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="cash_out" stroke="#fa541c" name="Pengeluaran" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
             </Card>
           </Col>
 
           <Col xs={24} lg={10}>
-            <Card title={<Text strong>Shortcut</Text>} style={{ borderRadius: 12 }}>
+            <Card title={<Text strong>Quick Actions</Text>} style={{ borderRadius: 12 }}>
               <Space wrap>
-                <Link href={route("dues.index")}>Iuran</Link>
-                <Link href={route("cash.index")}>Transaksi</Link>
-                <Link href={route("reports.index")}>Laporan</Link>
-                <Link href={route("members.index")}>Anggota</Link>
-                <Link href={route("settings.index")}>Pengaturan</Link>
+                <Link href={route("transactions.index")}>
+                  <Button type="primary" icon={<PlusOutlined />}>
+                    Tambah Transaksi
+                  </Button>
+                </Link>
+                <Link href={route("dues.index")}>
+                  <Button icon={<PlusOutlined />}>Bayar Iuran</Button>
+                </Link>
+                <Link href={route("members.index")}>
+                  <Button icon={<PlusOutlined />}>Tambah Anggota</Button>
+                </Link>
+                <Link href={route("secretariat.letters.create")}>
+                  <Button icon={<PlusOutlined />}>Buat Surat</Button>
+                </Link>
+                <Link href={route("secretariat.agenda.index")}>
+                  <Button icon={<PlusOutlined />}>Tambah Agenda</Button>
+                </Link>
               </Space>
               <div style={{ marginTop: 10 }}>
-                <Text type="secondary">
-                  *Shortcut ini asumsi route kamu sudah ada. Kalau belum, nanti kita sesuaikan.
-                </Text>
+                <Text type="secondary">Gunakan tombol di atas untuk mempercepat input data harian.</Text>
               </div>
+            </Card>
+          </Col>
+
+          <Col xs={24} lg={14}>
+            <Card title={<Text strong>Tren Iuran Terkumpul</Text>} style={{ borderRadius: 12 }} extra={<LineChartOutlined />}>
+              <ResponsiveContainer width="100%" height={240}>
+                <BarChart data={duesTrend}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" tickFormatter={(v) => dayjs(v).format("D")} />
+                  <YAxis tickFormatter={(v) => `${Number(v) / 1000}k`} />
+                  <Tooltip formatter={(value) => formatIDR(value)} labelFormatter={(v) => dayjs(v).format("DD MMM YYYY")} />
+                  <Bar dataKey="collected" fill="#52c41a" name="Iuran Terkumpul" />
+                </BarChart>
+              </ResponsiveContainer>
+            </Card>
+          </Col>
+
+          <Col xs={24} lg={10}>
+            <Card title={<Text strong>Top Kategori Pengeluaran</Text>} style={{ borderRadius: 12 }} extra={<BarChartOutlined />}>
+              <ResponsiveContainer width="100%" height={240}>
+                <BarChart data={expenseCategories} layout="vertical" margin={{ left: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" tickFormatter={(v) => `${Number(v) / 1000}k`} />
+                  <YAxis type="category" dataKey="name" width={120} />
+                  <Tooltip formatter={(value) => formatIDR(value)} />
+                  <Bar dataKey="total" fill="#fa8c16" name="Pengeluaran" />
+                </BarChart>
+              </ResponsiveContainer>
             </Card>
           </Col>
 
@@ -188,7 +269,7 @@ export default function DashboardIndex() {
             <Card title={<Text strong>Transaksi Terbaru</Text>} style={{ borderRadius: 12 }}>
               <Table
                 columns={txCols}
-                dataSource={recentTransactions || []}
+                dataSource={tables?.recent_transactions || []}
                 rowKey="id"
                 size="small"
                 pagination={false}
@@ -197,10 +278,34 @@ export default function DashboardIndex() {
           </Col>
 
           <Col xs={24} lg={10}>
-            <Card title={<Text strong>Surat Terbaru</Text>} style={{ borderRadius: 12 }}>
+            <Card title={<Text strong>Top Tunggakan Iuran</Text>} style={{ borderRadius: 12 }}>
+              <Table
+                columns={arrearsCols}
+                dataSource={tables?.top_arrears || []}
+                rowKey={(record) => record.member_id}
+                size="small"
+                pagination={false}
+              />
+            </Card>
+          </Col>
+
+          <Col xs={24} lg={14}>
+            <Card title={<Text strong>Agenda 7 Hari ke Depan</Text>} style={{ borderRadius: 12 }}>
+              <Table
+                columns={agendaCols}
+                dataSource={tables?.upcoming_agenda || []}
+                rowKey="id"
+                size="small"
+                pagination={false}
+              />
+            </Card>
+          </Col>
+
+          <Col xs={24} lg={10}>
+            <Card title={<Text strong>Surat Terbaru (Arsip)</Text>} style={{ borderRadius: 12 }}>
               <Table
                 columns={letterCols}
-                dataSource={recentLetters || []}
+                dataSource={tables?.recent_letters || []}
                 rowKey="id"
                 size="small"
                 pagination={false}

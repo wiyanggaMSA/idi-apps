@@ -55,26 +55,10 @@ export const appMenu = [
                 permission: "templates.manage",
             },
             {
-                key: "secretariat.templates.create",
-                label: "Buat Template",
-                icon: <PlusOutlined />,
-                routeName: "secretariat.templates.index",
-                routeParams: { create: "template" },
-                permission: "templates.manage",
-            },
-            {
                 key: "secretariat.numbering",
                 label: "Penomoran",
                 icon: <SettingOutlined />,
                 routeName: "secretariat.numbering.index",
-                permission: "numbering.manage",
-            },
-            {
-                key: "secretariat.numbering.create",
-                label: "Buat Penomoran",
-                icon: <PlusOutlined />,
-                routeName: "secretariat.numbering.index",
-                routeParams: { create: "numbering" },
                 permission: "numbering.manage",
             },
             {

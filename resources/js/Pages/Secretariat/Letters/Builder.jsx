@@ -65,10 +65,16 @@ const blockTemplates = {
 const nextId = () => `block-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
 export default function LetterBuilder() {
-    const { letter, templates = [], numberingProfiles = [], placeholders = [] } = usePage().props;
+    const { props, url } = usePage();
+    const { letter, templates = [], numberingProfiles = [], placeholders = [] } = props;
     const [blocks, setBlocks] = useState(letter?.content_blocks_json || []);
     const [selectedId, setSelectedId] = useState(blocks[0]?.id || null);
     const dragState = useRef(null);
+    const templateIdFromQuery = useMemo(() => {
+        const queryString = url?.split("?")[1] || "";
+        const value = new URLSearchParams(queryString).get("template_id");
+        return value ? Number(value) : null;
+    }, [url]);
 
     const { data, setData, post, patch, processing } = useForm({
         template_id: letter?.template_id || null,
@@ -90,6 +96,28 @@ export default function LetterBuilder() {
     useEffect(() => {
         setData("content_blocks_json", blocks);
     }, [blocks, setData]);
+
+    const applyTemplate = (templateId) => {
+        const selectedTemplate = templates.find((template) => template.id === templateId);
+        if (!selectedTemplate) return;
+        setData("template_id", selectedTemplate.id);
+        if (selectedTemplate.classification) {
+            setData("classification", selectedTemplate.classification);
+        }
+        if (selectedTemplate.numbering_profile_id) {
+            setData("numbering_profile_id", selectedTemplate.numbering_profile_id);
+        }
+        if (Array.isArray(selectedTemplate.blocks_json) && selectedTemplate.blocks_json.length) {
+            setBlocks(selectedTemplate.blocks_json);
+            setSelectedId(selectedTemplate.blocks_json[0]?.id || null);
+        }
+    };
+
+    useEffect(() => {
+        if (!letter?.id && templateIdFromQuery) {
+            applyTemplate(templateIdFromQuery);
+        }
+    }, [letter?.id, templateIdFromQuery, templates]);
 
     const selectedBlock = useMemo(() => blocks.find((block) => block.id === selectedId), [blocks, selectedId]);
 
@@ -249,7 +277,12 @@ export default function LetterBuilder() {
                                 <Form.Item label="Template">
                                     <Select
                                         value={data.template_id}
-                                        onChange={(value) => setData("template_id", value)}
+                                        onChange={(value) => {
+                                            setData("template_id", value);
+                                            if (value) {
+                                                applyTemplate(value);
+                                            }
+                                        }}
                                         options={templates.map((t) => ({ label: t.name, value: t.id }))}
                                         allowClear
                                     />

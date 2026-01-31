@@ -24,9 +24,10 @@ export default function AgendaIndex() {
             title: "Jenis",
             dataIndex: "type",
             key: "type",
-            render: (value) => (
-                <Tag color={value === "external" ? "blue" : "green"}>{value}</Tag>
-            ),
+            render: (value) => {
+                const label = value === "external" ? "EXTERNAL" : "INTERNAL";
+                return <Tag color={value === "external" ? "blue" : "green"}>{label}</Tag>;
+            },
         },
         { title: "Mulai", dataIndex: "start_at", key: "start_at" },
         { title: "Selesai", dataIndex: "end_at", key: "end_at" },
@@ -64,7 +65,7 @@ export default function AgendaIndex() {
                         <Form.Item name="title" label="Judul" rules={[{ required: true }]}>
                             <Input />
                         </Form.Item>
-                        <Form.Item name="type" label="Jenis" initialValue="internal">
+                        <Form.Item name="type" label="Jenis Kegiatan" initialValue="internal">
                             <Select
                                 options={[
                                     { label: "Internal", value: "internal" },
