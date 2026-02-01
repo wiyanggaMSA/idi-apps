@@ -75,6 +75,7 @@ class MemberController extends Controller
                 'gender' => $request->input('gender'),
                 'division_id' => $request->input('division_id'),
                 'position_id' => $request->input('position_id'),
+                'page' => $request->input('page', 1),
                 'sortBy' => $request->input('sortBy', 'full_name'),
                 'sortDir' => $request->input('sortDir', 'asc'),
             ],

@@ -45,7 +45,7 @@ const { Text, Link } = Typography;
 export default function MembersIndex() {
   const { props } = usePage();
   const members = props.members?.data || [];
-  const meta = props.members?.meta || {};
+  const meta = props.members?.meta || props.members || {};
   const filters = props.filters || {};
   const divisions = props.divisions || [];
   const positions = props.positions || [];
@@ -429,7 +429,7 @@ export default function MembersIndex() {
                 placeholder="Pilih divisi"
                 style={{ width: 190 }}
                 options={divisions.map((division) => ({
-                  value: division.id,
+                  value: String(division.id),
                   label: division.name,
                 }))}
               />
@@ -444,7 +444,7 @@ export default function MembersIndex() {
                 placeholder="Pilih jabatan"
                 style={{ width: 190 }}
                 options={positions.map((position) => ({
-                  value: position.id,
+                  value: String(position.id),
                   label: position.name,
                 }))}
               />
@@ -465,9 +465,10 @@ export default function MembersIndex() {
             rowKey="id"
             size="middle"
             pagination={{
-              current: meta.current_page || 1,
-              pageSize: meta.per_page || 20,
-              total: meta.total || 0,
+              current:
+                meta.current_page || props.members?.current_page || filters.page || 1,
+              pageSize: meta.per_page || props.members?.per_page || 20,
+              total: meta.total || props.members?.total || 0,
               showSizeChanger: false,
               onChange: (page) => applyFilters({ page }),
             }}
@@ -566,7 +567,7 @@ export default function MembersIndex() {
         title="Detail Anggota"
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        width={520}
+        size="large"
       >
         {detailMember ? (
           <Descriptions column={1} bordered size="small">

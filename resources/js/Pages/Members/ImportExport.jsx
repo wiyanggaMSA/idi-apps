@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import AppLayout from "@/layouts/AppLayout";
 import PageShell from "@/components/app/PageShell";
@@ -8,6 +8,7 @@ import {
   Card,
   Select,
   Space,
+  Tag,
   Table,
   Typography,
   Upload,
@@ -36,6 +37,8 @@ export default function MembersImportExport() {
   const [conflicts, setConflicts] = useState([]);
   const [conflictMeta, setConflictMeta] = useState({});
   const [conflictActions, setConflictActions] = useState({});
+  const [conflictPage, setConflictPage] = useState(1);
+  const [conflictPageSize, setConflictPageSize] = useState(10);
 
   const filterParams = useMemo(() => {
     const params = Object.fromEntries(new URLSearchParams(window.location.search));
@@ -50,13 +53,19 @@ export default function MembersImportExport() {
 
   const templateUrl = (format) => route("members.template", { format });
 
-  const fetchConflicts = async (page = 1) => {
-    if (!batchId) return;
-    const { data } = await axios.get(route("members.conflicts", batchId), {
-      params: { page },
+  const fetchConflicts = async (
+    page = conflictPage,
+    batch = batchId,
+    perPage = conflictPageSize
+  ) => {
+    if (!batch) return;
+    const { data } = await axios.get(route("members.conflicts", batch), {
+      params: { page, per_page: perPage },
     });
     setConflicts(data.data || []);
     setConflictMeta(data.meta || {});
+    setConflictPage(data.meta?.current_page || page);
+    setConflictPageSize(data.meta?.per_page || perPage);
   };
 
   const handleImport = async () => {
@@ -73,7 +82,7 @@ export default function MembersImportExport() {
       setSummary(data);
       setBatchId(data.batch_id);
       setConflictActions({});
-      await fetchConflicts(1);
+      await fetchConflicts(1, data.batch_id, conflictPageSize);
       message.success("Import selesai diproses.");
     } catch (error) {
       message.error("Gagal mengimpor file.");
@@ -133,13 +142,44 @@ export default function MembersImportExport() {
         meta: { label: "Email" },
         cell: (info) => info.getValue() || "-",
       }),
+      columnHelper.accessor("phone", {
+        header: "Telepon",
+        meta: { label: "Telepon" },
+        cell: (info) => info.getValue() || "-",
+      }),
+      columnHelper.accessor("division_name", {
+        header: "Divisi",
+        meta: { label: "Divisi" },
+        cell: (info) => info.getValue() || "-",
+      }),
+      columnHelper.accessor("position_name", {
+        header: "Jabatan",
+        meta: { label: "Jabatan" },
+        cell: (info) => info.getValue() || "-",
+      }),
+      columnHelper.accessor("status", {
+        header: "Status",
+        meta: { label: "Status" },
+        cell: (info) => info.getValue() || "-",
+      }),
       columnHelper.accessor("conflict_type", {
         header: "Conflict",
         meta: { label: "Conflict" },
         cell: (info) => {
-          const conflicts = info.getValue() || [];
-          if (!conflicts.length) return "-";
-          return conflicts.join(", ");
+          const conflicts = info.getValue();
+          if (!conflicts || conflicts.length === 0) return "-";
+          const items = Array.isArray(conflicts)
+            ? conflicts
+            : String(conflicts).split(",").map((item) => item.trim());
+          return (
+            <Space wrap size={[4, 4]}>
+              {items.map((conflict) => (
+                <Tag key={conflict} color="red">
+                  {conflict}
+                </Tag>
+              ))}
+            </Space>
+          );
         },
       }),
       columnHelper.accessor("conflict_members", {
@@ -187,9 +227,9 @@ export default function MembersImportExport() {
                 style={{ width: 180 }}
                 disabled={isResolved}
                 options={[
-                  { value: "update", label: "Update Existing" },
-                  { value: "create", label: "Create Duplicate" },
-                  { value: "discard", label: "Discard" },
+                  { value: "update", label: "Perbaharui" },
+                  { value: "create", label: "Buat Duplikat" },
+                  { value: "discard", label: "Abaikan" },
                 ]}
               />
               {actionValue === "update" && (
@@ -221,6 +261,11 @@ export default function MembersImportExport() {
     ],
     [conflictActions]
   );
+
+  useEffect(() => {
+    if (!batchId) return;
+    fetchConflicts(1, batchId);
+  }, [batchId]);
 
   const table = useReactTable({
     data: conflicts,
@@ -334,11 +379,20 @@ export default function MembersImportExport() {
             columns={antdColumns}
             dataSource={conflicts}
             rowKey="id"
+            scroll={{ x: "max-content" }}
             pagination={{
-              current: conflictMeta.current_page || 1,
-              pageSize: conflictMeta.per_page || 10,
+              current: conflictMeta.current_page || conflictPage,
+              pageSize: conflictMeta.per_page || conflictPageSize,
               total: conflictMeta.total || 0,
-              onChange: (page) => fetchConflicts(page),
+              showSizeChanger: true,
+              pageSizeOptions: [10, 25, 50, 100, 200],
+              showTotal: (total, range) =>
+                `${range[0]}-${range[1]} dari ${total} konflik`,
+              onChange: (page, pageSize) => {
+                setConflictPage(page);
+                setConflictPageSize(pageSize);
+                fetchConflicts(page, batchId, pageSize);
+              },
             }}
             locale={{
               emptyText: "Tidak ada konflik untuk batch ini.",
@@ -349,7 +403,7 @@ export default function MembersImportExport() {
         {conflicts.length > 0 && (
           <Space style={{ marginTop: 16 }}>
             <Button type="primary" onClick={handleResolve}>
-              Apply Selected Actions
+              Terapkan Resolusi 
             </Button>
           </Space>
         )}

@@ -45,11 +45,14 @@ class MemberImportExportController extends Controller
 
     public function conflicts(MemberImportBatch $batch): JsonResponse
     {
+        $perPage = request()->integer('per_page', 10);
+        $perPage = max(1, min($perPage, 200));
+
         $rows = MemberImportRow::query()
             ->where('batch_id', $batch->id)
             ->whereNotNull('conflict_type')
             ->orderBy('row_number')
-            ->paginate(10);
+            ->paginate($perPage);
 
         $rows->getCollection()->transform(function (MemberImportRow $row) {
             $members = Member::query()
