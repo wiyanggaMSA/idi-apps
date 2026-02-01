@@ -18,7 +18,7 @@ class MemberController extends Controller
 {
     public function index(Request $request, MemberQueryService $queryService): Response
     {
-        $perPage = (int) $request->input('perPage', 10);
+        $perPage = 15;
 
         $members = $queryService
             ->query($request)
@@ -77,7 +77,6 @@ class MemberController extends Controller
                 'position_id' => $request->input('position_id'),
                 'sortBy' => $request->input('sortBy', 'full_name'),
                 'sortDir' => $request->input('sortDir', 'asc'),
-                'perPage' => $perPage,
             ],
         ]);
     }

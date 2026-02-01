@@ -16,8 +16,8 @@ class DuesController extends Controller
 {
     public function index(Request $request, DuesLedgerService $ledgerService): Response
     {
-        $perPage = (int) $request->input('perPage', 10);
-        $page = (int) $request->input('page', 1);
+        $perPage = 10;
+        $page = max((int) $request->input('page', 1), 1);
         $filters = [
             'search' => $request->input('search'),
             'status' => $request->input('status', 'ALL'),

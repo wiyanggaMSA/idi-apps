@@ -313,7 +313,7 @@ export default function DuesIndex() {
             title: "Bulan Iuran Saat Ini",
             dataIndex: "due_now",
             key: "due_now",
-            render: (value) => formatPeriod(value),
+            render: () => formatPeriod(activePeriod),
         },
         {
             title: "Kelebihan Iuran",
@@ -544,9 +544,8 @@ export default function DuesIndex() {
                         pagination={{
                             current: meta.current_page || filters.page || 1,
                             total: meta.total || 0,
-                            pageSize: meta.per_page || filters.perPage || 10,
-                            onChange: (page, pageSize) =>
-                                applyFilters({ page, perPage: pageSize }),
+                            pageSize: meta.per_page || 20,
+                            onChange: (page) => applyFilters({ page }),
                         }}
                     />
                 </Card>

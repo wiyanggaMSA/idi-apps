@@ -64,7 +64,7 @@ class DuesLedgerService
                         'due_now' => $metric['due_now'] ?? null,
                     ];
                 })->values(),
-                'dues' => $paginator,
+                'dues' => $this->buildPaginatorPayload($paginator),
             ];
         });
     }
@@ -246,6 +246,22 @@ class DuesLedgerService
                 'query' => $filters,
             ]
         );
+    }
+
+    /**
+     * @return array{data: array<int, mixed>, meta: array<string, int>}
+     */
+    private function buildPaginatorPayload(LengthAwarePaginator $paginator): array
+    {
+        return [
+            'data' => $paginator->items(),
+            'meta' => [
+                'current_page' => $paginator->currentPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+                'last_page' => $paginator->lastPage(),
+            ],
+        ];
     }
 
     private function buildSummary(Collection $metrics, string $activePeriod, int $monthlyAmount): array

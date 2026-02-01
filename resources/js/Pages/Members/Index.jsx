@@ -86,12 +86,24 @@ export default function MembersIndex() {
     setSearchValue(filters.search || "");
   }, [filters.search]);
 
-      const applyFilters = (nextFilters) => {
+    const applyFilters = (nextFilters) => {
     router.get(
       route("members.index"),
       { ...filters, ...nextFilters },
       { preserveState: true, replace: true }
     );
+  };
+
+  const handleResetFilters = () => {
+    setSearchValue("");
+    applyFilters({
+      search: "",
+      status: null,
+      gender: null,
+      division_id: null,
+      position_id: null,
+      page: 1,
+    });
   };
 
   const handleSort = (columnId) => {
@@ -200,19 +212,24 @@ export default function MembersIndex() {
         meta: { label: "Telepon", sortable: true },
         cell: (info) => info.getValue() || "-",
       }),
+      columnHelper.accessor("education", {
+        header: "Pendidikan",
+        meta: { label: "Pendidikan", sortable: true },
+        cell: (info) => info.getValue() || "-",
+      }),
       columnHelper.accessor("division", {
         header: "Divisi",
-        meta: { label: "Divisi", sortable: false },
+        meta: { label: "Divisi", sortable: true },
         cell: (info) => info.getValue() || "-",
       }),
       columnHelper.accessor("position", {
         header: "Jabatan",
-        meta: { label: "Jabatan", sortable: false },
+        meta: { label: "Jabatan", sortable: true },
         cell: (info) => info.getValue() || "-",
       }),
       columnHelper.accessor("status", {
-        header: "Status",
-        meta: { label: "Status", sortable: true },
+        header: "Status Keanggotaan",
+        meta: { label: "Status Keanggotaan", sortable: true },
         cell: (info) => {
           const value = info.getValue();
           const color =
@@ -228,9 +245,14 @@ export default function MembersIndex() {
           );
         },
       }),
-      columnHelper.accessor("join_date", {
-        header: "Tgl Bergabung",
-        meta: { label: "Tanggal Bergabung", sortable: true },
+      columnHelper.accessor("sip_1", {
+        header: "SIP 1",
+        meta: { label: "SIP 1", sortable: false },
+        cell: (info) => info.getValue() || "-",
+      }),
+      columnHelper.accessor("sip_2", {
+        header: "SIP 2",
+        meta: { label: "SIP 2", sortable: false },
         cell: (info) => info.getValue() || "-",
       }),
       columnHelper.display({
@@ -362,56 +384,76 @@ export default function MembersIndex() {
           bodyStyle={{ padding: 12 }}
         >
           <Space wrap size={10} style={{ width: "100%" }}>
-            <Input
-              allowClear
-               value={searchValue}
-              onChange={(event) => setSearchValue(event.target.value)}
-              prefix={<SearchOutlined />}
-              placeholder="Cari NPA, nama, email, atau telepon..."
-              style={{ width: 260 }}
-            />
+            <Space orientation="vertical" size={4}>
+              <Text type="secondary">Pencarian</Text>
+              <Input
+                allowClear
+                value={searchValue}
+                onChange={(event) => setSearchValue(event.target.value)}
+                prefix={<SearchOutlined />}
+                placeholder="Cari NPA, nama, email, atau telepon..."
+                style={{ width: 260 }}
+              />
+            </Space>
 
-            <Select
-             allowClear
-              value={filters.status || undefined}
-              onChange={(value) => applyFilters({ status: value, page: 1 })}
-              placeholder="Status"
-              style={{ width: 170 }}
-              options={statuses}
-            />
+            <Space orientation="vertical" size={4}>
+              <Text type="secondary">Status Keanggotaan</Text>
+              <Select
+                allowClear
+                value={filters.status || undefined}
+                onChange={(value) => applyFilters({ status: value, page: 1 })}
+                placeholder="Pilih status"
+                style={{ width: 190 }}
+                options={statuses}
+              />
+            </Space>
 
-            <Select
-              allowClear
-              value={filters.gender || undefined}
-              onChange={(value) => applyFilters({ gender: value, page: 1 })}
-              placeholder="Gender"
-              style={{ width: 160 }}
-              options={genders}
-            />
+            <Space orientation="vertical" size={4}>
+              <Text type="secondary">Gender</Text>
+              <Select
+                allowClear
+                value={filters.gender || undefined}
+                onChange={(value) => applyFilters({ gender: value, page: 1 })}
+                placeholder="Pilih gender"
+                style={{ width: 170 }}
+                options={genders}
+              />
+            </Space>
 
-            <Select
-              allowClear
-              value={filters.division_id || undefined}
-              onChange={(value) => applyFilters({ division_id: value, page: 1 })}
-              placeholder="Divisi"
-              style={{ width: 190 }}
-              options={divisions.map((division) => ({
-                value: division.id,
-                label: division.name,
-              }))}
-            />
+            <Space orientation="vertical" size={4}>
+              <Text type="secondary">Divisi</Text>
+              <Select
+                allowClear
+                value={filters.division_id || undefined}
+                onChange={(value) => applyFilters({ division_id: value, page: 1 })}
+                placeholder="Pilih divisi"
+                style={{ width: 190 }}
+                options={divisions.map((division) => ({
+                  value: division.id,
+                  label: division.name,
+                }))}
+              />
+            </Space>
 
-            <Select
-              allowClear
-              value={filters.position_id || undefined}
-              onChange={(value) => applyFilters({ position_id: value, page: 1 })}
-              placeholder="Jabatan"
-              style={{ width: 190 }}
-              options={positions.map((position) => ({
-                value: position.id,
-                label: position.name,
-              }))}
-            />
+            <Space orientation="vertical" size={4}>
+              <Text type="secondary">Jabatan</Text>
+              <Select
+                allowClear
+                value={filters.position_id || undefined}
+                onChange={(value) => applyFilters({ position_id: value, page: 1 })}
+                placeholder="Pilih jabatan"
+                style={{ width: 190 }}
+                options={positions.map((position) => ({
+                  value: position.id,
+                  label: position.name,
+                }))}
+              />
+            </Space>
+
+            <Space orientation="vertical" size={4}>
+              <Text type="secondary"></Text>
+              <Button onClick={handleResetFilters}>Reset</Button>
+            </Space>
           </Space>
         </Card>
 
@@ -424,11 +466,10 @@ export default function MembersIndex() {
             size="middle"
             pagination={{
               current: meta.current_page || 1,
-              pageSize: meta.per_page || 10,
+              pageSize: meta.per_page || 20,
               total: meta.total || 0,
-              showSizeChanger: true,
-              onChange: (page, perPage) =>
-                applyFilters({ page, perPage: perPage || meta.per_page }),
+              showSizeChanger: false,
+              onChange: (page) => applyFilters({ page }),
             }}
             style={{ borderRadius: 12, overflow: "hidden" }}
           />
