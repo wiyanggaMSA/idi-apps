@@ -28,6 +28,9 @@ class MemberTemplateExport implements FromCollection, WithHeadings
             'Jabatan',
             'Tanggal Bergabung',
             'Status',
+            'SIP-1',
+            'SIP-2',
+            'SIP-3',
             'Alamat',
             'Catatan',
         ];

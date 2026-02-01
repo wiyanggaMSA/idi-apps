@@ -24,6 +24,9 @@ class Member extends Model
         'position_id',
         'join_date',
         'status',
+        'sip_1',
+        'sip_2',
+        'sip_3',
         'address',
         'notes',
     ];
