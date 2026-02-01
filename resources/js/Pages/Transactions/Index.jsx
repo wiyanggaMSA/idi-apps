@@ -662,6 +662,7 @@ export default function TransactionsIndex() {
                         ]}
                     >
                         <Select
+                            onChange={() => form.setFieldsValue({ category_id: null })}
                             options={[
                                 { value: "in", label: "Masuk" },
                                 { value: "out", label: "Keluar" },
@@ -728,9 +729,7 @@ export default function TransactionsIndex() {
                                               .replace(/\B(?=(\d{3})+(?!\d))/g, ".")
                                         : ""
                                 }
-                                parser={(value) =>
-                                    value ? value.replace(/\D/g, "") : ""
-                                }
+                                parser={(value) => value?.toString().replace(/\./g, "").replace(/[^0-9]/g, "")}
                             />
                         </Space.Compact>
                     </Form.Item>

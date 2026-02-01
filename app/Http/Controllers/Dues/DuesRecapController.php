@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Dues;
 use App\Http\Controllers\Controller;
 use App\Exports\DuesRecapExport;
 use App\Models\Division;
+use App\Models\DuesPeriod;
 use App\Models\Member;
 use App\Services\Dues\DuesRecapService;
 use Illuminate\Http\Request;
@@ -16,13 +17,7 @@ class DuesRecapController extends Controller
 {
     public function index(Request $request, DuesRecapService $recapService): Response
     {
-        $startPeriod = $request->input('start_period');
-        $endPeriod = $request->input('end_period');
-
-        if (! $startPeriod || ! $endPeriod) {
-            $startPeriod = now()->startOfYear()->format('Y-m');
-            $endPeriod = now()->format('Y-m');
-        }
+        [$startPeriod, $endPeriod] = $this->resolvePeriods($request);
 
         $divisionId = $request->input('division_id');
         $memberId = $request->input('member_id');
@@ -50,8 +45,7 @@ class DuesRecapController extends Controller
 
     public function exportXlsx(Request $request, DuesRecapService $recapService)
     {
-        $startPeriod = $request->input('start_period') ?? now()->startOfYear()->format('Y-m');
-        $endPeriod = $request->input('end_period') ?? now()->format('Y-m');
+        [$startPeriod, $endPeriod] = $this->resolvePeriods($request);
         $divisionId = $request->input('division_id');
         $memberId = $request->input('member_id');
 
@@ -62,5 +56,30 @@ class DuesRecapController extends Controller
         $filename = sprintf('rekap-iuran-%s.xlsx', now()->format('Ymd-His'));
 
         return Excel::download(new DuesRecapExport($monthlyRecap, $memberRecap), $filename, \Maatwebsite\Excel\Excel::XLSX);
+    }
+
+    private function resolvePeriods(Request $request): array
+    {
+        $startPeriod = $request->input('start_period');
+        $endPeriod = $request->input('end_period');
+
+        if (! $startPeriod || ! $endPeriod) {
+            $firstPeriod = DuesPeriod::query()->orderBy('period')->value('period');
+            $lastPeriod = DuesPeriod::query()->orderByDesc('period')->value('period');
+
+            if ($firstPeriod && $lastPeriod) {
+                $startPeriod = $startPeriod ?: $firstPeriod;
+                $endPeriod = $endPeriod ?: $lastPeriod;
+            } else {
+                $startPeriod = $startPeriod ?: now()->startOfYear()->format('Y-m');
+                $endPeriod = $endPeriod ?: now()->format('Y-m');
+            }
+        }
+
+        if ($startPeriod && $endPeriod && $startPeriod > $endPeriod) {
+            [$startPeriod, $endPeriod] = [$endPeriod, $startPeriod];
+        }
+
+        return [$startPeriod, $endPeriod];
     }
 }

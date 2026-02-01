@@ -14,6 +14,7 @@ use App\Services\Secretariat\LetterPlaintextService;
 use App\Services\Secretariat\LetterPdfService;
 use App\Services\Secretariat\LetterVersionService;
 use App\Services\Secretariat\QrCodeService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -125,6 +126,13 @@ class LettersController extends Controller
         ]);
     }
 
+    public function builder(Letter $letter): Response
+    {
+        return Inertia::render('Secretariat/Letters/GridBuilder', [
+            'letter' => $letter,
+        ]);
+    }
+
     public function storeDraft(LetterDraftRequest $request, LetterPlaintextService $plaintextService): RedirectResponse
     {
         $blocks = $request->input('content_blocks_json', []);
@@ -174,6 +182,22 @@ class LettersController extends Controller
         ]);
 
         return redirect()->route('secretariat.letters.edit', $letter)->with('success', 'Draft surat diperbarui.');
+    }
+
+    public function saveLayout(Request $request, Letter $letter): RedirectResponse
+    {
+        $data = $request->validate([
+            'layout' => ['required', 'array'],
+            'blocks' => ['required', 'array'],
+        ]);
+
+        $letter->update([
+            'layout_json' => $data['layout'],
+            'blocks_json' => $data['blocks'],
+            'updated_by' => $request->user()->id,
+        ]);
+
+        return redirect()->back()->with('success', 'Layout surat berhasil disimpan.');
     }
 
     public function finalize(
@@ -326,11 +350,38 @@ class LettersController extends Controller
             $path = $letter->versions()->where('version', $version)->value('pdf_path');
         }
 
-        if (!$path) {
+        if ($path) {
+            return response()->download(storage_path('app/public/' . $path));
+        }
+
+        $layout = $letter->layout_json ?? [];
+        $blocks = $letter->blocks_json ?? [];
+
+        if (empty($layout) || empty($blocks)) {
             abort(404);
         }
 
-        return response()->download(storage_path('app/public/' . $path));
+        usort($layout, function ($a, $b) {
+            $yCompare = ($a['y'] ?? 0) <=> ($b['y'] ?? 0);
+            if ($yCompare !== 0) {
+                return $yCompare;
+            }
+
+            return ($a['x'] ?? 0) <=> ($b['x'] ?? 0);
+        });
+
+        $blocksById = collect($blocks)->keyBy('id');
+        $orderedBlocks = collect($layout)
+            ->map(fn ($item) => $blocksById->get($item['i'] ?? null))
+            ->filter()
+            ->values();
+
+        $pdf = Pdf::loadView('letters.builder-pdf', [
+            'letter' => $letter,
+            'blocks' => $orderedBlocks,
+        ]);
+
+        return $pdf->stream('surat-layout.pdf');
     }
 
     public function revoke(Letter $letter, Request $request): RedirectResponse

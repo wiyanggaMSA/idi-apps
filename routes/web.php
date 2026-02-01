@@ -63,12 +63,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/letters/{letter}', [LettersController::class, 'edit'])
             ->middleware('permission:letters.update')
             ->name('letters.edit');
+            Route::get('/letters/{letter}/builder', [LettersController::class, 'builder'])
+            ->middleware('permission:letters.update')
+            ->name('letters.builder');
         Route::post('/letters', [LettersController::class, 'storeDraft'])
             ->middleware('permission:letters.create')
             ->name('letters.store');
         Route::patch('/letters/{letter}', [LettersController::class, 'updateDraft'])
             ->middleware('permission:letters.update')
             ->name('letters.update');
+            Route::put('/letters/{letter}/layout', [LettersController::class, 'saveLayout'])
+            ->middleware('permission:letters.update')
+            ->name('letters.layout');
         Route::post('/letters/{letter}/finalize', [LettersController::class, 'finalize'])
             ->middleware('permission:letters.finalize')
             ->name('letters.finalize');
