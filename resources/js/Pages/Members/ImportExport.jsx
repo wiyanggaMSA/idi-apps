@@ -38,7 +38,8 @@ export default function MembersImportExport() {
   const [conflictMeta, setConflictMeta] = useState({});
   const [conflictActions, setConflictActions] = useState({});
   const [conflictPage, setConflictPage] = useState(1);
-  const [conflictPageSize, setConflictPageSize] = useState(10);
+  const [conflictPageSize, setConflictPageSize] = useState(200);
+  const [showAllWarnings, setShowAllWarnings] = useState(false);
 
   const filterParams = useMemo(() => {
     const params = Object.fromEntries(new URLSearchParams(window.location.search));
@@ -62,10 +63,18 @@ export default function MembersImportExport() {
     const { data } = await axios.get(route("members.conflicts", batch), {
       params: { page, per_page: perPage },
     });
+
+    const meta = data.meta || {
+      current_page: data.current_page,
+      per_page: data.per_page,
+      total: data.total,
+      last_page: data.last_page,
+    };
+
     setConflicts(data.data || []);
-    setConflictMeta(data.meta || {});
-    setConflictPage(data.meta?.current_page || page);
-    setConflictPageSize(data.meta?.per_page || perPage);
+    setConflictMeta(meta || {});
+    setConflictPage(meta?.current_page || page);
+    setConflictPageSize(meta?.per_page || perPage);
   };
 
   const handleImport = async () => {
@@ -331,8 +340,12 @@ export default function MembersImportExport() {
         </Card>
 
         <Card style={{ borderRadius: 12, marginBottom: 16 }}>
-          <Space direction="vertical" size={12} style={{ width: "100%" }}>
+          <Space orientation="vertical" size={12} style={{ width: "100%" }}>
+            <Text type="primary" strong>
+              Export Database Anggota.
+            </Text>
             <Space wrap>
+              
               <Button
                 icon={<CloudDownloadOutlined />}
                 href={exportUrl("xlsx")}
@@ -346,9 +359,6 @@ export default function MembersImportExport() {
                 Export (CSV)
               </Button>
             </Space>
-            <Text type="secondary">
-              Export akan mengikuti filter dan sorting yang aktif di query URL.
-            </Text>
           </Space>
         </Card>
 
@@ -361,13 +371,25 @@ export default function MembersImportExport() {
               <Text>Konflik: {summary.conflict_count}</Text>
               <Text>Error: {summary.error_count}</Text>
               {summary.warnings?.length > 0 && (
-                <Space direction="vertical" size={4}>
+                <Space orientation="vertical" size={4}>
                   <Text strong>Warnings</Text>
-                  {summary.warnings.map((warning) => (
-                    <Text key={`${warning.row_number}-${warning.reasons?.join(",")}`}>
-                      Baris {warning.row_number}: {warning.reasons?.join(", ")}
-                    </Text>
-                  ))}
+                  <Text>
+                    {(showAllWarnings ? summary.warnings : summary.warnings.slice(0, 5))
+                      .map(
+                        (warning) =>
+                          `Baris ${warning.row_number}: ${warning.reasons?.join(", ")}`
+                      )
+                      .join(", ")}
+                  </Text>
+                  {summary.warnings.length > 5 && (
+                    <Button
+                      type="link"
+                      size="small"
+                      onClick={() => setShowAllWarnings((prev) => !prev)}
+                    >
+                      {showAllWarnings ? "Tutup" : "Lihat selengkapnya"}
+                    </Button>
+                  )}
                 </Space>
               )}
             </Space>
@@ -385,7 +407,7 @@ export default function MembersImportExport() {
               pageSize: conflictMeta.per_page || conflictPageSize,
               total: conflictMeta.total || 0,
               showSizeChanger: true,
-              pageSizeOptions: [10, 25, 50, 100, 200],
+              pageSizeOptions: [25, 50, 100, 200],
               showTotal: (total, range) =>
                 `${range[0]}-${range[1]} dari ${total} konflik`,
               onChange: (page, pageSize) => {

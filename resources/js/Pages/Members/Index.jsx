@@ -72,6 +72,15 @@ export default function MembersIndex() {
     [statuses]
   );
 
+  const genderLabel = useMemo(
+    () =>
+      (genders || []).reduce((acc, gender) => {
+        acc[gender.value] = gender.label;
+        return acc;
+      }, {}),
+    [genders]
+  );
+
   useEffect(() => {
     const handler = setTimeout(() => {
       if (searchValue !== (filters.search || "")) {
@@ -587,7 +596,7 @@ export default function MembersIndex() {
               {detailMember.education || "-"}
             </Descriptions.Item>
             <Descriptions.Item label="Gender">
-              {detailMember.gender || "-"}
+              {genderLabel[detailMember.gender] || detailMember.gender || "-"}
             </Descriptions.Item>
             <Descriptions.Item label="Tempat Lahir">
               {detailMember.birth_place || "-"}

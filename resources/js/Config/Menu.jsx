@@ -100,7 +100,7 @@ export const appMenu = [
         children: [
             {
                 key: "dues.payments",
-                label: "Pembayaran & Status",
+                label: "Pembayaran",
                 icon: <CreditCardOutlined />,
                 routeName: "dues.index",
             },
