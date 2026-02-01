@@ -35,7 +35,7 @@ class DuesLedgerService
         $activePeriod = $this->activePeriod();
         $cacheKey = $this->cacheKey($activePeriod, $filters, $page, $perPage);
 
-        return Cache::tags(['dues-ledger'])->remember($cacheKey, 300, function () use ($filters, $page, $perPage, $activePeriod) {
+        return Cache::remember($cacheKey, 300, function () use ($filters, $page, $perPage, $activePeriod) {
             $monthlyAmount = $this->monthlyAmount();
             $members = Member::query()
                 ->where('status', 'aktif')
@@ -339,7 +339,6 @@ class DuesLedgerService
 
             DuesPaymentAllocation::query()->insert($allocations);
             $this->syncCashTransaction($payment, $userId);
-            $this->flushLedgerCache();
 
             return $payment;
         });
@@ -370,8 +369,6 @@ class DuesLedgerService
             ]);
         }
 
-        $this->flushLedgerCache();
-
         return $payment;
     }
 
@@ -395,14 +392,7 @@ class DuesLedgerService
             ]);
         }
 
-        $this->flushLedgerCache();
-
         return $payment;
-    }
-
-    private function flushLedgerCache(): void
-    {
-        Cache::tags(['dues-ledger'])->flush();
     }
 
     private function syncCashTransaction(DuesPayment $payment, int $userId): void
