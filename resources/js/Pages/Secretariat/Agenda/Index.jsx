@@ -1,6 +1,21 @@
 import React, { useState } from "react";
 import { router, usePage } from "@inertiajs/react";
-import { Button, Card, Drawer, Form, Input, Select, Space, Table, Tag } from "antd";
+import dayjs from "dayjs";
+import {
+    Button,
+    Card,
+    Drawer,
+    Empty,
+    Form,
+    Input,
+    Popconfirm,
+    Select,
+    Space,
+    Table,
+    Tag,
+    Tooltip,
+    Typography,
+} from "antd";
 import AppLayout from "@/Layouts/AppLayout";
 import PageShell from "@/Components/App/PageShell";
 import PageHeader from "@/Components/App/PageHeader";
@@ -8,18 +23,57 @@ import PageHeader from "@/Components/App/PageHeader";
 export default function AgendaIndex() {
     const { agendas } = usePage().props;
     const [open, setOpen] = useState(false);
+    const [editing, setEditing] = useState(null);
     const [form] = Form.useForm();
 
     const data = agendas?.data || [];
 
-    const onSubmit = (values) => {
-        router.post(route("secretariat.agenda.store"), values);
+    const handleClose = () => {
         setOpen(false);
+        setEditing(null);
         form.resetFields();
     };
 
+    const handleCreate = () => {
+        setEditing(null);
+        form.resetFields();
+        setOpen(true);
+    };
+
+    const handleEdit = (record) => {
+        setEditing(record);
+        form.setFieldsValue({
+            title: record.title,
+            type: record.type ?? "internal",
+            start_at: record.start_at ? dayjs(record.start_at).format("YYYY-MM-DDTHH:mm") : undefined,
+            end_at: record.end_at ? dayjs(record.end_at).format("YYYY-MM-DDTHH:mm") : undefined,
+            location: record.location,
+            pic_name: record.pic_name,
+            notes: record.notes,
+        });
+        setOpen(true);
+    };
+
+    const onSubmit = (values) => {
+        if (editing) {
+            router.patch(route("secretariat.agenda.update", editing.id), values);
+        } else {
+            router.post(route("secretariat.agenda.store"), values);
+        }
+        handleClose();
+    };
+
     const columns = [
-        { title: "Judul", dataIndex: "title", key: "title" },
+        {
+            title: "Judul",
+            dataIndex: "title",
+            key: "title",
+            render: (value) => (
+                <Typography.Text strong ellipsis>
+                    {value}
+                </Typography.Text>
+            ),
+        },
         {
             title: "Jenis",
             dataIndex: "type",
@@ -29,9 +83,65 @@ export default function AgendaIndex() {
                 return <Tag color={value === "external" ? "blue" : "green"}>{label}</Tag>;
             },
         },
-        { title: "Mulai", dataIndex: "start_at", key: "start_at" },
-        { title: "Selesai", dataIndex: "end_at", key: "end_at" },
-        { title: "Lokasi", dataIndex: "location", key: "location" },
+        {
+            title: "Mulai",
+            dataIndex: "start_at",
+            key: "start_at",
+            render: (value) => (value ? dayjs(value).format("DD MMM YYYY HH:mm") : "-"),
+        },
+        {
+            title: "Selesai",
+            dataIndex: "end_at",
+            key: "end_at",
+            render: (value) => (value ? dayjs(value).format("DD MMM YYYY HH:mm") : "-"),
+        },
+        {
+            title: "Lokasi",
+            dataIndex: "location",
+            key: "location",
+            render: (value) => value || "-",
+        },
+        {
+            title: "PIC",
+            dataIndex: "pic_name",
+            key: "pic_name",
+            render: (value) => value || "-",
+        },
+        {
+            title: "Catatan",
+            dataIndex: "notes",
+            key: "notes",
+            render: (value) =>
+                value ? (
+                    <Tooltip title={value}>
+                        <Typography.Text ellipsis style={{ maxWidth: 180, display: "inline-block" }}>
+                            {value}
+                        </Typography.Text>
+                    </Tooltip>
+                ) : (
+                    "-"
+                ),
+        },
+        {
+            title: "Aksi",
+            key: "action",
+            render: (_, record) => (
+                <Space>
+                    <Button size="small" onClick={() => handleEdit(record)}>
+                        Edit
+                    </Button>
+                    <Popconfirm
+                        title="Hapus agenda ini?"
+                        description="Tindakan ini tidak bisa dibatalkan."
+                        onConfirm={() => router.delete(route("secretariat.agenda.destroy", record.id))}
+                    >
+                        <Button size="small" danger>
+                            Hapus
+                        </Button>
+                    </Popconfirm>
+                </Space>
+            ),
+        },
     ];
 
     return (
@@ -39,8 +149,8 @@ export default function AgendaIndex() {
             <PageShell>
                 <PageHeader
                     title="Agenda"
-                    right={
-                        <Button type="primary" onClick={() => setOpen(true)}>
+                    extra={
+                        <Button type="primary" onClick={handleCreate}>
                             Tambah Agenda
                         </Button>
                     }
@@ -51,16 +161,35 @@ export default function AgendaIndex() {
                         rowKey="id"
                         columns={columns}
                         dataSource={data}
+                        locale={{
+                            emptyText: (
+                                <Empty
+                                    description="Belum ada agenda. Tambahkan kegiatan agar lebih informatif."
+                                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                                >
+                                    <Button type="primary" onClick={handleCreate}>
+                                        Tambah Agenda
+                                    </Button>
+                                </Empty>
+                            ),
+                        }}
                         pagination={{
                             current: agendas?.current_page,
                             pageSize: agendas?.per_page,
                             total: agendas?.total,
                             onChange: (page) => router.get(route("secretariat.agenda.index"), { page }),
+
                         }}
                     />
                 </Card>
 
-                <Drawer title="Tambah Agenda" open={open} onClose={() => setOpen(false)} width={520} destroyOnClose>
+                <Drawer
+                    title={editing ? "Ubah Agenda" : "Tambah Agenda"}
+                    open={open}
+                    onClose={handleClose}
+                    size="large"
+                    destroyOnHidden
+                >
                     <Form layout="vertical" form={form} onFinish={onSubmit}>
                         <Form.Item name="title" label="Judul" rules={[{ required: true }]}>
                             <Input />
@@ -89,9 +218,10 @@ export default function AgendaIndex() {
                             <Input.TextArea rows={3} />
                         </Form.Item>
                         <Space style={{ width: "100%", justifyContent: "flex-end" }}>
-                            <Button onClick={() => setOpen(false)}>Batal</Button>
+                            <Button onClick={handleClose}>Batal</Button>
                             <Button type="primary" htmlType="submit">
                                 Simpan
+                                {editing ? "Perbarui" : "Simpan"}
                             </Button>
                         </Space>
                     </Form>

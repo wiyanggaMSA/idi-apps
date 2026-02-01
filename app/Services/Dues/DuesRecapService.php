@@ -3,6 +3,7 @@
 namespace App\Services\Dues;
 
 use App\Models\DuesInvoice;
+use App\Models\DuesPaymentAllocation;
 use App\Models\DuesPeriod;
 use App\Models\PaymentStatus;
 use Illuminate\Support\Collection;
@@ -48,24 +49,30 @@ class DuesRecapService
 
     public function buildMonthlyRecap(Collection $invoices): array
     {
-        $grouped = $invoices->groupBy('dues_period_id');
+         $grouped = $invoices->groupBy('period');
+        $periodKeys = $grouped->keys()->filter()->sort()->values();
+        $periodMap = $periodKeys->isEmpty()
+            ? collect()
+            : DuesPeriod::query()
+                ->whereIn('period', $periodKeys)
+                ->get()
+                ->keyBy('period');
 
-        $periods = DuesPeriod::query()
-            ->whereIn('id', $grouped->keys())
-            ->orderBy('period')
-            ->get();
-
-        return $periods->map(function (DuesPeriod $period) use ($grouped) {
-            $items = $grouped->get($period->id, collect());
+        return $periodKeys->map(function (string $periodKey) use ($grouped, $periodMap) {
+            $items = $grouped->get($periodKey, collect());
             $totalDue = $items->sum('amount_due');
             $totalPaid = $items->sum('amount_paid');
             $outstanding = $totalDue - $totalPaid;
             $collectionRate = $totalDue > 0 ? round(($totalPaid / $totalDue) * 100, 2) : 0;
             $overdueCount = $items->where('payment_status_id', $this->statusIdByCode('OVERDUE'))->count();
+            $periodRow = $periodMap->get($periodKey);
+            $periodLabel = $periodRow?->name
+                ?? $periodRow?->period
+                ?? ($items->first()['period_label'] ?? $periodKey);
 
             return [
-                'period' => $period->period,
-                'period_label' => $period->name ?? $period->period,
+                'period' => $periodKey,
+                'period_label' => $periodLabel,
                 'total_due' => $totalDue,
                 'total_paid' => $totalPaid,
                 'outstanding' => $outstanding,
@@ -80,7 +87,7 @@ class DuesRecapService
         $grouped = $invoices->groupBy('member_id');
 
         return $grouped->map(function (Collection $items) {
-            $member = $items->first()?->member;
+            $first = $items->first() ?? [];
             $totalDue = $items->sum('amount_due');
             $totalPaid = $items->sum('amount_paid');
             $outstanding = $totalDue - $totalPaid;
@@ -88,9 +95,9 @@ class DuesRecapService
             $status = $outstanding <= 0 ? 'PAID' : ($overdue ? 'OVERDUE' : 'UNPAID');
 
             return [
-                'member_id' => $member?->id,
-                'npa' => $member?->npa,
-                'name' => $member?->full_name,
+                'member_id' => $first['member_id'] ?? null,
+                'npa' => $first['member_npa'] ?? null,
+                'name' => $first['member_name'] ?? null,
                 'total_due' => $totalDue,
                 'total_paid' => $totalPaid,
                 'outstanding' => $outstanding,
@@ -121,7 +128,27 @@ class DuesRecapService
             });
         }
 
-        return $query->get();
+        $invoices = $query->get();
+
+        if ($invoices->isNotEmpty()) {
+            return $invoices->map(function (DuesInvoice $invoice) {
+                $period = $invoice->period;
+                $member = $invoice->member;
+
+                return [
+                    'member_id' => $member?->id,
+                    'member_npa' => $member?->npa,
+                    'member_name' => $member?->full_name,
+                    'period' => $period?->period,
+                    'period_label' => $period?->name ?? $period?->period,
+                    'amount_due' => $invoice->amount_due,
+                    'amount_paid' => $invoice->amount_paid,
+                    'payment_status_id' => $invoice->payment_status_id,
+                ];
+            });
+        }
+
+        return $this->fallbackFromAllocations($startPeriod, $endPeriod, $divisionId, $memberId);
     }
 
     public function buildTopArrears(Collection $memberRecap, int $limit = 10): array
@@ -152,5 +179,39 @@ class DuesRecapService
         $this->statusCache[$normalized] = (int) $statusId;
 
         return $this->statusCache[$normalized];
+    }
+
+    private function fallbackFromAllocations(?string $startPeriod, ?string $endPeriod, ?int $divisionId = null, ?int $memberId = null): Collection
+    {
+        $paidStatusId = $this->statusIdByCode('PAID');
+
+        $allocations = DuesPaymentAllocation::query()
+            ->select(
+                'dues_payment_allocations.member_id',
+                'dues_payment_allocations.period_ym',
+                'dues_payment_allocations.amount',
+                'members.npa as member_npa',
+                'members.full_name as member_name',
+                'dues_periods.name as period_name'
+            )
+            ->join('dues_payments', 'dues_payments.id', '=', 'dues_payment_allocations.dues_payment_id')
+            ->join('members', 'members.id', '=', 'dues_payment_allocations.member_id')
+            ->leftJoin('dues_periods', 'dues_periods.period', '=', 'dues_payment_allocations.period_ym')
+            ->whereNull('dues_payments.voided_at')
+            ->when($divisionId, fn ($q) => $q->where('members.division_id', $divisionId))
+            ->when($memberId, fn ($q) => $q->where('dues_payment_allocations.member_id', $memberId))
+            ->when($startPeriod && $endPeriod, fn ($q) => $q->whereBetween('dues_payment_allocations.period_ym', [$startPeriod, $endPeriod]))
+            ->get();
+
+        return $allocations->map(fn ($row) => [
+            'member_id' => $row->member_id,
+            'member_npa' => $row->member_npa,
+            'member_name' => $row->member_name,
+            'period' => $row->period_ym,
+            'period_label' => $row->period_name ?? $row->period_ym,
+            'amount_due' => (int) $row->amount,
+            'amount_paid' => (int) $row->amount,
+            'payment_status_id' => $paidStatusId,
+        ]);
     }
 }

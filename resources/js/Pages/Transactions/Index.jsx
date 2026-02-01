@@ -662,7 +662,9 @@ export default function TransactionsIndex() {
                         ]}
                     >
                         <Select
-                            onChange={() => form.setFieldsValue({ category_id: null })}
+                            onChange={() =>
+                                form.setFieldsValue({ category_id: null })
+                            }
                             options={[
                                 { value: "in", label: "Masuk" },
                                 { value: "out", label: "Keluar" },
@@ -709,15 +711,27 @@ export default function TransactionsIndex() {
                     >
                         <Select options={methodOptions} />
                     </Form.Item>
-                    <Form.Item
-                        label="Nominal"
-                        name="amount"
-                        rules={[
-                            { required: true, message: "Nominal wajib diisi" },
-                        ]}
-                    >
-                        <Space.Compact style={{ width: "100%" }}>
-                            <Button disabled>Rp</Button>
+                    <Space.Compact style={{ width: "100%" }}>
+                        <Input
+                            value="Rp"
+                            disabled
+                            style={{
+                                width: 60,
+                                textAlign: "center",
+                                fontWeight: 500,
+                            }}
+                        />
+
+                        <Form.Item
+                            name="amount"
+                            noStyle
+                            rules={[
+                                {
+                                    required: true,
+                                    message: "Nominal wajib diisi",
+                                },
+                            ]}
+                        >
                             <InputNumber
                                 style={{ width: "100%" }}
                                 min={1}
@@ -726,14 +740,21 @@ export default function TransactionsIndex() {
                                     value
                                         ? value
                                               .toString()
-                                              .replace(/\B(?=(\d{3})+(?!\d))/g, ".")
+                                              .replace(
+                                                  /\B(?=(\d{3})+(?!\d))/g,
+                                                  ".",
+                                              )
                                         : ""
                                 }
-                                parser={(value) => value?.toString().replace(/\./g, "").replace(/[^0-9]/g, "")}
+                                parser={(value) =>
+                                    value
+                                        ?.toString()
+                                        .replace(/\./g, "")
+                                        .replace(/[^0-9]/g, "")
+                                }
                             />
-                        </Space.Compact>
-                    </Form.Item>
-
+                        </Form.Item>
+                    </Space.Compact>
                     <Form.Item label="Keterangan" name="description">
                         <Input.TextArea rows={3} />
                     </Form.Item>

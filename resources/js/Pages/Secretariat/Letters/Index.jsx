@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { Link, router, usePage } from "@inertiajs/react";
-import { Button, Card, DatePicker, Input, Modal, Select, Space, Table, Tag, Typography } from "antd";
+import { Button, Card, DatePicker, Empty, Input, Modal, Select, Space, Table, Tag, Typography } from "antd";
 import AppLayout from "@/Layouts/AppLayout";
 import PageShell from "@/Components/App/PageShell";
 import PageHeader from "@/Components/App/PageHeader";
@@ -165,6 +165,32 @@ export default function LettersIndex() {
                             pageSize: letters?.per_page,
                             total: letters?.total,
                             onChange: (page) => onFilterChange({ page }),
+                        }}
+                        locale={{
+                            emptyText: (
+                                <Empty
+                                    description={
+                                        <Space direction="vertical">
+                                            <Text strong>Belum ada surat yang tersimpan.</Text>
+                                            <Text type="secondary">
+                                                Mulai dari membuat template, atur penomoran, lalu buat surat baru.
+                                            </Text>
+                                        </Space>
+                                    }
+                                >
+                                    <Space>
+                                        <Button onClick={() => router.get(route("secretariat.templates.index"))}>
+                                            Kelola Template
+                                        </Button>
+                                        <Button onClick={() => router.get(route("secretariat.numbering.index"))}>
+                                            Atur Penomoran
+                                        </Button>
+                                        <Button type="primary" onClick={() => setCreateOpen(true)}>
+                                            Buat Surat
+                                        </Button>
+                                    </Space>
+                                </Empty>
+                            ),
                         }}
                     />
                 </Card>
