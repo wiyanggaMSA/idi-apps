@@ -33,7 +33,7 @@ class DuesLedgerService
     public function buildIndexPayload(array $filters, int $page, int $perPage): array
     {
         $activePeriod = $this->activePeriod();
-        $cacheKey = $this->cacheKey($activePeriod, $filters, $page, $perPage);
+        $cacheKey = $this->cacheKey($activePeriod, $filters, $page, $perPage, $this->cacheVersion());
 
         return Cache::remember($cacheKey, 300, function () use ($filters, $page, $perPage, $activePeriod) {
             $monthlyAmount = $this->monthlyAmount();
@@ -87,10 +87,10 @@ class DuesLedgerService
 
             $lastPaidPeriod = $periods->max();
             $paidThrough = $this->computePaidThrough($periods);
-            $dueNow = $this->computeDueNow($paidThrough, $activePeriod);
-            $arrears = $this->computeArrearsMonths($dueNow, $activePeriod);
-            $advance = $this->computeAdvanceMonths($paidThrough, $activePeriod);
-            $status = $this->resolveStatus($paidThrough, $activePeriod);
+            $dueNow = $this->computeDueNow($periods, $activePeriod);
+            $arrears = $this->computeArrearsMonths($periods, $activePeriod);
+            $advance = $this->computeAdvanceMonths($periods, $activePeriod);
+            $status = $this->resolveStatus($arrears, $advance);
             $latestPayment = $latestPayments->get($member->id);
 
             return [
@@ -135,58 +135,57 @@ class DuesLedgerService
         return $last;
     }
 
-    private function computeDueNow(?string $paidThrough, string $activePeriod): ?string
+    private function computeDueNow(Collection $periods, string $activePeriod): ?string
     {
-        if ($paidThrough && $paidThrough >= $activePeriod) {
-            return null;
+        $periodSet = array_fill_keys($periods->all(), true);
+        $cursor = Carbon::createFromFormat('Y-m', self::GO_LIVE_PERIOD)->startOfMonth();
+        $end = Carbon::createFromFormat('Y-m', $activePeriod)->startOfMonth();
+
+        while ($cursor <= $end) {
+            $key = $cursor->format('Y-m');
+            if (! isset($periodSet[$key])) {
+                return $key;
+            }
+            $cursor->addMonth();
         }
 
-        if (! $paidThrough) {
-            return self::GO_LIVE_PERIOD;
-        }
-
-        return Carbon::createFromFormat('Y-m', $paidThrough)->addMonth()->format('Y-m');
+        return null;
     }
 
-    private function computeArrearsMonths(?string $dueNow, string $activePeriod): int
+    private function computeArrearsMonths(Collection $periods, string $activePeriod): int
     {
-        if (! $dueNow || $dueNow > $activePeriod) {
-            return 0;
+        $periodSet = array_fill_keys($periods->all(), true);
+        $cursor = Carbon::createFromFormat('Y-m', self::GO_LIVE_PERIOD)->startOfMonth();
+        $end = Carbon::createFromFormat('Y-m', $activePeriod)->startOfMonth();
+        $count = 0;
+
+        while ($cursor <= $end) {
+            $key = $cursor->format('Y-m');
+            if (! isset($periodSet[$key])) {
+                $count++;
+            }
+            $cursor->addMonth();
         }
 
-        return $this->monthsInclusive($dueNow, $activePeriod);
+        return $count;
     }
 
-    private function computeAdvanceMonths(?string $paidThrough, string $activePeriod): int
+    private function computeAdvanceMonths(Collection $periods, string $activePeriod): int
     {
-        if (! $paidThrough || $paidThrough <= $activePeriod) {
-            return 0;
+        return $periods->filter(fn (string $period) => $period > $activePeriod)->count();
+    }
+
+    private function resolveStatus(int $arrears, int $advance): string
+    {
+        if ($arrears > 0) {
+            return 'MENUNGGAK';
         }
 
-        $start = Carbon::createFromFormat('Y-m', $activePeriod)->addMonth()->format('Y-m');
-
-        return $this->monthsInclusive($start, $paidThrough);
-    }
-
-    private function resolveStatus(?string $paidThrough, string $activePeriod): string
-    {
-        if ($paidThrough && $paidThrough > $activePeriod) {
+        if ($advance > 0) {
             return 'ADVANCE';
         }
 
-        if ($paidThrough === $activePeriod) {
-            return 'LUNAS';
-        }
-
-        return 'MENUNGGAK';
-    }
-
-    private function monthsInclusive(string $start, string $end): int
-    {
-        $startDate = Carbon::createFromFormat('Y-m', $start)->startOfMonth();
-        $endDate = Carbon::createFromFormat('Y-m', $end)->startOfMonth();
-
-        return $startDate->diffInMonths($endDate) + 1;
+        return 'LUNAS';
     }
 
     private function applyFilters(Collection $rows, array $filters): Collection
@@ -240,8 +239,8 @@ class DuesLedgerService
     private function buildSummary(Collection $metrics, string $activePeriod, int $monthlyAmount): array
     {
         $totalMembers = $metrics->count();
-        $paidCount = $metrics->filter(function (array $row) use ($activePeriod) {
-            return $row['paid_through'] && $row['paid_through'] >= $activePeriod;
+        $paidCount = $metrics->filter(function (array $row) {
+            return ($row['arrears_months'] ?? 0) === 0;
         })->count();
         $arrearsTotal = $metrics->sum(fn (array $row) => $row['arrears_months'] * $monthlyAmount);
 
@@ -253,15 +252,25 @@ class DuesLedgerService
         ];
     }
 
-    private function cacheKey(string $activePeriod, array $filters, int $page, int $perPage): string
+    private function cacheKey(string $activePeriod, array $filters, int $page, int $perPage, string $version): string
     {
         $payload = array_merge($filters, [
             'page' => $page,
             'perPage' => $perPage,
+            'version' => $version,
         ]);
 
         return sprintf('dues:index:%s:%s', $activePeriod, md5(json_encode($payload)));
     }
+
+    private function cacheVersion(): string
+    {
+        $allocationVersion = DuesPaymentAllocation::query()->max('updated_at') ?? '0';
+        $paymentVersion = DuesPayment::query()->max('updated_at') ?? '0';
+
+        return sprintf('%s:%s', $allocationVersion, $paymentVersion);
+    }
+
 
     private function latestPaymentsByMember(): Collection
     {
