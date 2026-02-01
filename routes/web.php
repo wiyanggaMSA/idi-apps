@@ -100,6 +100,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('/templates/{template}', [LetterTemplatesController::class, 'update'])
             ->middleware('permission:templates.manage')
             ->name('templates.update');
+        Route::get('/templates/{template}/builder', [LetterTemplatesController::class, 'builder'])
+            ->middleware('permission:templates.manage')
+            ->name('templates.builder');
+        Route::put('/templates/{template}/layout', [LetterTemplatesController::class, 'saveLayout'])
+            ->middleware('permission:templates.manage')
+            ->name('templates.layout');
         Route::delete('/templates/{template}', [LetterTemplatesController::class, 'destroy'])
             ->middleware('permission:templates.manage')
             ->name('templates.destroy');

@@ -55,13 +55,6 @@ export const appMenu = [
                 permission: "templates.manage",
             },
             {
-                key: "secretariat.numbering",
-                label: "Penomoran",
-                icon: <SettingOutlined />,
-                routeName: "secretariat.numbering.index",
-                permission: "numbering.manage",
-            },
-            {
                 key: "secretariat.archive",
                 label: "Arsip",
                 icon: <FolderOpenOutlined />,

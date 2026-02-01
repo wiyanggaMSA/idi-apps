@@ -56,6 +56,15 @@ export default function TemplatesIndex() {
             key: "is_active",
             render: (value) => (value ? "Ya" : "Tidak"),
         },
+        {
+            title: "Builder",
+            key: "builder",
+            render: (_, record) => (
+                <Button size="small" type="link" href={route("secretariat.templates.builder", record.id)}>
+                    Buka Builder
+                </Button>
+            ),
+        },
     ];
 
     return (

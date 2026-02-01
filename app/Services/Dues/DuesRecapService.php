@@ -141,9 +141,15 @@ class DuesRecapService
             return $this->statusCache[$normalized];
         }
 
-        $this->statusCache[$normalized] = (int) PaymentStatus::query()
+        $statusId  = PaymentStatus::query()
             ->whereRaw('LOWER(code) = ?', [$normalized])
             ->value('id');
+
+            if (! $statusId) {
+            throw new \RuntimeException('Status pembayaran tidak ditemukan.');
+        }
+
+        $this->statusCache[$normalized] = (int) $statusId;
 
         return $this->statusCache[$normalized];
     }
