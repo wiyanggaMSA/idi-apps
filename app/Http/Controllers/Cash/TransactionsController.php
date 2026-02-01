@@ -46,6 +46,14 @@ class TransactionsController extends Controller
         $mapped = $transactions->getCollection()->map(function (CashTransaction $transaction) use (&$runningBalance) {
             $delta = $transaction->type === 'in' ? $transaction->amount : -$transaction->amount;
             $runningBalance += $delta;
+            $description = $transaction->description;
+
+            if ($transaction->dues_payment_id && $transaction->member) {
+                $memberLabel = $transaction->member->npa
+                    ? sprintf('%s (%s)', $transaction->member->full_name, $transaction->member->npa)
+                    : $transaction->member->full_name;
+                $description = sprintf('Pembayaran iuran anggota %s', $memberLabel);
+            }
 
             return [
                 'id' => $transaction->id,
@@ -56,7 +64,7 @@ class TransactionsController extends Controller
                 'method_id' => $transaction->method_id,
                 'method' => $transaction->method?->name,
                 'amount' => $transaction->amount,
-                'description' => $transaction->description,
+                'description' => $description,
                 'reference_no' => $transaction->reference_no,
                 'member_name' => $transaction->member?->full_name,
                 'member_npa' => $transaction->member?->npa,

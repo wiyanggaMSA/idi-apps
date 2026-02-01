@@ -139,7 +139,13 @@ export default function AppSidebar({ collapsed, onCollapse, orgName }) {
             collapsed={collapsed}
             onCollapse={onCollapse}
             width={220}
-            style={{ background: "#fff" }}
+            style={{
+                background: "#fff",
+                position: "sticky",
+                top: 0,
+                height: "100vh",
+                overflowY: "auto",
+            }}
         >
             <div style={{ padding: 16, fontWeight: 700 }}>
                 {!collapsed ? resolvedOrgName : collapsedLabel || "AK"}

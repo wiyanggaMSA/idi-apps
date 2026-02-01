@@ -11,6 +11,7 @@ import {
     Card,
     Col,
     DatePicker,
+    Descriptions,
     Drawer,
     Form,
     Input,
@@ -29,6 +30,7 @@ import {
     EyeOutlined,
     PlusOutlined,
     StopOutlined,
+    SyncOutlined,
 } from "@ant-design/icons";
 
 const { Text } = Typography;
@@ -73,6 +75,7 @@ export default function DuesIndex() {
     const [detailData, setDetailData] = useState(null);
     const [editingPayment, setEditingPayment] = useState(null);
     const [voidingPayment, setVoidingPayment] = useState(null);
+    const [syncing, setSyncing] = useState(false);
 
     const [paymentForm] = Form.useForm();
     const [editForm] = Form.useForm();
@@ -122,6 +125,19 @@ export default function DuesIndex() {
         });
         setPaymentOpen(true);
     };
+
+    const syncMembers = () => {
+        setSyncing(true);
+        router.post(
+            route("dues.sync"),
+            {},
+            {
+                preserveScroll: true,
+                onFinish: () => setSyncing(false),
+            },
+        );
+    };
+
 
     const handleMemberChange = (memberId) => {
         const member = membersById.get(memberId);
@@ -384,14 +400,24 @@ export default function DuesIndex() {
                 <PageHeader
                     title="Manajemen Iuran Anggota"
                     extra={
-                        <Button
-                            type="primary"
-                            icon={<PlusOutlined />}
-                            onClick={() => openPaymentDrawer()}
-                            disabled={!canManage}
-                        >
-                            Input Pembayaran
-                        </Button>
+                        <Space>
+                            <Button
+                                icon={<SyncOutlined />}
+                                onClick={syncMembers}
+                                loading={syncing}
+                                disabled={!canManage}
+                            >
+                                Sinkronisasi Data
+                            </Button>
+                            <Button
+                                type="primary"
+                                icon={<PlusOutlined />}
+                                onClick={() => openPaymentDrawer()}
+                                disabled={!canManage}
+                            >
+                                Input Pembayaran
+                            </Button>
+                        </Space>
                     }
                 />
                 <Space
@@ -728,6 +754,55 @@ export default function DuesIndex() {
                                     {detailData.member?.npa}
                                 </Text>
                             </Space>
+                            <Descriptions
+                                size="small"
+                                column={2}
+                                style={{ marginTop: 12 }}
+                                items={[
+                                    {
+                                        key: "npa",
+                                        label: "NPA",
+                                        children:
+                                            detailData.member?.npa || "—",
+                                    },
+                                    {
+                                        key: "email",
+                                        label: "Email",
+                                        children:
+                                            detailData.member?.email || "—",
+                                    },
+                                    {
+                                        key: "phone",
+                                        label: "Telepon",
+                                        children:
+                                            detailData.member?.phone || "—",
+                                    },
+                                    {
+                                        key: "education",
+                                        label: "Pendidikan",
+                                        children:
+                                            detailData.member?.education || "—",
+                                    },
+                                    {
+                                        key: "sip_1",
+                                        label: "SIP 1",
+                                        children:
+                                            detailData.member?.sip_1 || "—",
+                                    },
+                                    {
+                                        key: "sip_2",
+                                        label: "SIP 2",
+                                        children:
+                                            detailData.member?.sip_2 || "—",
+                                    },
+                                    {
+                                        key: "sip_3",
+                                        label: "SIP 3",
+                                        children:
+                                            detailData.member?.sip_3 || "—",
+                                    },
+                                ]}
+                            />
                         </Card>
                         <Card size="small" title="Riwayat Pembayaran">
                             <Table

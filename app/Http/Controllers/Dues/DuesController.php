@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\DuesPayment;
 use App\Models\Member;
 use App\Services\Dues\DuesLedgerService;
+use App\Services\Dues\DuesInvoiceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -62,6 +63,14 @@ class DuesController extends Controller
         return redirect()->back()->with('success', 'Pembayaran iuran berhasil disimpan.');
     }
 
+    public function syncMembers(DuesInvoiceService $invoiceService): RedirectResponse
+    {
+        $now = now();
+        $invoiceService->generateMonthlyInvoices((int) $now->format('Y'), (int) $now->format('m'));
+
+        return redirect()->back()->with('success', 'Sinkronisasi iuran selesai.');
+    }
+
     public function updatePayment(Request $request, DuesPayment $payment, DuesLedgerService $ledgerService): RedirectResponse
     {
         $data = $request->validate([
@@ -111,6 +120,12 @@ class DuesController extends Controller
                 'id' => $member->id,
                 'npa' => $member->npa,
                 'full_name' => $member->full_name,
+                'email' => $member->email,
+                'phone' => $member->phone,
+                'education' => $member->education,
+                'sip_1' => $member->sip_1,
+                'sip_2' => $member->sip_2,
+                'sip_3' => $member->sip_3,
             ],
             'payments' => $payments->map(function (DuesPayment $payment) {
                 $start = $payment->allocations->first()?->period_ym;

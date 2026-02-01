@@ -38,8 +38,14 @@ class DuesInvoiceService
 
             $unpaidStatusId = $this->statusIdByCode('UNPAID');
 
+            $memberIds = Member::query()
+                ->whereIn('status', ['aktif', 'active'])
+                ->selectRaw('MIN(id) as id')
+                ->groupBy('npa')
+                ->pluck('id');
+
             Member::query()
-                ->where('status', 'aktif')
+                ->whereIn('id', $memberIds)
                 ->orderBy('id')
                 ->chunkById(100, function (Collection $members) use ($period, $amount, $dueDate, $unpaidStatusId) {
                     foreach ($members as $member) {

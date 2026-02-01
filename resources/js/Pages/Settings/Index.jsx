@@ -32,6 +32,8 @@ import {
     DatabaseOutlined,
     SafetyCertificateOutlined,
     CloudDownloadOutlined,
+    ReloadOutlined,
+    WarningOutlined,
 } from "@ant-design/icons";
 
 const { Text } = Typography;
@@ -109,6 +111,7 @@ export default function SettingsIndex() {
     const [cashCategoryModalOpen, setCashCategoryModalOpen] = useState(false);
     const [cashMethodModalOpen, setCashMethodModalOpen] = useState(false);
     const [paymentStatusModalOpen, setPaymentStatusModalOpen] = useState(false);
+    const [selectedResetTables, setSelectedResetTables] = useState([]);
 
     // --- helpers CRUD dummy ---
     useEffect(() => {
@@ -575,6 +578,88 @@ export default function SettingsIndex() {
             },
         );
     };
+
+    const resetTableOptions = useMemo(
+        () => [
+            { key: "document_links", label: "document_links", note: "Relasi dokumen (polymorphic)" },
+            { key: "letter_versions", label: "letter_versions", note: "Versi surat" },
+            { key: "letters", label: "letters", note: "Surat" },
+            { key: "letter_sequences", label: "letter_sequences", note: "Nomor surat" },
+            { key: "letter_numbering_profiles", label: "letter_numbering_profiles", note: "Profil penomoran" },
+            { key: "letter_templates", label: "letter_templates", note: "Template surat" },
+            { key: "agenda", label: "agenda", note: "Agenda surat" },
+            { key: "events", label: "events", note: "Kegiatan" },
+            { key: "member_import_rows", label: "member_import_rows", note: "Baris import anggota" },
+            { key: "member_import_batches", label: "member_import_batches", note: "Batch import anggota" },
+            { key: "dues_payment_allocations", label: "dues_payment_allocations", note: "Alokasi pembayaran iuran" },
+            { key: "dues_payments", label: "dues_payments", note: "Pembayaran iuran" },
+            { key: "dues_invoices", label: "dues_invoices", note: "Tagihan iuran" },
+            { key: "dues_periods", label: "dues_periods", note: "Periode iuran" },
+            { key: "cash_transactions", label: "cash_transactions", note: "Transaksi kas" },
+            { key: "documents", label: "documents", note: "Lampiran dokumen" },
+            { key: "backups", label: "backups", note: "Log backup" },
+            { key: "activity_log", label: "activity_log", note: "Log aktivitas" },
+            { key: "members", label: "members", note: "Data anggota" },
+            { key: "positions", label: "positions", note: "Master jabatan" },
+            { key: "divisions", label: "divisions", note: "Master divisi" },
+            { key: "payment_statuses", label: "payment_statuses", note: "Status pembayaran" },
+            { key: "cash_methods", label: "cash_methods", note: "Metode kas" },
+            { key: "cash_categories", label: "cash_categories", note: "Kategori kas" },
+            { key: "dues_settings", label: "dues_settings", note: "Pengaturan iuran" },
+            { key: "app_settings", label: "app_settings", note: "Profil organisasi" },
+            { key: "model_has_permissions", label: "model_has_permissions", note: "Pivot permission" },
+            { key: "model_has_roles", label: "model_has_roles", note: "Pivot role" },
+            { key: "role_has_permissions", label: "role_has_permissions", note: "Pivot role-permission" },
+            { key: "roles", label: "roles", note: "Role (Spatie)" },
+            { key: "permissions", label: "permissions", note: "Permission (Spatie)" },
+            { key: "sessions", label: "sessions", note: "Session login" },
+            { key: "password_reset_tokens", label: "password_reset_tokens", note: "Token reset password" },
+            { key: "users", label: "users", note: "User aplikasi" },
+        ],
+        [],
+    );
+
+    const confirmHardReset = () => {
+        Modal.confirm({
+            title: "Hard Reset",
+            content:
+                "Aksi ini akan menghapus semua data dan membuat akun admin baru. Lanjutkan?",
+            okText: "Ya, Reset",
+            okType: "danger",
+            cancelText: "Batal",
+            onOk: () =>
+                router.post(route("settings.factory-reset.hard"), {}, { preserveScroll: true }),
+        });
+    };
+
+    const confirmFinanceReset = () => {
+        Modal.confirm({
+            title: "Reset Data Iuran & Kas",
+            content: "Aksi ini menghapus transaksi iuran dan kas saja. Lanjutkan?",
+            okText: "Ya, Reset",
+            okType: "danger",
+            cancelText: "Batal",
+            onOk: () =>
+                router.post(route("settings.factory-reset.finance"), {}, { preserveScroll: true }),
+        });
+    };
+
+    const submitCustomReset = () => {
+        Modal.confirm({
+            title: "Hapus Tabel Terpilih",
+            content: "Tabel yang dipilih akan dikosongkan sesuai urutan. Lanjutkan?",
+            okText: "Ya, Hapus",
+            okType: "danger",
+            cancelText: "Batal",
+            onOk: () =>
+                router.post(
+                    route("settings.factory-reset.custom"),
+                    { tables: selectedResetTables },
+                    { preserveScroll: true },
+                ),
+        });
+    };
+
     // --- tabs ---
     const tabs = useMemo(() => {
         return [
@@ -1916,6 +2001,101 @@ export default function SettingsIndex() {
                     </Row>
                 ),
             },
+            // 5) Factory Reset
+            {
+                key: "factory-reset",
+                label: (
+                    <Space>
+                        <WarningOutlined />
+                        Factory Reset
+                    </Space>
+                ),
+                children: (
+                    <Row gutter={[12, 12]}>
+                        <Col xs={24} lg={10}>
+                            <Card
+                                style={{ borderRadius: 12, background: "#fff7e6" }}
+                                title={<Text strong>Peringatan</Text>}
+                            >
+                                <ul style={{ paddingLeft: 18, margin: 0 }}>
+                                    <li>Gunakan hanya jika benar-benar diperlukan.</li>
+                                    <li>Hard reset akan membuat akun admin baru.</li>
+                                    <li>Password default: <code>admin123</code>.</li>
+                                    <li>Email admin: <code>admin@local.test</code>.</li>
+                                </ul>
+                            </Card>
+                        </Col>
+                        <Col xs={24} lg={14}>
+                            <Space direction="vertical" style={{ width: "100%" }} size={12}>
+                                <Card
+                                    style={{ borderRadius: 12 }}
+                                    title={<Text strong>Hard Reset</Text>}
+                                >
+                                    <Space direction="vertical">
+                                        <Text>
+                                            Menghapus semua data dan membuat ulang admin + permission default.
+                                        </Text>
+                                        <Button danger icon={<ReloadOutlined />} onClick={confirmHardReset}>
+                                            Hard Reset
+                                        </Button>
+                                    </Space>
+                                </Card>
+
+                                <Card
+                                    style={{ borderRadius: 12 }}
+                                    title={<Text strong>Reset Data Iuran & Kas</Text>}
+                                >
+                                    <Space direction="vertical">
+                                        <Text>
+                                            Hanya menghapus data transaksi iuran dan kas, master data tetap.
+                                        </Text>
+                                        <Button danger icon={<ReloadOutlined />} onClick={confirmFinanceReset}>
+                                            Reset Iuran & Kas
+                                        </Button>
+                                    </Space>
+                                </Card>
+
+                                <Card
+                                    style={{ borderRadius: 12 }}
+                                    title={<Text strong>Hapus per Tabel (Opsional)</Text>}
+                                >
+                                    <Text type="secondary">
+                                        Urutan tabel sudah disesuaikan dengan relasi antar data.
+                                    </Text>
+                                    <Divider />
+                                    <Checkbox.Group
+                                        value={selectedResetTables}
+                                        onChange={(values) => setSelectedResetTables(values)}
+                                        style={{ width: "100%" }}
+                                    >
+                                        <Space direction="vertical" style={{ width: "100%" }}>
+                                            {resetTableOptions.map((option) => (
+                                                <Checkbox value={option.key} key={option.key}>
+                                                    <Space direction="vertical" size={0}>
+                                                        <Text>{option.label}</Text>
+                                                        <Text type="secondary" style={{ fontSize: 12 }}>
+                                                            {option.note}
+                                                        </Text>
+                                                    </Space>
+                                                </Checkbox>
+                                            ))}
+                                        </Space>
+                                    </Checkbox.Group>
+                                    <Divider />
+                                    <Button
+                                        danger
+                                        icon={<ReloadOutlined />}
+                                        disabled={!selectedResetTables.length}
+                                        onClick={submitCustomReset}
+                                    >
+                                        Hapus Tabel Terpilih
+                                    </Button>
+                                </Card>
+                            </Space>
+                        </Col>
+                    </Row>
+                ),
+            },
         ];
     }, [
         cashCategories,
@@ -1925,6 +2105,8 @@ export default function SettingsIndex() {
         users,
         roles,
         permissions,
+        resetTableOptions,
+        selectedResetTables,
     ]);
 
     return (

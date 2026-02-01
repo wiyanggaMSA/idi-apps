@@ -457,6 +457,10 @@ class DuesLedgerService
     {
         $category = $this->resolveCashCategory();
         $methodId = $this->resolveCashMethodId($payment->method);
+        $payment->loadMissing('member');
+        $memberName = $payment->member?->full_name ?? 'Anggota';
+        $memberNpa = $payment->member?->npa;
+        $memberLabel = $memberNpa ? sprintf('%s (%s)', $memberName, $memberNpa) : $memberName;
 
         CashTransaction::query()->create([
             'tx_date' => $payment->paid_at,
@@ -464,7 +468,7 @@ class DuesLedgerService
             'category_id' => $category->id,
             'method_id' => $methodId,
             'amount' => $payment->amount,
-            'description' => sprintf('Pembayaran iuran anggota #%s', $payment->member_id),
+            'description' => sprintf('Pembayaran iuran anggota %s', $memberLabel),
             'reference_no' => $payment->reference_no,
             'member_id' => $payment->member_id,
             'dues_payment_id' => $payment->id,

@@ -87,15 +87,15 @@ export default function DuesRecap() {
         cell: (info) => formatIDR(info.getValue()),
       }),
       helper.accessor("outstanding", {
-        header: "Outstanding",
+       header: "Sisa Tagihan",
         cell: (info) => formatIDR(info.getValue()),
       }),
       helper.accessor("collection_rate", {
-        header: "Collection Rate",
+        header: "Rasio Penagihan",
         cell: (info) => `${info.getValue()}%`,
       }),
       helper.accessor("overdue_count", {
-        header: "Overdue",
+        header: "Menunggak",
         cell: (info) => info.getValue(),
       }),
     ];
@@ -121,15 +121,23 @@ export default function DuesRecap() {
         cell: (info) => formatIDR(info.getValue()),
       }),
       helper.accessor("outstanding", {
-        header: "Outstanding",
+        header: "Sisa Tagihan",
         cell: (info) => formatIDR(info.getValue()),
       }),
       helper.accessor("status", {
         header: "Status",
         cell: (info) => {
           const value = info.getValue();
-          const color = value === "PAID" ? "green" : value === "OVERDUE" ? "red" : "gold";
-          return <Tag color={color}>{value}</Tag>;
+          const statusMap = {
+            PAID: { label: "Lunas", color: "green" },
+            UNPAID: { label: "Belum Bayar", color: "gold" },
+            OVERDUE: { label: "Menunggak", color: "red" },
+          };
+          const { label, color } = statusMap[value] || {
+            label: value,
+            color: "default",
+          };
+          return <Tag color={color}>{label}</Tag>;
         },
       }),
     ];
@@ -237,7 +245,7 @@ export default function DuesRecap() {
           </Col>
           <Col xs={24} md={8}>
             <Card style={{ borderRadius: 12 }} bodyStyle={{ padding: 16 }}>
-              <Text type="secondary">Outstanding</Text>
+              <Text type="secondary">Sisa Tagihan</Text>
               <div style={{ fontSize: 20, fontWeight: 600 }}>{formatIDR(kpis.outstanding)}</div>
             </Card>
           </Col>
@@ -246,7 +254,7 @@ export default function DuesRecap() {
         <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
           <Col xs={24} md={8}>
             <Card style={{ borderRadius: 12 }} bodyStyle={{ padding: 16 }}>
-              <Text type="secondary">Collection Rate</Text>
+              <Text type="secondary">Rasio Penagihan</Text>
               <div style={{ fontSize: 20, fontWeight: 600 }}>{kpis.collection_rate}%</div>
             </Card>
           </Col>
@@ -255,15 +263,15 @@ export default function DuesRecap() {
               <Text type="secondary">Jumlah Member</Text>
               <Row style={{ marginTop: 12 }}>
                 <Col span={8}>
-                  <Text>Paid</Text>
+                  <Text>Lunas</Text>
                   <div style={{ fontSize: 18, fontWeight: 600 }}>{kpis.counts?.paid || 0}</div>
                 </Col>
                 <Col span={8}>
-                  <Text>Unpaid</Text>
+                  <Text>Belum Bayar</Text>
                   <div style={{ fontSize: 18, fontWeight: 600 }}>{kpis.counts?.unpaid || 0}</div>
                 </Col>
                 <Col span={8}>
-                  <Text>Overdue</Text>
+                  <Text>Menunggak</Text>
                   <div style={{ fontSize: 18, fontWeight: 600 }}>{kpis.counts?.overdue || 0}</div>
                 </Col>
               </Row>
@@ -328,7 +336,7 @@ export default function DuesRecap() {
                   { title: "NPA", dataIndex: "npa" },
                   { title: "Nama", dataIndex: "name" },
                   {
-                    title: "Outstanding",
+                    title: "Sisa Tagihan",
                     dataIndex: "outstanding",
                     render: (value) => formatIDR(value),
                   },

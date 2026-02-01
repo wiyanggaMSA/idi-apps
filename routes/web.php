@@ -32,6 +32,7 @@ use App\Http\Controllers\Settings\Access\RolesController;
 use App\Http\Controllers\Settings\Access\UsersController;
 use App\Http\Controllers\Settings\OrganizationProfileController;
 use App\Http\Controllers\Settings\DuesSettingsController;
+use App\Http\Controllers\Settings\FactoryResetController;
 use App\Http\Controllers\Settings\MasterData\CashCategoriesController;
 use App\Http\Controllers\Settings\MasterData\CashMethodsController;
 use App\Http\Controllers\Settings\MasterData\DivisionsController;
@@ -165,6 +166,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dues', [DuesController::class, 'index'])
         ->middleware('permission:dues.manage')
         ->name('dues.index');
+    Route::post('/dues/sync', [DuesController::class, 'syncMembers'])
+        ->middleware('permission:dues.manage')
+        ->name('dues.sync');
     Route::post('/dues/payments', [DuesController::class, 'storePayment'])
         ->middleware('permission:dues.manage')
         ->name('dues.payments.store');
@@ -224,6 +228,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/settings', SettingsController::class)->name('settings.index');
         Route::patch('/settings/profile', [OrganizationProfileController::class, 'update'])->name('settings.profile.update');
         Route::patch('/settings/dues', [DuesSettingsController::class, 'update'])->name('settings.dues.update');
+        Route::post('/settings/factory-reset/hard', [FactoryResetController::class, 'hardReset'])
+            ->middleware('permission:settings.view')
+            ->name('settings.factory-reset.hard');
+        Route::post('/settings/factory-reset/finance', [FactoryResetController::class, 'financeReset'])
+            ->middleware('permission:settings.view')
+            ->name('settings.factory-reset.finance');
+        Route::post('/settings/factory-reset/custom', [FactoryResetController::class, 'customReset'])
+            ->middleware('permission:settings.view')
+            ->name('settings.factory-reset.custom');
         Route::prefix('settings/master-data')->name('settings.master-data.')->group(function () {
             Route::post('/divisions', [DivisionsController::class, 'store'])->name('divisions.store');
             Route::delete('/divisions/{division}', [DivisionsController::class, 'destroy'])->name('divisions.destroy');

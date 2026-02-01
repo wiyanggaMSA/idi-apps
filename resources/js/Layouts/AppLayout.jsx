@@ -14,14 +14,14 @@ export default function AppLayout({ title, children }) {
   const orgProfile = props?.orgProfile || {};
 
   return (
-    <Layout style={{ minHeight: "100vh" }}>
+    <Layout style={{ minHeight: "100vh", height: "100vh", overflow: "hidden" }}>
       <AppSidebar
         collapsed={collapsed}
         onCollapse={setCollapsed}
         orgName={orgProfile?.org_name}
       />
 
-      <Layout>
+      <Layout style={{ height: "100vh", overflow: "hidden" }}>
         <AppHeader
           title={title || "Aplikasi Keuangan Organisasi"}
           user={user}
@@ -31,7 +31,13 @@ export default function AppLayout({ title, children }) {
           brandColor={orgProfile?.brand_color}
         />
 
-        <Content style={{ padding: 16 }}>
+        <Content
+          style={{
+            padding: 16,
+            overflowY: "auto",
+            height: "calc(100vh - 64px)",
+          }}
+        >
           {children}
         </Content>
       </Layout>

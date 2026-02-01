@@ -2,6 +2,7 @@
 
 namespace App\Services\Cash;
 
+use App\Models\CashMethod;
 use App\Models\CashTransaction;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -77,12 +78,29 @@ class LedgerBalanceService
 
         $totalIn = (int) ($totals->total_in ?? 0);
         $totalOut = (int) ($totals->total_out ?? 0);
+        $netCash = $this->netCashOnly($query);
 
         return [
             'total_in' => $totalIn,
             'total_out' => $totalOut,
             'net' => $totalIn - $totalOut,
+            'net_cash' => $netCash,
         ];
+    }
+
+    private function netCashOnly(Builder $query): int
+    {
+        $cashMethodId = CashMethod::query()
+            ->whereRaw('LOWER(name) in (?, ?)', ['cash', 'kas'])
+            ->value('id');
+
+        if (! $cashMethodId) {
+            return 0;
+        }
+
+        $cashQuery = (clone $query)->where('method_id', $cashMethodId);
+
+        return $this->netFromQuery($cashQuery);
     }
 
     private function netFromQuery(Builder $query): int

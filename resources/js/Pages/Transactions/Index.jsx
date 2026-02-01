@@ -502,7 +502,7 @@ export default function TransactionsIndex() {
                                 Net Kas
                             </Text>
                             <div style={{ marginTop: 8, fontSize: 18, fontWeight: 800, color: "#003a8c" }}>
-                                {formatIDR(summary.net)}
+                                {formatIDR(summary.net_cash ?? summary.net)}
                             </div>
                         </Card>
                     </Col>

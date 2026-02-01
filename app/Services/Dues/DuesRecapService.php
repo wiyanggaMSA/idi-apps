@@ -18,7 +18,20 @@ class DuesRecapService
         $outstanding = $totalDue - $totalPaid;
         $collectionRate = $totalDue > 0 ? round(($totalPaid / $totalDue) * 100, 2) : 0;
 
-        $statusMap = $invoices->groupBy('payment_status_id')->map->count();
+        $memberStatuses = $invoices->groupBy('member_id')->map(function (Collection $items) {
+            $totalDueMember = $items->sum('amount_due');
+            $totalPaidMember = $items->sum('amount_paid');
+            $outstandingMember = $totalDueMember - $totalPaidMember;
+            $overdue = $items->contains('payment_status_id', $this->statusIdByCode('OVERDUE'));
+
+            if ($outstandingMember <= 0) {
+                return 'PAID';
+            }
+
+            return $overdue ? 'OVERDUE' : 'UNPAID';
+        });
+
+        $statusMap = $memberStatuses->countBy();
 
         return [
             'total_due' => $totalDue,
@@ -26,9 +39,9 @@ class DuesRecapService
             'outstanding' => $outstanding,
             'collection_rate' => $collectionRate,
             'counts' => [
-                'paid' => $statusMap->get($this->statusIdByCode('PAID'), 0),
-                'unpaid' => $statusMap->get($this->statusIdByCode('UNPAID'), 0),
-                'overdue' => $statusMap->get($this->statusIdByCode('OVERDUE'), 0),
+                'paid' => $statusMap->get('PAID', 0),
+                'unpaid' => $statusMap->get('UNPAID', 0),
+                'overdue' => $statusMap->get('OVERDUE', 0),
             ],
         ];
     }
