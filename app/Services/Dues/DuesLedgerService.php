@@ -44,6 +44,7 @@ class DuesLedgerService
 
             $latestPayments = $this->latestPaymentsByMember();
             $metrics = $this->buildMemberMetrics($members, $latestPayments, $activePeriod, $monthlyAmount);
+            $metricsByMember = $metrics->keyBy('member_id');
             $filtered = $this->applyFilters($metrics, $filters);
 
             $paginator = $this->paginate($filtered, $page, $perPage, $filters);
@@ -53,11 +54,16 @@ class DuesLedgerService
                 'active_period_label' => Carbon::createFromFormat('Y-m', $activePeriod)->translatedFormat('F Y'),
                 'monthly_amount' => $monthlyAmount,
                 'summary' => $this->buildSummary($metrics, $activePeriod, $monthlyAmount),
-                'members' => $members->map(fn (Member $member) => [
-                    'id' => $member->id,
-                    'npa' => $member->npa,
-                    'full_name' => $member->full_name,
-                ])->values(),
+                'members' => $members->map(function (Member $member) use ($metricsByMember) {
+                    $metric = $metricsByMember->get($member->id);
+
+                    return [
+                        'id' => $member->id,
+                        'npa' => $member->npa,
+                        'full_name' => $member->full_name,
+                        'due_now' => $metric['due_now'] ?? null,
+                    ];
+                })->values(),
                 'dues' => $paginator,
             ];
         });
@@ -149,7 +155,13 @@ class DuesLedgerService
             $cursor->addMonth();
         }
 
-        return null;
+        if ($periods->isNotEmpty()) {
+            return Carbon::createFromFormat('Y-m', $periods->max())
+                ->addMonth()
+                ->format('Y-m');
+        }
+
+        return self::GO_LIVE_PERIOD;
     }
 
     private function computeArrearsMonths(Collection $periods, string $activePeriod): int
@@ -266,9 +278,12 @@ class DuesLedgerService
     private function cacheVersion(): string
     {
         $allocationVersion = DuesPaymentAllocation::query()->max('updated_at') ?? '0';
+        $allocationId = (int) (DuesPaymentAllocation::query()->max('id') ?? 0);
         $paymentVersion = DuesPayment::query()->max('updated_at') ?? '0';
+        $paymentId = (int) (DuesPayment::query()->max('id') ?? 0);
 
-        return sprintf('%s:%s', $allocationVersion, $paymentVersion);
+
+        return sprintf('%s:%s:%s:%s', $allocationVersion, $allocationId, $paymentVersion, $paymentId);
     }
 
 
@@ -308,6 +323,24 @@ class DuesLedgerService
         $duration = (int) $payload['duration'];
         $monthlyAmount = $this->monthlyAmount();
         $endPeriod = Carbon::createFromFormat('Y-m', $startPeriod)->addMonths($duration - 1)->format('Y-m');
+        $activePeriod = $this->activePeriod();
+
+        $existingPeriods = DuesPaymentAllocation::query()
+            ->select('dues_payment_allocations.period_ym')
+            ->join('dues_payments', 'dues_payments.id', '=', 'dues_payment_allocations.dues_payment_id')
+            ->whereNull('dues_payments.voided_at')
+            ->where('dues_payment_allocations.member_id', $memberId)
+            ->pluck('dues_payment_allocations.period_ym')
+            ->unique()
+            ->values();
+
+        $dueNow = $this->computeDueNow($existingPeriods, $activePeriod);
+        if ($dueNow && $startPeriod !== $dueNow) {
+            throw new \RuntimeException(sprintf(
+                'Periode mulai harus mengikuti bulan iuran saat ini (%s).',
+                $dueNow
+            ));
+        }
 
         $hasOverlap = DuesPaymentAllocation::query()
             ->join('dues_payments', 'dues_payments.id', '=', 'dues_payment_allocations.dues_payment_id')
