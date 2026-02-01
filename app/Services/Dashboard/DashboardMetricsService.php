@@ -46,7 +46,7 @@ class DashboardMetricsService
     public function getMemberMetrics(Carbon $startDate, Carbon $endDate): array
     {
         $total = Member::query()->count();
-        $active = Member::query()->where('status', 'active')->count();
+        $active = Member::query()->where('status', 'aktif')->count();
         $new = Member::query()
             ->where(function ($query) use ($startDate, $endDate) {
                 $query->whereBetween('join_date', [$startDate->toDateString(), $endDate->toDateString()])

@@ -198,15 +198,14 @@ class MemberImportService
     {
         $raw = strtolower(trim((string) $value));
         if ($raw === '') {
-            return 'active';
+            return 'aktif';
         }
 
         return match ($raw) {
-            'active', 'aktif' => 'active',
-            'inactive', 'nonaktif' => 'inactive',
-            'cuti', 'leave' => 'leave',
-            'alumni' => 'alumni',
-            default => 'active',
+            'active', 'aktif' => 'aktif',
+            'inactive', 'nonaktif', 'mutasi', 'leave', 'cuti', 'alumni' => 'mutasi',
+            'meninggal' => 'meninggal',
+            default => 'aktif',
         };
     }
 

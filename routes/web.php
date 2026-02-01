@@ -163,20 +163,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
     //DUES
     Route::get('/dues', [DuesController::class, 'index'])
-        ->middleware('permission:dues.view')
+        ->middleware('permission:dues.manage')
         ->name('dues.index');
-    Route::post('/dues/generate', [DuesController::class, 'generatePeriodInvoices'])
-        ->middleware('permission:dues.generate')
-        ->name('dues.generate');
-    Route::post('/dues/{invoice}/pay', [DuesController::class, 'storePayment'])
-        ->middleware('permission:dues.collect')
-        ->name('dues.pay');
-    Route::get('/dues/{invoice}/detail', [DuesController::class, 'memberInvoiceDetail'])
-        ->middleware('permission:dues.view')
-        ->name('dues.detail');
-    Route::get('/dues/{payment}/receipt', [DuesController::class, 'downloadReceipt'])
-        ->middleware('permission:dues.print')
-        ->name('dues.receipt');
+    Route::post('/dues/payments', [DuesController::class, 'storePayment'])
+        ->middleware('permission:dues.manage')
+        ->name('dues.payments.store');
+    Route::patch('/dues/payments/{payment}', [DuesController::class, 'updatePayment'])
+        ->middleware('permission:dues.manage')
+        ->name('dues.payments.update');
+    Route::post('/dues/payments/{payment}/void', [DuesController::class, 'voidPayment'])
+        ->middleware('permission:dues.void')
+        ->name('dues.payments.void');
+    Route::get('/dues/members/{member}/payments', [DuesController::class, 'memberPayments'])
+        ->middleware('permission:dues.manage')
+        ->name('dues.members.payments');
     Route::get('/dues/recap', [DuesRecapController::class, 'index'])
         ->middleware('permission:dues.recap.view')
         ->name('dues.recap');

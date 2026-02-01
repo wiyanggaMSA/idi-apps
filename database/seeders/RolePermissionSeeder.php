@@ -34,12 +34,10 @@ class RolePermissionSeeder extends Seeder
             'members.import',
             'members.export',
             'members.resolve_import',
-            'dues.view',
-            'dues.collect',
-            'dues.generate',
+            'dues.manage',
+            'dues.void',
             'dues.recap.view',
             'dues.export',
-            'dues.print',
             'settings.view',
             'users.view',
             'users.create',
@@ -78,6 +76,8 @@ class RolePermissionSeeder extends Seeder
 
         $admin->syncPermissions($permissions);
         $bendahara->syncPermissions([
+            'dues.manage',
+            'dues.void',
             'settings.view',
             'users.view',
             'users.update',

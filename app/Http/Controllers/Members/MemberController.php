@@ -41,6 +41,9 @@ class MemberController extends Controller
                 'position_id' => $member->position_id,
                 'join_date' => optional($member->join_date)->format('Y-m-d'),
                 'status' => $member->status,
+                'sip_1' => $member->sip_1,
+                'sip_2' => $member->sip_2,
+                'sip_3' => $member->sip_3,
                 'address' => $member->address,
                 'notes' => $member->notes,
                 'created_at' => optional($member->created_at)->format('Y-m-d'),
@@ -48,8 +51,9 @@ class MemberController extends Controller
 
         $stats = [
             'total' => Member::query()->count(),
-            'active' => Member::query()->where('status', 'active')->count(),
-            'inactive' => Member::query()->where('status', 'inactive')->count(),
+            'active' => Member::query()->where('status', 'aktif')->count(),
+            'mutasi' => Member::query()->where('status', 'mutasi')->count(),
+            'meninggal' => Member::query()->where('status', 'meninggal')->count(),
         ];
         return Inertia::render('Members/Index', [
             'members' => $members,
@@ -57,10 +61,9 @@ class MemberController extends Controller
             'divisions' => Division::query()->active()->orderBy('name')->get(['id', 'name']),
             'positions' => Position::query()->active()->orderBy('name')->get(['id', 'name']),
             'statuses' => [
-                ['value' => 'active', 'label' => 'Aktif'],
-                ['value' => 'inactive', 'label' => 'Nonaktif'],
-                ['value' => 'leave', 'label' => 'Cuti'],
-                ['value' => 'alumni', 'label' => 'Alumni'],
+                ['value' => 'aktif', 'label' => 'Aktif'],
+                ['value' => 'mutasi', 'label' => 'Mutasi'],
+                ['value' => 'meninggal', 'label' => 'Meninggal'],
             ],
             'genders' => [
                 ['value' => 'M', 'label' => 'Laki-laki'],
@@ -81,7 +84,10 @@ class MemberController extends Controller
 
     public function store(StoreMemberRequest $request): RedirectResponse
     {
-        Member::create($request->validated());
+        $data = $request->validated();
+        $data['status'] = $data['status'] ?? 'aktif';
+
+        Member::create($data);
 
         return redirect()->back();
     }
