@@ -291,6 +291,7 @@ export default function MembersIndex() {
               disabled: !canDelete,
               label: "Hapus",
               onClick: () => handleDelete(member),
+              permissions: "members.delete",
             },
           ];
 

@@ -45,7 +45,9 @@ class DuesLedgerService
             $latestPayments = $this->latestPaymentsByMember();
             $metrics = $this->buildMemberMetrics($members, $latestPayments, $activePeriod, $monthlyAmount);
             $metricsByMember = $metrics->keyBy('member_id');
-            $filtered = $this->applyFilters($metrics, $filters);
+            $filtered = $this->applyFilters($metrics, $filters)
+                ->sortBy(fn (array $row) => Str::lower($row['full_name'] ?? ''))
+                ->values();
 
             $paginator = $this->paginate($filtered, $page, $perPage, $filters);
 

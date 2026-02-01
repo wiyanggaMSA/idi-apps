@@ -61,7 +61,11 @@ function buildQuery(filters) {
     delete params.range;
 
     Object.keys(params).forEach((key) => {
-        if (params[key] === null || params[key] === undefined || params[key] === "") {
+        if (
+            params[key] === null ||
+            params[key] === undefined ||
+            params[key] === ""
+        ) {
             delete params[key];
         }
     });
@@ -146,7 +150,10 @@ export default function TransactionsIndex() {
                     <Text
                         strong
                         style={{
-                            color: row.original.type === "out" ? "#cf1322" : "#135200",
+                            color:
+                                row.original.type === "out"
+                                    ? "#cf1322"
+                                    : "#135200",
                         }}
                     >
                         {row.original.type === "out" ? "-" : "+"}{" "}
@@ -158,7 +165,8 @@ export default function TransactionsIndex() {
             {
                 accessorKey: "reference_no",
                 header: "Referensi",
-                cell: ({ row }) => row.original.reference_no || row.original.source,
+                cell: ({ row }) =>
+                    row.original.reference_no || row.original.source,
                 meta: { width: 160 },
             },
             {
@@ -166,7 +174,11 @@ export default function TransactionsIndex() {
                 header: "Lampiran",
                 cell: ({ row }) =>
                     row.original.attachment ? (
-                        <a href={row.original.attachment.url} target="_blank" rel="noreferrer">
+                        <a
+                            href={row.original.attachment.url}
+                            target="_blank"
+                            rel="noreferrer"
+                        >
                             Buka
                         </a>
                     ) : (
@@ -178,7 +190,9 @@ export default function TransactionsIndex() {
                 accessorKey: "running_balance",
                 header: "Saldo Berjalan",
                 cell: ({ row }) => (
-                    <Text type="secondary">{formatIDR(row.original.running_balance)}</Text>
+                    <Text type="secondary">
+                        {formatIDR(row.original.running_balance)}
+                    </Text>
                 ),
                 meta: { width: 170, align: "right" },
             },
@@ -214,7 +228,7 @@ export default function TransactionsIndex() {
                 enableHiding: false,
             },
         ],
-        []
+        [],
     );
 
     const table = useReactTable({
@@ -246,12 +260,13 @@ export default function TransactionsIndex() {
                 label: category.name,
                 type: category.type,
             })),
-        [categories]
+        [categories],
     );
 
     const methodOptions = useMemo(
-        () => methods.map((method) => ({ value: method.id, label: method.name })),
-        [methods]
+        () =>
+            methods.map((method) => ({ value: method.id, label: method.name })),
+        [methods],
     );
 
     const applyFilters = () => {
@@ -317,8 +332,10 @@ export default function TransactionsIndex() {
         payload.append("category_id", values.category_id);
         payload.append("method_id", values.method_id);
         payload.append("amount", values.amount);
-        if (values.description) payload.append("description", values.description);
-        if (values.reference_no) payload.append("reference_no", values.reference_no);
+        if (values.description)
+            payload.append("description", values.description);
+        if (values.reference_no)
+            payload.append("reference_no", values.reference_no);
 
         if (fileList[0]?.originFileObj) {
             payload.append("attachment", fileList[0].originFileObj);
@@ -359,7 +376,9 @@ export default function TransactionsIndex() {
                     <input
                         type="checkbox"
                         checked={col.checked}
-                        onChange={() => table.getColumn(col.key).toggleVisibility()}
+                        onChange={() =>
+                            table.getColumn(col.key).toggleVisibility()
+                        }
                     />
                     {col.label}
                 </label>
@@ -382,15 +401,16 @@ export default function TransactionsIndex() {
                                 Tambah Transaksi
                             </Button>
                             <Dropdown menu={columnMenu} trigger={["click"]}>
-                                <Button icon={<FilterOutlined />}>
-                                    Kolom
-                                </Button>
+                                <Button icon={<FilterOutlined />}>Kolom</Button>
                             </Dropdown>
                         </Space>
                     }
                 />
 
-                <Card style={{ borderRadius: 12, marginBottom: 12 }} bodyStyle={{ padding: 12 }}>
+                <Card
+                    style={{ borderRadius: 12, marginBottom: 12 }}
+                    bodyStyle={{ padding: 12 }}
+                >
                     <Space wrap size={10} style={{ width: "100%" }}>
                         <Input
                             allowClear
@@ -438,7 +458,7 @@ export default function TransactionsIndex() {
                                 .filter((option) =>
                                     filterState.type
                                         ? option.type === filterState.type
-                                        : true
+                                        : true,
                                 )
                                 .map((option) => ({
                                     value: option.value,
@@ -463,7 +483,10 @@ export default function TransactionsIndex() {
                         <RangePicker
                             value={filterState.range}
                             onChange={(value) =>
-                                setFilterState((prev) => ({ ...prev, range: value || [] }))
+                                setFilterState((prev) => ({
+                                    ...prev,
+                                    range: value || [],
+                                }))
                             }
                             format="DD/MM/YYYY"
                         />
@@ -477,48 +500,91 @@ export default function TransactionsIndex() {
 
                 <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
                     <Col xs={24} md={6}>
-                        <Card style={{ borderRadius: 12, background: "#dff4ea" }} bodyStyle={{ padding: 14 }}>
+                        <Card
+                            style={{ borderRadius: 12, background: "#dff4ea" }}
+                            bodyStyle={{ padding: 14 }}
+                        >
                             <Text style={{ color: "#135200", fontWeight: 600 }}>
                                 Total Masuk
                             </Text>
-                            <div style={{ marginTop: 8, fontSize: 18, fontWeight: 800, color: "#135200" }}>
+                            <div
+                                style={{
+                                    marginTop: 8,
+                                    fontSize: 18,
+                                    fontWeight: 800,
+                                    color: "#135200",
+                                }}
+                            >
                                 {formatIDR(summary.total_in)}
                             </div>
                         </Card>
                     </Col>
                     <Col xs={24} md={6}>
-                        <Card style={{ borderRadius: 12, background: "#ffe3e3" }} bodyStyle={{ padding: 14 }}>
+                        <Card
+                            style={{ borderRadius: 12, background: "#ffe3e3" }}
+                            bodyStyle={{ padding: 14 }}
+                        >
                             <Text style={{ color: "#a8071a", fontWeight: 600 }}>
                                 Total Keluar
                             </Text>
-                            <div style={{ marginTop: 8, fontSize: 18, fontWeight: 800, color: "#a8071a" }}>
+                            <div
+                                style={{
+                                    marginTop: 8,
+                                    fontSize: 18,
+                                    fontWeight: 800,
+                                    color: "#a8071a",
+                                }}
+                            >
                                 {formatIDR(summary.total_out)}
                             </div>
                         </Card>
                     </Col>
                     <Col xs={24} md={6}>
-                        <Card style={{ borderRadius: 12, background: "#dbeafe" }} bodyStyle={{ padding: 14 }}>
+                        <Card
+                            style={{ borderRadius: 12, background: "#dbeafe" }}
+                            bodyStyle={{ padding: 14 }}
+                        >
                             <Text style={{ color: "#003a8c", fontWeight: 600 }}>
                                 Net Kas
                             </Text>
-                            <div style={{ marginTop: 8, fontSize: 18, fontWeight: 800, color: "#003a8c" }}>
+                            <div
+                                style={{
+                                    marginTop: 8,
+                                    fontSize: 18,
+                                    fontWeight: 800,
+                                    color: "#003a8c",
+                                }}
+                            >
                                 {formatIDR(summary.net_cash ?? summary.net)}
                             </div>
                         </Card>
                     </Col>
                     <Col xs={24} md={6}>
-                        <Card style={{ borderRadius: 12, background: "#fff7e6" }} bodyStyle={{ padding: 14 }}>
+                        <Card
+                            style={{ borderRadius: 12, background: "#fff7e6" }}
+                            bodyStyle={{ padding: 14 }}
+                        >
                             <Text style={{ color: "#ad4e00", fontWeight: 600 }}>
                                 Saldo Akhir
                             </Text>
-                            <div style={{ marginTop: 8, fontSize: 18, fontWeight: 800, color: "#ad4e00" }}>
+                            <div
+                                style={{
+                                    marginTop: 8,
+                                    fontSize: 18,
+                                    fontWeight: 800,
+                                    color: "#ad4e00",
+                                }}
+                            >
                                 {formatIDR(summary.closing_balance)}
                             </div>
                         </Card>
                     </Col>
                 </Row>
 
-                <Card style={{ borderRadius: 12, marginBottom: 12 }} bodyStyle={{ padding: 12 }}>
+                <Card
+                    style={{ borderRadius: 12, marginBottom: 12 }}
+                    bodyStyle={{ padding: 12 }}
+                >
                     <Text strong>Saldo per Metode (akhir periode)</Text>
                     <Row gutter={[8, 8]} style={{ marginTop: 8 }}>
                         {methods.map((method) => (
@@ -527,7 +593,10 @@ export default function TransactionsIndex() {
                                     <Space direction="vertical">
                                         <Text>{method.name}</Text>
                                         <Text strong>
-                                            {formatIDR(balancesByMethod?.[method.id] || 0)}
+                                            {formatIDR(
+                                                balancesByMethod?.[method.id] ||
+                                                    0,
+                                            )}
                                         </Text>
                                     </Space>
                                 </Card>
@@ -548,8 +617,10 @@ export default function TransactionsIndex() {
                             showSizeChanger: true,
                         }}
                         onChange={(pagination, _filters, sorter) => {
-                            const sortBy = sorter?.field || filters?.sortBy || "tx_date";
-                            const sortDir = sorter?.order === "ascend" ? "asc" : "desc";
+                            const sortBy =
+                                sorter?.field || filters?.sortBy || "tx_date";
+                            const sortDir =
+                                sorter?.order === "ascend" ? "asc" : "desc";
                             router.get(
                                 route("transactions.index"),
                                 {
@@ -559,7 +630,7 @@ export default function TransactionsIndex() {
                                     sortBy,
                                     sortDir,
                                 },
-                                { preserveState: true, replace: true }
+                                { preserveState: true, replace: true },
                             );
                         }}
                     />
@@ -577,14 +648,18 @@ export default function TransactionsIndex() {
                     <Form.Item
                         label="Tanggal"
                         name="tx_date"
-                        rules={[{ required: true, message: "Tanggal wajib diisi" }]}
+                        rules={[
+                            { required: true, message: "Tanggal wajib diisi" },
+                        ]}
                     >
                         <DatePicker showTime style={{ width: "100%" }} />
                     </Form.Item>
                     <Form.Item
                         label="Tipe"
                         name="type"
-                        rules={[{ required: true, message: "Tipe wajib diisi" }]}
+                        rules={[
+                            { required: true, message: "Tipe wajib diisi" },
+                        ]}
                     >
                         <Select
                             options={[
@@ -593,18 +668,28 @@ export default function TransactionsIndex() {
                             ]}
                         />
                     </Form.Item>
-                    <Form.Item shouldUpdate={(prev, curr) => prev.type !== curr.type}>
+                    <Form.Item
+                        shouldUpdate={(prev, curr) => prev.type !== curr.type}
+                    >
                         {() => (
                             <Form.Item
                                 label="Kategori"
                                 name="category_id"
-                                rules={[{ required: true, message: "Kategori wajib diisi" }]}
+                                rules={[
+                                    {
+                                        required: true,
+                                        message: "Kategori wajib diisi",
+                                    },
+                                ]}
                             >
                                 <Select
                                     options={categoryOptions
                                         .filter((option) => {
-                                            const type = form.getFieldValue("type");
-                                            return type ? option.type === type : true;
+                                            const type =
+                                                form.getFieldValue("type");
+                                            return type
+                                                ? option.type === type
+                                                : true;
                                         })
                                         .map((option) => ({
                                             value: option.value,
@@ -617,23 +702,39 @@ export default function TransactionsIndex() {
                     <Form.Item
                         label="Metode"
                         name="method_id"
-                        rules={[{ required: true, message: "Metode wajib diisi" }]}
+                        rules={[
+                            { required: true, message: "Metode wajib diisi" },
+                        ]}
                     >
                         <Select options={methodOptions} />
                     </Form.Item>
                     <Form.Item
                         label="Nominal"
                         name="amount"
-                        rules={[{ required: true, message: "Nominal wajib diisi" }]}
+                        rules={[
+                            { required: true, message: "Nominal wajib diisi" },
+                        ]}
                     >
-                        <InputNumber
-                            style={{ width: "100%" }}
-                            min={1}
-                            formatter={(value) =>
-                                `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ".")
-                            }
-                        />
+                        <Space.Compact style={{ width: "100%" }}>
+                            <Button disabled>Rp</Button>
+                            <InputNumber
+                                style={{ width: "100%" }}
+                                min={1}
+                                inputMode="numeric"
+                                formatter={(value) =>
+                                    value
+                                        ? value
+                                              .toString()
+                                              .replace(/\B(?=(\d{3})+(?!\d))/g, ".")
+                                        : ""
+                                }
+                                parser={(value) =>
+                                    value ? value.replace(/\D/g, "") : ""
+                                }
+                            />
+                        </Space.Compact>
                     </Form.Item>
+
                     <Form.Item label="Keterangan" name="description">
                         <Input.TextArea rows={3} />
                     </Form.Item>
@@ -645,9 +746,13 @@ export default function TransactionsIndex() {
                             fileList={fileList}
                             beforeUpload={() => false}
                             maxCount={1}
-                            onChange={({ fileList: newFileList }) => setFileList(newFileList)}
+                            onChange={({ fileList: newFileList }) =>
+                                setFileList(newFileList)
+                            }
                         >
-                            <Button icon={<PaperClipOutlined />}>Pilih File</Button>
+                            <Button icon={<PaperClipOutlined />}>
+                                Pilih File
+                            </Button>
                         </Upload>
                     </Form.Item>
                 </Form>

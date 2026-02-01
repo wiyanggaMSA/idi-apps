@@ -30,7 +30,6 @@ import {
     EyeOutlined,
     PlusOutlined,
     StopOutlined,
-    SyncOutlined,
 } from "@ant-design/icons";
 
 const { Text } = Typography;
@@ -75,7 +74,6 @@ export default function DuesIndex() {
     const [detailData, setDetailData] = useState(null);
     const [editingPayment, setEditingPayment] = useState(null);
     const [voidingPayment, setVoidingPayment] = useState(null);
-    const [syncing, setSyncing] = useState(false);
 
     const [paymentForm] = Form.useForm();
     const [editForm] = Form.useForm();
@@ -125,19 +123,6 @@ export default function DuesIndex() {
         });
         setPaymentOpen(true);
     };
-
-    const syncMembers = () => {
-        setSyncing(true);
-        router.post(
-            route("dues.sync"),
-            {},
-            {
-                preserveScroll: true,
-                onFinish: () => setSyncing(false),
-            },
-        );
-    };
-
 
     const handleMemberChange = (memberId) => {
         const member = membersById.get(memberId);
@@ -401,14 +386,6 @@ export default function DuesIndex() {
                     title="Manajemen Iuran Anggota"
                     extra={
                         <Space>
-                            <Button
-                                icon={<SyncOutlined />}
-                                onClick={syncMembers}
-                                loading={syncing}
-                                disabled={!canManage}
-                            >
-                                Sinkronisasi Data
-                            </Button>
                             <Button
                                 type="primary"
                                 icon={<PlusOutlined />}
