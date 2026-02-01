@@ -6,13 +6,12 @@ import AppLayout from "@/layouts/AppLayout";
 import PageShell from "@/components/app/PageShell";
 import PageHeader from "@/components/app/PageHeader";
 import {
+  Alert,
   Button,
   Card,
-  Checkbox,
   Col,
   DatePicker,
   Drawer,
-  Dropdown,
   Form,
   Input,
   InputNumber,
@@ -26,20 +25,11 @@ import {
   message,
 } from "antd";
 import {
-  CaretDownOutlined,
-  CaretUpOutlined,
-  CreditCardOutlined,
+  EditOutlined,
   EyeOutlined,
-  FileTextOutlined,
-  PrinterOutlined,
-  SettingOutlined,
+  PlusOutlined,
+  StopOutlined,
 } from "@ant-design/icons";
-import {
-  createColumnHelper,
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
 
 const { Text } = Typography;
 
@@ -49,39 +39,47 @@ function formatIDR(value) {
       style: "currency",
       currency: "IDR",
       maximumFractionDigits: 0,
-  }).format(value || 0);
+    }).format(value || 0);
   } catch {
     return `Rp ${String(value || 0)}`;
   }
 }
 
+function formatPeriod(period) {
+  if (!period) return "—";
+  return dayjs(`${period}-01`).format("YYYY-MM");
+}
+
 export default function DuesIndex() {
-   const { props } = usePage();
-  const invoices = props.invoices?.data || [];
-  const meta = props.invoices?.meta || {};
+  const { props } = usePage();
+  const dues = props.dues?.data || [];
+  const meta = props.dues?.meta || {};
   const filters = props.filters || {};
-  const periods = props.periods || [];
-  const divisions = props.divisions || [];
-  const paymentStatuses = props.paymentStatuses || [];
-  const cashMethods = props.cashMethods || [];
-  const settings = props.settings || {};
   const summary = props.summary || {};
+  const members = props.members || [];
+  const activePeriod = props.active_period;
+  const activePeriodLabel = props.active_period_label;
+  const monthlyAmount = props.monthly_amount || 0;
+  const memberStatusLabel = {
+    aktif: "Aktif",
+    mutasi: "Mutasi",
+    meninggal: "Meninggal",
+  };
 
   const [searchValue, setSearchValue] = useState(filters.search || "");
-  const [columnVisibility, setColumnVisibility] = useState({});
-  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [paymentOpen, setPaymentOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailData, setDetailData] = useState(null);
-  const [selectedInvoice, setSelectedInvoice] = useState(null);
-  const [generateModalOpen, setGenerateModalOpen] = useState(false);
-  const [paymentForm] = Form.useForm();
-  const [generateForm] = Form.useForm();
-  const applyYearly = Form.useWatch("apply_to_year", paymentForm);
+  const [editingPayment, setEditingPayment] = useState(null);
+  const [voidingPayment, setVoidingPayment] = useState(null);
 
-  const canCollect = props?.auth?.permissions?.includes("dues.collect");
-  const canGenerate = props?.auth?.permissions?.includes("dues.generate");
-  const canPrint = props?.auth?.permissions?.includes("dues.print");
+  const [paymentForm] = Form.useForm();
+  const [editForm] = Form.useForm();
+  const [voidForm] = Form.useForm();
+
+  const canManage = props?.auth?.permissions?.includes("dues.manage");
+  const canVoid = props?.auth?.permissions?.includes("dues.void");
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -97,50 +95,42 @@ export default function DuesIndex() {
     setSearchValue(filters.search || "");
   }, [filters.search]);
 
-      const applyFilters = (next) => {
+  const applyFilters = (next) => {
     router.get(route("dues.index"), { ...filters, ...next }, { preserveState: true, replace: true });
   };
 
-  const handleSort = (columnId) => {
-    const sortBy = filters.sortBy || "full_name";
-    const sortDir = filters.sortDir || "asc";
-    const isSame = sortBy === columnId;
-    const nextDir = isSame && sortDir === "asc" ? "desc" : "asc";
-    applyFilters({ sortBy: columnId, sortDir: nextDir });
-  };
-
-  const openPaymentModal = (invoice) => {
-    setSelectedInvoice(invoice);
+  const openPaymentDrawer = (row = null) => {
+    const startPeriod = row?.due_now ? dayjs(`${row.due_now}-01`) : dayjs(`${activePeriod}-01`);
     paymentForm.setFieldsValue({
-      amount: invoice.outstanding || invoice.amount_due,
+      member_id: row?.member_id || undefined,
+      start_period: startPeriod,
+      duration: 1,
+      method: "cash",
       paid_at: dayjs(),
-      cash_method_id: cashMethods[0]?.id,
-      payment_status_id: invoice.payment_status_id || paymentStatuses[0]?.id,
-      note: "",
       reference_no: "",
-      apply_to_year: false,
-      apply_year: dayjs(),
+      notes: "",
     });
-    setPaymentModalOpen(true);
+    setPaymentOpen(true);
   };
 
   const submitPayment = async () => {
     try {
       const values = await paymentForm.validateFields();
-      if (!selectedInvoice) return;
-
       const payload = {
-        ...values,
-        paid_at: values.paid_at?.format("YYYY-MM-DD HH:mm:ss"),
-        apply_year: values.apply_to_year ? values.apply_year?.format("YYYY") : null,
+        member_id: values.member_id,
+        start_period: values.start_period?.format("YYYY-MM"),
+        duration: values.duration,
+        method: values.method,
+        paid_at: values.paid_at?.format("YYYY-MM-DD"),
+        reference_no: values.reference_no,
+        notes: values.notes,
       };
 
-      router.post(route("dues.pay", selectedInvoice.id), payload, {
+      router.post(route("dues.payments.store"), payload, {
         preserveScroll: true,
         onSuccess: () => {
           message.success("Pembayaran iuran berhasil disimpan.");
-          setPaymentModalOpen(false);
-          setSelectedInvoice(null);
+          setPaymentOpen(false);
           paymentForm.resetFields();
         },
         onError: (errors) => {
@@ -152,248 +142,254 @@ export default function DuesIndex() {
     } catch {}
   };
 
-      const openDetail = async (invoice) => {
+  const openDetail = async (row) => {
     setDetailOpen(true);
     setDetailLoading(true);
     setDetailData(null);
     try {
-      const { data } = await axios.get(route("dues.detail", invoice.id));
+      const { data } = await axios.get(route("dues.members.payments", row.member_id));
       setDetailData(data);
     } catch {
-      message.error("Gagal memuat detail iuran.");
+      message.error("Gagal memuat detail pembayaran.");
     } finally {
       setDetailLoading(false);
     }
   };
 
-  const openReceipt = (invoice) => {
-    if (!invoice.last_payment_id) {
-      message.warning("Belum ada pembayaran untuk dicetak.");
-      return;
+  const refreshDetail = async () => {
+    if (!detailData?.member?.id) return;
+    try {
+      const { data } = await axios.get(route("dues.members.payments", detailData.member.id));
+      setDetailData(data);
+    } catch {
+      message.error("Gagal memperbarui detail pembayaran.");
     }
-    window.open(route("dues.receipt", invoice.last_payment_id), "_blank");
   };
 
-  const submitGenerate = async () => {
-    try {
-      const values = await generateForm.validateFields();
-      const payload = {
-        type: values.type,
-        period: values.period?.format("YYYY-MM"),
-        year: values.year?.format("YYYY"),
-      };
+  const openEditModal = (payment) => {
+    setEditingPayment(payment);
+    editForm.setFieldsValue({
+      paid_at: payment.paid_at ? dayjs(payment.paid_at) : null,
+      method: payment.method,
+      reference_no: payment.reference_no,
+      notes: payment.notes,
+      reason: "",
+    });
+  };
 
-      router.post(route("dues.generate"), payload, {
-        preserveScroll: true,
-        onSuccess: () => {
-          message.success("Tagihan iuran berhasil digenerate.");
-          setGenerateModalOpen(false);
-          generateForm.resetFields();
+  const submitEdit = async () => {
+    try {
+      const values = await editForm.validateFields();
+      router.patch(
+        route("dues.payments.update", editingPayment.id),
+        {
+          paid_at: values.paid_at?.format("YYYY-MM-DD"),
+          method: values.method,
+          reference_no: values.reference_no,
+          notes: values.notes,
+          reason: values.reason,
         },
-      });
+        {
+          preserveScroll: true,
+          onSuccess: () => {
+            message.success("Pembayaran berhasil diperbarui.");
+            setEditingPayment(null);
+            editForm.resetFields();
+            refreshDetail();
+          },
+          onError: (errors) => {
+            if (errors?.payment) {
+              message.error(errors.payment);
+            }
+          },
+        }
+      );
     } catch {}
   };
 
-  const periodOptions = useMemo(
-    () =>
-      periods.map((period) => ({
-        value: period.period,
-        label: period.name || dayjs(period.period + "-01").format("MMMM YYYY"),
-      })),
-    [periods]
-  );
+  const openVoidModal = (payment) => {
+    setVoidingPayment(payment);
+    voidForm.resetFields();
+  };
 
-  const statusOptions = useMemo(
-    () =>
-      paymentStatuses.map((status) => ({
-        value: status.code,
-        label: status.name,
-      })),
-    [paymentStatuses]
-  );
+  const submitVoid = async () => {
+    try {
+      const values = await voidForm.validateFields();
+      router.post(
+        route("dues.payments.void", voidingPayment.id),
+        { reason: values.reason },
+        {
+          preserveScroll: true,
+          onSuccess: () => {
+            message.success("Pembayaran berhasil dibatalkan.");
+            setVoidingPayment(null);
+            voidForm.resetFields();
+            refreshDetail();
+          },
+          onError: (errors) => {
+            if (errors?.payment) {
+              message.error(errors.payment);
+            }
+          },
+        }
+      );
+    } catch {}
+  };
 
-  const columnHelper = createColumnHelper();
-  const columns = useMemo(
-    () => [
-      columnHelper.accessor("npa", {
-        header: "NPA",
-        meta: { label: "NPA", sortable: true },
-        cell: (info) => info.getValue() || "-",
-      }),
-      columnHelper.accessor("full_name", {
-        header: "Nama",
-        meta: { label: "Nama", sortable: true },
-        cell: (info) => info.getValue() || "-",
-      }),
-      columnHelper.accessor("division", {
-        header: "Divisi",
-        meta: { label: "Divisi", sortable: true },
-        cell: (info) => info.getValue() || "-",
-      }),
-      columnHelper.accessor("status", {
-        header: "Status Iuran",
-        meta: { label: "Status Iuran", sortable: true },
-        cell: (info) => {
-          const row = info.row.original;
-          return (
-            <Tag color={row.status_color || "blue"}>
-              {row.status_name || row.status || "-"}
-            </Tag>
-          );
-        },
-      }),
-      columnHelper.accessor("amount_due", {
-        header: "Nominal",
-        meta: { label: "Nominal", sortable: true },
-        cell: (info) => <Text strong>{formatIDR(info.getValue())}</Text>,
-      }),
-      columnHelper.accessor("amount_paid", {
-        header: "Terbayar",
-        meta: { label: "Terbayar", sortable: true },
-        cell: (info) => formatIDR(info.getValue()),
-      }),
-      columnHelper.accessor("outstanding", {
-        header: "Sisa",
-        meta: { label: "Sisa" },
-        cell: (info) => formatIDR(info.getValue()),
-      }),
-      columnHelper.accessor("due_date", {
-        header: "Jatuh Tempo",
-        meta: { label: "Jatuh Tempo", sortable: true },
-        cell: (info) => info.getValue() || "-",
-      }),
-      columnHelper.display({
-        id: "actions",
-        header: "Aksi",
-        meta: { label: "Aksi" },
-        cell: (info) => {
-          const row = info.row.original;
-          return (
-            <Space>
+  const statusOptions = [
+    { value: "ALL", label: "Semua" },
+    { value: "LUNAS", label: "Lunas" },
+    { value: "MENUNGGAK", label: "Menunggak" },
+    { value: "ADVANCE", label: "Advance" },
+  ];
+
+  const startPeriod = Form.useWatch("start_period", paymentForm);
+  const duration = Form.useWatch("duration", paymentForm);
+
+  const endPeriodLabel = useMemo(() => {
+    if (!startPeriod || !duration) return "—";
+    return startPeriod.add(duration - 1, "month").format("YYYY-MM");
+  }, [startPeriod, duration]);
+
+  const totalAmount = useMemo(() => {
+    if (!duration) return 0;
+    return duration * monthlyAmount;
+  }, [duration, monthlyAmount]);
+
+  const columns = [
+    {
+      title: "NPA",
+      dataIndex: "npa",
+      key: "npa",
+      render: (value) => value || "—",
+    },
+    {
+      title: "Nama",
+      dataIndex: "full_name",
+      key: "full_name",
+      render: (value) => value || "—",
+    },
+    {
+      title: "Status Anggota",
+      dataIndex: "member_status",
+      key: "member_status",
+      render: (value) => memberStatusLabel[value] || value || "—",
+    },
+    {
+      title: "Cara Bayar",
+      dataIndex: "last_payment_method",
+      key: "last_payment_method",
+      render: (value) => value || "—",
+    },
+    {
+      title: "Iuran Terakhir",
+      dataIndex: "last_paid_period",
+      key: "last_paid_period",
+      render: (value) => formatPeriod(value),
+    },
+    {
+      title: "Bulan Iuran Saat Ini",
+      dataIndex: "due_now",
+      key: "due_now",
+      render: (value) => formatPeriod(value),
+    },
+    {
+      title: "Kelebihan Iuran",
+      dataIndex: "advance_months",
+      key: "advance_months",
+      render: (value) => value ?? 0,
+    },
+    {
+      title: "Status Iuran",
+      dataIndex: "status",
+      key: "status",
+      render: (_, row) => {
+        if (row.status === "ADVANCE") {
+          return <Tag color="blue">Lebih bayar {row.advance_months} bulan</Tag>;
+        }
+        if (row.status === "LUNAS") {
+          return <Tag color="green">Lunas</Tag>;
+        }
+        return <Tag color="red">Menunggak {row.arrears_months} bulan</Tag>;
+      },
+    },
+    {
+      title: "Aksi",
+      key: "action",
+      render: (_, row) => (
+        <Space>
+          {row.status === "MENUNGGAK" ? (
+            <>
               <Button
                 size="small"
-                icon={<CreditCardOutlined />}
-                onClick={() => openPaymentModal(row)}
-                disabled={!canCollect}
+                type="primary"
+                onClick={() => openPaymentDrawer(row)}
+                disabled={!canManage}
               >
                 Bayar
               </Button>
               <Button size="small" icon={<EyeOutlined />} onClick={() => openDetail(row)}>
                 Detail
               </Button>
-              <Button
-                size="small"
-                icon={<PrinterOutlined />}
-                onClick={() => openReceipt(row)}
-                disabled={!canPrint || !row.last_payment_id}
-              >
-                Kwitansi
-              </Button>
-            </Space>
-          );
-        },
-      }),
-    ],
-    [canCollect, canPrint]
-  );
-
-  const table = useReactTable({
-    data: invoices,
-    columns,
-    state: { columnVisibility },
-    onColumnVisibilityChange: setColumnVisibility,
-    getCoreRowModel: getCoreRowModel(),
-  });
-
-  const visibleColumns = table.getVisibleLeafColumns();
-  const antdColumns = visibleColumns.map((column) => {
-    const label = column.columnDef.meta?.label || column.columnDef.header;
-    const sortable = column.columnDef.meta?.sortable;
-    const isSorted = (filters.sortBy || "full_name") === column.id;
-    const sortDir = filters.sortDir || "asc";
-
-    return {
-      title: (
-        <Space
-          onClick={() => sortable && handleSort(column.id)}
-          style={{ cursor: sortable ? "pointer" : "default" }}
-        >
-          <span>{label}</span>
-          {sortable && isSorted && sortDir === "asc" && (
-            <CaretUpOutlined style={{ fontSize: 12 }} />
-          )}
-          {sortable && isSorted && sortDir === "desc" && (
-            <CaretDownOutlined style={{ fontSize: 12 }} />
+            </>
+          ) : (
+            <Button size="small" icon={<EyeOutlined />} onClick={() => openDetail(row)}>
+              Detail
+            </Button>
           )}
         </Space>
       ),
-      key: column.id,
-      dataIndex: column.id,
-      render: (_, row) =>
-        flexRender(column.columnDef.cell, {
-          getValue: () => row[column.id],
-          row: { original: row },
-          column,
-          table,
-        }),
-    };
-  });
-
-  const columnMenu = (
-    <Card style={{ minWidth: 220 }} bodyStyle={{ padding: 12 }}>
-      <Space direction="vertical" size={6} style={{ width: "100%" }}>
-        {table.getAllLeafColumns().map((column) => (
-          <Checkbox
-            key={column.id}
-            checked={column.getIsVisible()}
-            onChange={() => column.toggleVisibility()}
-          >
-            {column.columnDef.meta?.label || column.id}
-          </Checkbox>
-        ))}
-      </Space>
-    </Card>
-  );
+    },
+  ];
 
   return (
     <AppLayout title="Iuran">
       <PageShell>
         <PageHeader
-          title="Iuran"
+          title="Manajemen Iuran Anggota"
           extra={
-            <Space>
-              <Dropdown dropdownRender={() => columnMenu} trigger={["click"]}>
-                <Button icon={<SettingOutlined />}>Kolom</Button>
-              </Dropdown>
-              <Button
-                type="primary"
-                icon={<FileTextOutlined />}
-                onClick={() => setGenerateModalOpen(true)}
-                disabled={!canGenerate}
-              >
-                Generate Tagihan
-              </Button>
-            </Space>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => openPaymentDrawer()}
+              disabled={!canManage}
+            >
+              Input Pembayaran
+            </Button>
           }
         />
+        <Space direction="vertical" size={4} style={{ marginBottom: 12 }}>
+          <Text type="secondary">Periode Aktif: {activePeriodLabel}</Text>
+          <Alert
+            type="info"
+            showIcon
+            message="Periode aktif otomatis mengikuti tanggal server."
+          />
+        </Space>
 
         <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
-          <Col xs={24} md={8}>
+          <Col xs={24} md={6}>
             <Card style={{ borderRadius: 12 }} bodyStyle={{ padding: 16 }}>
-              <Text type="secondary">Paid</Text>
-              <div style={{ fontSize: 20, fontWeight: 600 }}>{summary.paid || 0}</div>
+              <Text type="secondary">Wajib Bayar</Text>
+              <div style={{ fontSize: 20, fontWeight: 600 }}>{summary.total_members || 0}</div>
             </Card>
           </Col>
-          <Col xs={24} md={8}>
+          <Col xs={24} md={6}>
             <Card style={{ borderRadius: 12 }} bodyStyle={{ padding: 16 }}>
-              <Text type="secondary">Unpaid</Text>
-              <div style={{ fontSize: 20, fontWeight: 600 }}>{summary.unpaid || 0}</div>
+              <Text type="secondary">Sudah Bayar</Text>
+              <div style={{ fontSize: 20, fontWeight: 600 }}>{summary.paid_members || 0}</div>
             </Card>
           </Col>
-          <Col xs={24} md={8}>
+          <Col xs={24} md={6}>
             <Card style={{ borderRadius: 12 }} bodyStyle={{ padding: 16 }}>
-              <Text type="secondary">Overdue</Text>
-              <div style={{ fontSize: 20, fontWeight: 600 }}>{summary.overdue || 0}</div>
+              <Text type="secondary">Belum Bayar</Text>
+              <div style={{ fontSize: 20, fontWeight: 600 }}>{summary.unpaid_members || 0}</div>
+            </Card>
+          </Col>
+          <Col xs={24} md={6}>
+            <Card style={{ borderRadius: 12 }} bodyStyle={{ padding: 16 }}>
+              <Text type="secondary">Total Tunggakan</Text>
+              <div style={{ fontSize: 20, fontWeight: 600 }}>{formatIDR(summary.total_arrears)}</div>
             </Card>
           </Col>
         </Row>
@@ -408,72 +404,129 @@ export default function DuesIndex() {
               style={{ width: 220 }}
             />
             <Select
-              allowClear
-              placeholder="Periode"
-              options={periodOptions}
-              value={filters.period || undefined}
-              onChange={(value) => applyFilters({ period: value, page: 1 })}
-              style={{ width: 180 }}
-            />
-            <Select
-              allowClear
               placeholder="Status"
               options={statusOptions}
-              value={filters.status || undefined}
+              value={filters.status || "ALL"}
               onChange={(value) => applyFilters({ status: value, page: 1 })}
               style={{ width: 160 }}
             />
             <Select
-              allowClear
-              placeholder="Divisi"
-              options={divisions.map((division) => ({
-                value: division.id,
-                label: division.name,
-              }))}
-              value={filters.division_id || undefined}
-              onChange={(value) => applyFilters({ division_id: value, page: 1 })}
+              placeholder="Tunggakan"
+              value={filters.arrears_only ? "1" : ""}
+              onChange={(value) => applyFilters({ arrears_only: value === "1", page: 1 })}
               style={{ width: 180 }}
+              options={[
+                { value: "", label: "Semua" },
+                { value: "1", label: "Arrears >= 1" },
+              ]}
+            />
+            <Select
+              placeholder="Advance"
+              value={filters.advance_only ? "1" : ""}
+              onChange={(value) => applyFilters({ advance_only: value === "1", page: 1 })}
+              style={{ width: 180 }}
+              options={[
+                { value: "", label: "Semua" },
+                { value: "1", label: "Advance > 0" },
+              ]}
             />
           </Space>
         </Card>
 
-        {/* History table */}
         <Card style={{ borderRadius: 12 }} bodyStyle={{ padding: 0 }}>
           <Table
-            columns={antdColumns}
-            dataSource={invoices}
-            rowKey="id"
+            columns={columns}
+            dataSource={dues}
+            rowKey="member_id"
             pagination={{
-              current: meta.current_page,
-              total: meta.total,
-              pageSize: meta.per_page,
-              onChange: (page, pageSize) =>
-                applyFilters({ page, perPage: pageSize }),
+              current: meta.current_page || filters.page || 1,
+              total: meta.total || 0,
+              pageSize: meta.per_page || filters.perPage || 10,
+              onChange: (page, pageSize) => applyFilters({ page, perPage: pageSize }),
             }}
           />
         </Card>
       </PageShell>
-      <Modal
-        open={paymentModalOpen}
-        title="Input Pembayaran"
-        onCancel={() => {
-          setPaymentModalOpen(false);
+
+      <Drawer
+        open={paymentOpen}
+        width={520}
+        title="Input Pembayaran Iuran"
+        onClose={() => {
+          setPaymentOpen(false);
           paymentForm.resetFields();
         }}
-        onOk={submitPayment}
-        okText="Simpan"
+        footer={
+          <Space style={{ display: "flex", justifyContent: "flex-end" }}>
+            <Button onClick={() => setPaymentOpen(false)}>Batal</Button>
+            <Button type="primary" onClick={submitPayment} disabled={!canManage}>
+              Simpan
+            </Button>
+          </Space>
+        }
       >
         <Form form={paymentForm} layout="vertical" requiredMark={false}>
           <Form.Item
-            label="Nominal"
-            name="amount"
-            rules={[{ required: true, message: "Masukkan nominal" }]}
+            label="Anggota"
+            name="member_id"
+            rules={[{ required: true, message: "Pilih anggota" }]}
           >
-            <InputNumber
-              style={{ width: "100%" }}
-              min={settings.allow_partial ? 1 : selectedInvoice?.outstanding}
-              formatter={(v) => `Rp ${String(v || "").replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`}
-              parser={(v) => Number(String(v || "").replace(/[^\d]/g, ""))}
+            <Select
+              showSearch
+              placeholder="Cari anggota"
+              optionFilterProp="label"
+              options={members.map((member) => ({
+                value: member.id,
+                label: `${member.npa} - ${member.full_name}`,
+              }))}
+            />
+          </Form.Item>
+          <Form.Item label="Nominal Bulanan">
+            <Input value={formatIDR(monthlyAmount)} readOnly />
+          </Form.Item>
+          <Form.Item label="Mode Alokasi">
+            <Input value="Rentang Periode" readOnly />
+          </Form.Item>
+          <Form.Item
+            label="Mulai Periode"
+            name="start_period"
+            rules={[{ required: true, message: "Pilih periode mulai" }]}
+          >
+            <DatePicker picker="month" style={{ width: "100%" }} format="YYYY-MM" />
+          </Form.Item>
+          <Form.Item
+            label="Durasi (bulan)"
+            name="duration"
+            rules={[{ required: true, message: "Masukkan durasi" }]}
+          >
+            <InputNumber min={1} max={36} style={{ width: "100%" }} />
+          </Form.Item>
+          <Space wrap style={{ marginBottom: 12 }}>
+            {[3, 6, 12, 24].map((count) => (
+              <Button
+                key={count}
+                onClick={() => paymentForm.setFieldsValue({ duration: count })}
+              >
+                +{count}
+              </Button>
+            ))}
+          </Space>
+          <Form.Item label="Periode Akhir">
+            <Input value={endPeriodLabel} readOnly />
+          </Form.Item>
+          <Form.Item label="Total">
+            <Input value={formatIDR(totalAmount)} readOnly />
+          </Form.Item>
+          <Form.Item
+            label="Metode"
+            name="method"
+            rules={[{ required: true, message: "Pilih metode" }]}
+          >
+            <Select
+              options={[
+                { value: "cash", label: "Cash" },
+                { value: "transfer", label: "Transfer" },
+              ]}
             />
           </Form.Item>
           <Form.Item
@@ -483,97 +536,19 @@ export default function DuesIndex() {
           >
             <DatePicker style={{ width: "100%" }} format="DD-MM-YYYY" />
           </Form.Item>
-          <Form.Item label="Metode" name="cash_method_id">
-            <Select
-              options={cashMethods.map((method) => ({
-                value: method.id,
-                label: method.name,
-              }))}
-            />
-          </Form.Item>
-          <Form.Item label="Status Pembayaran" name="payment_status_id">
-            <Select
-              options={paymentStatuses.map((status) => ({
-                value: status.id,
-                label: status.name,
-              }))}
-            />
-          </Form.Item>
           <Form.Item label="No. Referensi" name="reference_no">
             <Input placeholder="Opsional" />
           </Form.Item>
-          <Form.Item label="Catatan" name="note">
+          <Form.Item label="Catatan" name="notes">
             <Input.TextArea rows={2} />
           </Form.Item>
-          <Form.Item name="apply_to_year" valuePropName="checked">
-            <Checkbox>
-              Bayar 1 tahun sekaligus
-            </Checkbox>
-          </Form.Item>
-          {applyYearly && (
-            <Form.Item
-              label="Tahun"
-              name="apply_year"
-              rules={[{ required: true, message: "Pilih tahun" }]}
-            >
-              <DatePicker picker="year" style={{ width: "100%" }} />
-            </Form.Item>
-          )}
         </Form>
-      </Modal>
-
-      <Modal
-        open={generateModalOpen}
-        title="Generate Tagihan Periode"
-        onCancel={() => {
-          setGenerateModalOpen(false);
-          generateForm.resetFields();
-        }}
-        onOk={submitGenerate}
-        okText="Generate"
-      >
-        <Form form={generateForm} layout="vertical" requiredMark={false}>
-          <Form.Item
-            label="Tipe"
-            name="type"
-            rules={[{ required: true, message: "Pilih tipe" }]}
-            initialValue="monthly"
-          >
-            <Select
-              options={[
-                { value: "monthly", label: "Bulanan" },
-                { value: "yearly", label: "Tahunan" },
-              ]}
-            />
-          </Form.Item>
-          <Form.Item shouldUpdate noStyle>
-            {({ getFieldValue }) =>
-              getFieldValue("type") === "monthly" ? (
-                <Form.Item
-                  label="Periode"
-                  name="period"
-                  rules={[{ required: true, message: "Pilih periode" }]}
-                >
-                  <DatePicker picker="month" style={{ width: "100%" }} />
-                </Form.Item>
-              ) : (
-                <Form.Item
-                  label="Tahun"
-                  name="year"
-                  rules={[{ required: true, message: "Pilih tahun" }]}
-                >
-                  <DatePicker picker="year" style={{ width: "100%" }} />
-                </Form.Item>
-              )
-            }
-          </Form.Item>
-        </Form>
-      </Modal>
+      </Drawer>
 
       <Drawer
         open={detailOpen}
-        width={480}
-        title="Detail Iuran"
+        width={520}
+        title="Detail Pembayaran"
         onClose={() => setDetailOpen(false)}
       >
         {detailLoading ? (
@@ -582,13 +557,8 @@ export default function DuesIndex() {
           <Space direction="vertical" style={{ width: "100%" }} size={12}>
             <Card size="small">
               <Space direction="vertical" style={{ width: "100%" }}>
-                <Text strong>{detailData.invoice?.member?.name}</Text>
-                <Text type="secondary">
-                  {detailData.invoice?.member?.npa} · {detailData.invoice?.member?.division}
-                </Text>
-                <Text>Periode: {detailData.invoice?.period_name}</Text>
-                <Text>Jatuh tempo: {detailData.invoice?.due_date}</Text>
-                <Tag color="blue">{detailData.invoice?.status_name}</Tag>
+                <Text strong>{detailData.member?.full_name}</Text>
+                <Text type="secondary">{detailData.member?.npa}</Text>
               </Space>
             </Card>
             <Card size="small" title="Riwayat Pembayaran">
@@ -600,11 +570,45 @@ export default function DuesIndex() {
                 columns={[
                   { title: "Tanggal", dataIndex: "paid_at" },
                   {
+                    title: "Periode",
+                    render: (_, row) =>
+                      row.start_period ? `${row.start_period} - ${row.end_period}` : "—",
+                  },
+                  {
                     title: "Nominal",
                     dataIndex: "amount",
                     render: (value) => formatIDR(value),
                   },
                   { title: "Metode", dataIndex: "method" },
+                  {
+                    title: "Status",
+                    render: (_, row) =>
+                      row.voided_at ? <Tag color="red">Void</Tag> : <Tag color="green">Aktif</Tag>,
+                  },
+                  {
+                    title: "Aksi",
+                    render: (_, row) => (
+                      <Space>
+                        <Button
+                          size="small"
+                          icon={<EditOutlined />}
+                          onClick={() => openEditModal(row)}
+                          disabled={!canManage || row.voided_at}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          size="small"
+                          danger
+                          icon={<StopOutlined />}
+                          onClick={() => openVoidModal(row)}
+                          disabled={!canVoid || row.voided_at}
+                        >
+                          Void
+                        </Button>
+                      </Space>
+                    ),
+                  },
                 ]}
               />
             </Card>
@@ -613,6 +617,68 @@ export default function DuesIndex() {
           <Text type="secondary">Tidak ada data.</Text>
         )}
       </Drawer>
+
+      <Modal
+        open={!!editingPayment}
+        title="Edit Pembayaran"
+        onCancel={() => setEditingPayment(null)}
+        onOk={submitEdit}
+        okText="Simpan"
+      >
+        <Form form={editForm} layout="vertical" requiredMark={false}>
+          <Form.Item
+            label="Tanggal Bayar"
+            name="paid_at"
+            rules={[{ required: true, message: "Pilih tanggal bayar" }]}
+          >
+            <DatePicker style={{ width: "100%" }} format="DD-MM-YYYY" />
+          </Form.Item>
+          <Form.Item
+            label="Metode"
+            name="method"
+            rules={[{ required: true, message: "Pilih metode" }]}
+          >
+            <Select
+              options={[
+                { value: "cash", label: "Cash" },
+                { value: "transfer", label: "Transfer" },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item label="No. Referensi" name="reference_no">
+            <Input placeholder="Opsional" />
+          </Form.Item>
+          <Form.Item label="Catatan" name="notes">
+            <Input.TextArea rows={2} />
+          </Form.Item>
+          <Form.Item
+            label="Alasan Edit"
+            name="reason"
+            rules={[{ required: true, message: "Masukkan alasan edit" }]}
+          >
+            <Input.TextArea rows={2} />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        open={!!voidingPayment}
+        title="Void Pembayaran"
+        onCancel={() => setVoidingPayment(null)}
+        onOk={submitVoid}
+        okText="Void"
+        okButtonProps={{ danger: true }}
+      >
+        <Form form={voidForm} layout="vertical" requiredMark={false}>
+          <Form.Item
+            label="Alasan Void"
+            name="reason"
+            rules={[{ required: true, message: "Masukkan alasan void" }]}
+          >
+            <Input.TextArea rows={3} />
+          </Form.Item>
+        </Form>
+      </Modal>
     </AppLayout>
   );
 }

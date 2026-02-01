@@ -115,6 +115,7 @@ export default function MembersIndex() {
   const handleCreate = () => {
     setEditingMember(null);
     form.resetFields();
+    form.setFieldsValue({ status: "aktif" });
     setModalOpen(true);
   };
 
@@ -214,7 +215,12 @@ export default function MembersIndex() {
         meta: { label: "Status", sortable: true },
         cell: (info) => {
           const value = info.getValue();
-          const color = value === "active" ? "green" : value === "inactive" ? "red" : "blue";
+          const color =
+            value === "aktif"
+              ? "green"
+              : value === "meninggal"
+                ? "red"
+                : "orange";
           return (
             <Tag color={color} style={{ fontWeight: 600 }}>
               {statusLabel[value] || value || "-"}
@@ -497,6 +503,15 @@ export default function MembersIndex() {
           <Form.Item label="Status" name="status">
             <Select allowClear options={statuses} placeholder="Status anggota" />
           </Form.Item>
+          <Form.Item label="SIP-1" name="sip_1">
+            <Input placeholder="SIP-1" />
+          </Form.Item>
+          <Form.Item label="SIP-2" name="sip_2">
+            <Input placeholder="SIP-2" />
+          </Form.Item>
+          <Form.Item label="SIP-3" name="sip_3">
+            <Input placeholder="SIP-3" />
+          </Form.Item>
           <Form.Item label="Alamat" name="address">
             <Input.TextArea rows={2} placeholder="Alamat" />
           </Form.Item>
@@ -548,7 +563,16 @@ export default function MembersIndex() {
               {detailMember.join_date || "-"}
             </Descriptions.Item>
             <Descriptions.Item label="Status">
-              {detailMember.status || "-"}
+              {statusLabel[detailMember.status] || detailMember.status || "-"}
+            </Descriptions.Item>
+            <Descriptions.Item label="SIP-1">
+              {detailMember.sip_1 || "-"}
+            </Descriptions.Item>
+            <Descriptions.Item label="SIP-2">
+              {detailMember.sip_2 || "-"}
+            </Descriptions.Item>
+            <Descriptions.Item label="SIP-3">
+              {detailMember.sip_3 || "-"}
             </Descriptions.Item>
             <Descriptions.Item label="Alamat">
               {detailMember.address || "-"}

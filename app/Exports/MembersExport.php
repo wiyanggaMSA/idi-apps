@@ -34,6 +34,9 @@ class MembersExport implements FromQuery, WithHeadings, WithMapping
             'Jabatan',
             'Tanggal Bergabung',
             'Status',
+            'SIP-1',
+            'SIP-2',
+            'SIP-3',
             'Alamat',
             'Catatan',
         ];
@@ -57,6 +60,9 @@ class MembersExport implements FromQuery, WithHeadings, WithMapping
             $member->position?->name,
             optional($member->join_date)->format('Y-m-d'),
             $member->status,
+            $member->sip_1,
+            $member->sip_2,
+            $member->sip_3,
             $member->address,
             $member->notes,
         ];

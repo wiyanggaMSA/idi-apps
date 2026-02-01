@@ -39,7 +39,7 @@ class DuesInvoiceService
             $unpaidStatusId = $this->statusIdByCode('UNPAID');
 
             Member::query()
-                ->where('status', 'active')
+                ->where('status', 'aktif')
                 ->orderBy('id')
                 ->chunkById(100, function (Collection $members) use ($period, $amount, $dueDate, $unpaidStatusId) {
                     foreach ($members as $member) {
