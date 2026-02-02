@@ -7,13 +7,13 @@ import LetterGridBuilder from "@/Components/LetterGridBuilder";
 
 export default function GridBuilder() {
     const { props } = usePage();
-    const { letter } = props;
+    const { letter, signerMembers } = props;
 
     return (
         <AppLayout title="Sekretariat - Surat Grid Builder">
             <PageShell>
                 <PageHeader title="Surat Grid Builder" />
-                <LetterGridBuilder letter={letter} />
+                <LetterGridBuilder letter={letter} signerMembers={signerMembers} />
             </PageShell>
         </AppLayout>
     );

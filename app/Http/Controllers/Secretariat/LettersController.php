@@ -6,20 +6,24 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Secretariat\LetterDraftRequest;
 use App\Http\Requests\Secretariat\LetterFinalizeRequest;
 use App\Models\Letter;
+use App\Models\AppSetting;
 use App\Models\LetterNumberingProfile;
 use App\Models\LetterTemplate;
 use App\Services\Secretariat\LetterHtmlRenderer;
+use App\Models\Member;
+use App\Models\LetterSignature;
 use App\Services\Secretariat\LetterNumberService;
 use App\Services\Secretariat\LetterPlaintextService;
 use App\Services\Secretariat\LetterPdfService;
 use App\Services\Secretariat\LetterVersionService;
 use App\Services\Secretariat\QrCodeService;
-use Barryvdh\DomPDF\Facade\Pdf;
+
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -128,16 +132,30 @@ class LettersController extends Controller
 
     public function builder(Letter $letter): Response
     {
+        $signerMembers = Member::query()
+            ->with('position')
+            ->orderBy('full_name')
+            ->get()
+            ->map(fn ($member) => [
+                'id' => $member->id,
+                'full_name' => $member->full_name,
+                'position_name' => $member->position?->name,
+            ])
+            ->values();
         return Inertia::render('Secretariat/Letters/GridBuilder', [
             'letter' => $letter,
+            'signerMembers' => $signerMembers,
         ]);
     }
 
     public function storeDraft(LetterDraftRequest $request, LetterPlaintextService $plaintextService): RedirectResponse
     {
         $blocks = $request->input('content_blocks_json', []);
+        $layout = $request->input('layout', []);
+        $gridBlocks = $request->input('blocks', []);
 
         $letter = Letter::create([
+            'type' => $request->input('type', 'out'),
             'template_id' => $request->input('template_id'),
             'classification' => $request->input('classification'),
             'number' => $request->input('number'),
@@ -152,6 +170,8 @@ class LettersController extends Controller
             'stamp_image_path' => $request->input('stamp_image_path'),
             'content_blocks_json' => $blocks,
             'content_plaintext' => $plaintextService->extract($blocks),
+            'layout_json' => $layout,
+            'blocks_json' => $gridBlocks,
             'status' => 'DRAFT',
             'created_by' => $request->user()->id,
         ]);
@@ -164,6 +184,7 @@ class LettersController extends Controller
         $blocks = $request->input('content_blocks_json', []);
 
         $letter->update([
+            'type' => $request->input('type', $letter->type),
             'template_id' => $request->input('template_id'),
             'classification' => $request->input('classification'),
             'number' => $request->input('number'),
@@ -341,7 +362,87 @@ class LettersController extends Controller
         return response($html)->header('Content-Type', 'text/html');
     }
 
-    public function downloadPdf(Request $request, Letter $letter)
+    public function renderDocument(Request $request, Letter $letter, QrCodeService $qrCodeService)
+    {
+        $layout = $letter->layout_json ?? [];
+        $blocks = $letter->blocks_json ?? [];
+
+        if (empty($layout) || empty($blocks)) {
+            abort(404);
+        }
+
+        $orgProfile = AppSetting::query()->first();
+        $addressLines = $orgProfile?->address
+            ? preg_split('/\\r\\n|\\r|\\n/', $orgProfile->address)
+            : [];
+
+        $organization = [
+            'logo_url' => $orgProfile?->logo_path ? Storage::url($orgProfile->logo_path) : null,
+            'org_name' => $orgProfile?->org_name ?? config('app.name'),
+            'org_unit' => $orgProfile?->org_unit ?? null,
+            'address_lines' => array_values(array_filter($addressLines)),
+            'contacts' => [
+                'tel' => $orgProfile?->phone,
+                'email' => $orgProfile?->email,
+                'website' => config('app.url'),
+            ],
+            'header_variant' => $orgProfile?->header_variant ?? 'classic_center',
+        ];
+
+        $signature = LetterSignature::query()
+            ->where('letter_id', $letter->id)
+            ->latest('updated_at')
+            ->first();
+
+        $signaturePayload = null;
+
+        if ($signature) {
+            $verificationUrl = route('letters.signature.verify', [
+                'signature' => $signature->id,
+                'k' => $signature->verification_code,
+            ]);
+            $logoPath = $orgProfile?->logo_path ? Storage::disk('public')->path($orgProfile->logo_path) : null;
+            $qrDataUri = $qrCodeService->generateQrWithCenterLogo(
+                $verificationUrl,
+                $logoPath && file_exists($logoPath) ? $logoPath : null
+            );
+
+            $signaturePayload = [
+                'signature_id' => $signature->id,
+                'verification_url' => $verificationUrl,
+                'qr_data_uri' => $qrDataUri,
+                'org_logo_url' => $organization['logo_url'],
+            ];
+        }
+
+        $renderData = [
+            'blocks' => $blocks,
+            'layout' => $layout,
+            'gridConfig' => [
+                'cols' => 12,
+                'rowHeight' => 24,
+            ],
+            'data' => [
+                'organization' => $organization,
+                'signature' => $signaturePayload,
+                'signer' => [
+                    'name' => $signature?->signer_name_snapshot ?? $letter->signer_name,
+                    'role' => $signature?->signer_role_snapshot ?? $letter->signer_title,
+                ],
+                'letter' => [
+                    'number' => $letter->number ?? '',
+                    'date' => optional($letter->date)->format('d/m/Y') ?? '',
+                    'subject' => $letter->subject ?? '',
+                ],
+            ],
+        ];
+
+        return response()->view('letters.render', [
+            'renderData' => $renderData,
+        ]);
+    }
+
+    public function downloadPdf(Request $request, Letter $letter, LetterPdfService $pdfService)
     {
         $version = $request->integer('v');
         $path = $letter->pdf_path;
@@ -361,27 +462,13 @@ class LettersController extends Controller
             abort(404);
         }
 
-        usort($layout, function ($a, $b) {
-            $yCompare = ($a['y'] ?? 0) <=> ($b['y'] ?? 0);
-            if ($yCompare !== 0) {
-                return $yCompare;
-            }
+       $renderUrl = URL::signedRoute('letters.render', ['letter' => $letter->id]);
+        $pdfContent = $pdfService->generateFromUrl($renderUrl);
 
-            return ($a['x'] ?? 0) <=> ($b['x'] ?? 0);
-        });
-
-        $blocksById = collect($blocks)->keyBy('id');
-        $orderedBlocks = collect($layout)
-            ->map(fn ($item) => $blocksById->get($item['i'] ?? null))
-            ->filter()
-            ->values();
-
-        $pdf = Pdf::loadView('letters.builder-pdf', [
-            'letter' => $letter,
-            'blocks' => $orderedBlocks,
+        return response($pdfContent, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename=\"surat-layout.pdf\"',
         ]);
-
-        return $pdf->stream('surat-layout.pdf');
     }
 
     public function revoke(Letter $letter, Request $request): RedirectResponse

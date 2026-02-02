@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Letter extends Model
 {
     protected $fillable = [
+        'type',
         'template_id',
         'classification',
         'number',

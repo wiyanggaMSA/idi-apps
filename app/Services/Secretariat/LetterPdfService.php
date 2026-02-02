@@ -15,4 +15,13 @@ class LetterPdfService
             ->showBackground()
             ->save($outputPath);
     }
+
+    public function generateFromUrl(string $url): string
+    {
+        return Browsershot::url($url)
+            ->format('A4')
+            ->margins(0, 0, 0, 0)
+            ->showBackground()
+            ->pdf();
+    }
 }

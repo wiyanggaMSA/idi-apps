@@ -49,6 +49,10 @@ class HandleInertiaRequests extends Middleware
                 'org_name' => $orgProfile?->org_name ?? 'Aplikasi Keuangan Organisasi',
                 'brand_color' => $orgProfile?->brand_color ?? '#1677ff',
                 'logo_url' => $orgProfile?->logo_path ? Storage::url($orgProfile->logo_path) : null,
+                'address' => $orgProfile?->address ?? null,
+                'phone' => $orgProfile?->phone ?? null,
+                'email' => $orgProfile?->email ?? null,
+                'website' => config('app.url'),
             ],
         ];
     }

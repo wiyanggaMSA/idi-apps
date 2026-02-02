@@ -14,6 +14,7 @@ class LetterDraftRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'type' => ['nullable', 'string', 'in:in,out'],
             'template_id' => ['nullable', 'integer', 'exists:letter_templates,id'],
             'classification' => ['nullable', 'string', 'max:120'],
             'number' => ['nullable', 'string', 'max:120'],
@@ -27,6 +28,8 @@ class LetterDraftRequest extends FormRequest
             'stamp_enabled' => ['nullable', 'boolean'],
             'stamp_image_path' => ['nullable', 'string', 'max:255'],
             'content_blocks_json' => ['nullable', 'array'],
+            'layout' => ['nullable', 'array'],
+            'blocks' => ['nullable', 'array'],
         ];
     }
 }

@@ -1,11 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { router } from "@inertiajs/react";
-import { Button, Card, Divider, Input, Space, Typography, message } from "antd";
+import { router, usePage } from "@inertiajs/react";
+import axios from "axios";
+import { Button, Card, Divider, Input, Select, Space, Typography, message } from "antd";
 import { DownloadOutlined, EyeOutlined } from "@ant-design/icons";
 
 import ReactGridLayout from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
+
+import DocumentRenderer from "@/Components/DocumentRenderer";
 
 const { TextArea } = Input;
 const { Text } = Typography;
@@ -60,7 +63,6 @@ function useContainerWidth() {
 
     const update = () => {
       const next = el.getBoundingClientRect().width;
-      // avoid thrash
       setWidth((prev) => (Math.abs(prev - next) > 1 ? next : prev));
     };
 
@@ -84,8 +86,13 @@ export default function LetterGridBuilder({
   entity,
   saveRouteName = "secretariat.letters.layout",
   showPdf = true,
+  signerMembers = [],
 }) {
+  const { props } = usePage();
   const activeEntity = entity ?? letter;
+
+  const gridConfig = { cols: 12, rowHeight: 24 };
+
   const initialBlocks = useMemo(() => {
     return Array.isArray(activeEntity?.blocks_json) ? activeEntity.blocks_json : [];
   }, [activeEntity]);
@@ -104,11 +111,43 @@ export default function LetterGridBuilder({
   const [layout, setLayout] = useState(initialLayout);
   const [previewMode, setPreviewMode] = useState(false);
 
-  // ✅ Sync when letter changes
+  // signer
+  const [selectedSignerId, setSelectedSignerId] = useState(null);
+  const [signatureData, setSignatureData] = useState(null);
+
+  const organization = useMemo(() => {
+    const orgProfile = props?.orgProfile ?? {};
+    const addressLines =
+      typeof orgProfile?.address === "string" && orgProfile.address.length
+        ? orgProfile.address.split(/\r?\n/)
+        : [];
+
+    return {
+      logo_url: orgProfile.logo_url ?? null,
+      org_name: orgProfile.org_name ?? "Nama Organisasi",
+      org_unit: orgProfile.org_unit ?? "Sekretariat",
+      address_lines: addressLines,
+      contacts: {
+        tel: orgProfile.phone ?? null,
+        email: orgProfile.email ?? null,
+        website: orgProfile.website ?? null,
+      },
+      header_variant: orgProfile.header_variant ?? "classic_center",
+    };
+  }, [props?.orgProfile]);
+
+  const selectedSigner = useMemo(
+    () => signerMembers.find((m) => m.id === selectedSignerId) ?? null,
+    [signerMembers, selectedSignerId]
+  );
+
+  // ✅ Sync when letter/entity changes
   useEffect(() => {
     setBlocks(initialBlocks);
     setLayout(initialLayout);
     setPreviewMode(false);
+    setSelectedSignerId(null);
+    setSignatureData(null);
   }, [initialBlocks, initialLayout]);
 
   const handleAddBlock = (type) => {
@@ -140,8 +179,17 @@ export default function LetterGridBuilder({
   };
 
   const handleSave = () => {
+    // Anda memilih behavior: kalau belum ada id → buat draft dulu
     if (!activeEntity?.id) {
-      message.warning("Surat belum tersedia untuk menyimpan layout.");
+      router.post(
+        route("secretariat.letters.store"),
+        { layout, blocks },
+        {
+          preserveScroll: true,
+          onSuccess: () => message.success("Draft surat berhasil dibuat."),
+          onError: () => message.error("Gagal membuat draft surat."),
+        }
+      );
       return;
     }
 
@@ -156,20 +204,23 @@ export default function LetterGridBuilder({
     );
   };
 
-  const orderedBlocks = useMemo(() => {
-    const layoutMap = new Map(layout.map((item) => [item.i, item]));
-    return blocks
-      .map((block) => ({ ...block, position: layoutMap.get(block.id) }))
-      .sort((a, b) => {
-        const ay = a.position?.y ?? 0;
-        const by = b.position?.y ?? 0;
-        if (ay !== by) return ay - by;
+  const handleSignerChange = async (value) => {
+    setSelectedSignerId(value ?? null);
+    setSignatureData(null);
 
-        const ax = a.position?.x ?? 0;
-        const bx = b.position?.x ?? 0;
-        return ax - bx;
-      });
-  }, [blocks, layout]);
+    // signature hanya masuk akal kalau surat sudah punya id
+    if (!value || !letter?.id) return;
+
+    try {
+      const { data } = await axios.post(
+        route("secretariat.letters.signature.prepare", letter.id),
+        { signer_member_id: value }
+      );
+      setSignatureData(data);
+    } catch (error) {
+      message.error("Gagal menyiapkan tanda tangan digital.");
+    }
+  };
 
   const { ref: canvasWrapRef, width: canvasWidth } = useContainerWidth();
 
@@ -191,6 +242,31 @@ export default function LetterGridBuilder({
         style={{ borderRadius: 12 }}
         bodyStyle={{ display: "flex", flexDirection: "column", gap: 12 }}
       >
+        {letter && (
+          <>
+            <div>
+              <Text strong>Penandatangan</Text>
+              <Select
+                value={selectedSignerId}
+                onChange={handleSignerChange}
+                placeholder="Pilih penandatangan"
+                style={{ width: "100%", marginTop: 8 }}
+                options={signerMembers.map((m) => ({
+                  value: m.id,
+                  label: `${m.full_name}${m.position_name ? ` — ${m.position_name}` : ""}`,
+                }))}
+                allowClear
+              />
+              {!letter?.id && (
+                <Text type="secondary" style={{ display: "block", marginTop: 8 }}>
+                  Buat draft dulu agar penandatangan & tanda tangan digital bisa disiapkan.
+                </Text>
+              )}
+            </div>
+            <Divider />
+          </>
+        )}
+
         <Space direction="vertical" style={{ width: "100%" }}>
           {blockCatalog.map((block) => (
             <Button key={block.type} onClick={() => handleAddBlock(block.type)}>
@@ -201,13 +277,13 @@ export default function LetterGridBuilder({
 
         <Divider />
 
-        <Button type="primary" onClick={handleSave} disabled={!activeEntity?.id}>
-          Simpan Layout
+        <Button type="primary" onClick={handleSave}>
+          {activeEntity?.id ? "Simpan Layout" : "Buat Draft Surat"}
         </Button>
 
         {!activeEntity?.id && (
           <Text type="secondary" style={{ marginTop: 8 }}>
-            Buat/simpan surat dulu agar layout bisa disimpan.
+            Layout akan tersimpan setelah draft surat dibuat.
           </Text>
         )}
       </Card>
@@ -234,102 +310,105 @@ export default function LetterGridBuilder({
           </Space>
         }
       >
-        <div
-          ref={canvasWrapRef}
-          style={{
-            minHeight: 760,
-            borderRadius: 12,
-            border: "1px solid #e5e7eb",
-            backgroundImage:
-              "linear-gradient(0deg, rgba(0,0,0,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.06) 1px, transparent 1px)",
-            backgroundSize: "24px 24px",
-            padding: 8,
-            overflow: "hidden",
-          }}
-        >
-          {/* width must be known; render grid after measurement */}
-          {canvasWidth > 0 && (
-            <ReactGridLayout
-              key={activeEntity?.id ?? "new"}
-              width={canvasWidth - 16} // padding compensation (8 left + 8 right)
+        {previewMode ? (
+          <div className="letter-preview-wrap">
+            <DocumentRenderer
+              blocks={blocks}
               layout={layout}
-              cols={12}
-              rowHeight={24}
-              margin={[10, 10]}
-              containerPadding={[0, 0]}
-              compactType={null}
-              preventCollision={false}
-              isDraggable={!previewMode}
-              isResizable={!previewMode}
-              draggableHandle=".drag-handle"
-              onLayoutChange={(nextLayout) => setLayout(nextLayout)}
-            >
-              {blocks.map((block) => (
-                <div key={block.id}>
-                  <div
-                    style={{
-                      background: "#fff",
-                      borderRadius: 10,
-                      border: "1px solid #d9d9d9",
-                      boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-                      height: "100%",
-                      display: "flex",
-                      flexDirection: "column",
-                    }}
-                  >
+              gridConfig={gridConfig}
+              data={{
+                organization,
+                signature: signatureData,
+                signer: selectedSigner
+                  ? { name: selectedSigner.full_name, role: selectedSigner.position_name }
+                  : {},
+                letter: {
+                  number: letter?.number ?? "",
+                  date: letter?.date ?? "",
+                  subject: letter?.subject ?? "",
+                },
+              }}
+            />
+          </div>
+        ) : (
+          <div
+            ref={canvasWrapRef}
+            style={{
+              minHeight: 760,
+              borderRadius: 12,
+              border: "1px solid #e5e7eb",
+              backgroundImage:
+                "linear-gradient(0deg, rgba(0,0,0,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.06) 1px, transparent 1px)",
+              backgroundSize: "24px 24px",
+              padding: 8,
+              overflow: "hidden",
+            }}
+          >
+            {canvasWidth > 0 && (
+              <ReactGridLayout
+                key={activeEntity?.id ?? "new"}
+                width={canvasWidth - 16}
+                layout={layout}
+                cols={gridConfig.cols}
+                rowHeight={gridConfig.rowHeight}
+                margin={[0, 0]}
+                containerPadding={[0, 0]}
+                compactType={null}
+                preventCollision={false}
+                isDraggable={!previewMode}
+                isResizable={!previewMode}
+                draggableHandle=".drag-handle"
+                onLayoutChange={(nextLayout) => setLayout(nextLayout)}
+              >
+                {blocks.map((block) => (
+                  <div key={block.id}>
                     <div
-                      className="drag-handle"
                       style={{
+                        background: "#fff",
+                        borderRadius: 10,
+                        border: "1px solid #d9d9d9",
+                        boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+                        height: "100%",
                         display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        padding: "6px 10px",
-                        borderBottom: "1px solid #f0f0f0",
-                        cursor: previewMode ? "default" : "move",
-                        background: "#f9fafb",
-                        userSelect: "none",
+                        flexDirection: "column",
                       }}
                     >
-                      <Text strong>{block.label}</Text>
-                      <Button
-                        size="small"
-                        danger
-                        onClick={() => handleDeleteBlock(block.id)}
-                        disabled={previewMode}
+                      <div
+                        className="drag-handle"
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          padding: "6px 10px",
+                          borderBottom: "1px solid #f0f0f0",
+                          cursor: previewMode ? "default" : "move",
+                          background: "#f9fafb",
+                          userSelect: "none",
+                        }}
                       >
-                        Hapus
-                      </Button>
-                    </div>
+                        <Text strong>{block.label}</Text>
+                        <Button
+                          size="small"
+                          danger
+                          onClick={() => handleDeleteBlock(block.id)}
+                          disabled={previewMode}
+                        >
+                          Hapus
+                        </Button>
+                      </div>
 
-                    <div style={{ padding: 10, flex: 1 }}>
-                      {previewMode ? (
-                        <Text style={{ whiteSpace: "pre-wrap" }}>{block.content}</Text>
-                      ) : (
+                      <div style={{ padding: 10, flex: 1 }}>
                         <TextArea
                           value={block.content}
                           onChange={(e) => handleContentChange(block.id, e.target.value)}
                           autoSize={{ minRows: 3 }}
                         />
-                      )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </ReactGridLayout>
-          )}
-        </div>
-
-        {previewMode && (
-          <div style={{ marginTop: 24 }}>
-            <Divider orientation="left">Pratinjau Surat</Divider>
-            {orderedBlocks.map((block) => (
-              <div key={block.id} style={{ marginBottom: 16 }}>
-                <Text strong style={{ display: "block", marginBottom: 4 }}>
-                  {block.label}
-                </Text>
-                <Text style={{ whiteSpace: "pre-wrap" }}>{block.content}</Text>
-              </div>
-            ))}
+                ))}
+              </ReactGridLayout>
+            )}
           </div>
         )}
       </Card>

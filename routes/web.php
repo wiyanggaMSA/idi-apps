@@ -12,7 +12,9 @@ use App\Http\Controllers\Secretariat\AgendaController;
 use App\Http\Controllers\Secretariat\ArchiveController;
 use App\Http\Controllers\Secretariat\LetterTemplatesController;
 use App\Http\Controllers\Secretariat\LetterNumberingProfilesController;
+use App\Http\Controllers\Secretariat\LetterSignatureController;
 use App\Http\Controllers\PublicVerifyLetterController;
+use App\Http\Controllers\PublicLetterSignatureController;
 use App\Http\Controllers\Members\MemberController;
 use App\Http\Controllers\Members\MemberImportExportController;
 use App\Http\Controllers\Dues\DuesController;
@@ -75,6 +77,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::put('/letters/{letter}/layout', [LettersController::class, 'saveLayout'])
             ->middleware('permission:letters.update')
             ->name('letters.layout');
+            Route::post('/letters/{letter}/signature/prepare', [LetterSignatureController::class, 'prepare'])
+            ->middleware('permission:letters.update')
+            ->name('letters.signature.prepare');
         Route::post('/letters/{letter}/finalize', [LettersController::class, 'finalize'])
             ->middleware('permission:letters.finalize')
             ->name('letters.finalize');
@@ -280,6 +285,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
 });
+
+Route::get('/letters/{letter}/render', [LettersController::class, 'renderDocument'])
+    ->middleware('signed')
+    ->name('letters.render');
+
+Route::get('/verifikasi-surat/{signature}', [PublicLetterSignatureController::class, 'show'])
+    ->name('letters.signature.verify');
     
 
 require __DIR__.'/auth.php';
