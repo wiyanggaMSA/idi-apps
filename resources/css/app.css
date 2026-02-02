@@ -29,6 +29,17 @@
   box-sizing: border-box;
 }
 
+.letter-paper--flow {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.letter-block--flow {
+  position: static;
+  width: 100%;
+}
+
 .kop-surat {
   display: flex;
   flex-direction: column;

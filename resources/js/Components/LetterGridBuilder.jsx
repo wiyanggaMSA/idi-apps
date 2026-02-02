@@ -316,12 +316,16 @@ export default function LetterGridBuilder({
               blocks={blocks}
               layout={layout}
               gridConfig={gridConfig}
+              layoutMode="flow"
               data={{
                 organization,
                 signature: signatureData,
                 signer: selectedSigner
                   ? { name: selectedSigner.full_name, role: selectedSigner.position_name }
-                  : {},
+                  : {
+                      name: letter?.signer_name ?? "",
+                      role: letter?.signer_title ?? "",
+                    },
                 letter: {
                   number: letter?.number ?? "",
                   date: letter?.date ?? "",
