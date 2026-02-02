@@ -79,20 +79,26 @@ function useContainerWidth() {
   return { ref, width };
 }
 
-export default function LetterGridBuilder({ letter }) {
+export default function LetterGridBuilder({
+  letter,
+  entity,
+  saveRouteName = "secretariat.letters.layout",
+  showPdf = true,
+}) {
+  const activeEntity = entity ?? letter;
   const initialBlocks = useMemo(() => {
-    return Array.isArray(letter?.blocks_json) ? letter.blocks_json : [];
-  }, [letter]);
+    return Array.isArray(activeEntity?.blocks_json) ? activeEntity.blocks_json : [];
+  }, [activeEntity]);
 
   const initialLayout = useMemo(() => {
-    if (Array.isArray(letter?.layout_json) && letter.layout_json.length) {
-      return letter.layout_json;
+    if (Array.isArray(activeEntity?.layout_json) && activeEntity.layout_json.length) {
+      return activeEntity.layout_json;
     }
-    if (Array.isArray(letter?.blocks_json) && letter.blocks_json.length) {
-      return letter.blocks_json.map((block) => createLayoutItem(block.id, block.type));
+    if (Array.isArray(activeEntity?.blocks_json) && activeEntity.blocks_json.length) {
+      return activeEntity.blocks_json.map((block) => createLayoutItem(block.id, block.type));
     }
     return [];
-  }, [letter]);
+  }, [activeEntity]);
 
   const [blocks, setBlocks] = useState(initialBlocks);
   const [layout, setLayout] = useState(initialLayout);
@@ -134,13 +140,13 @@ export default function LetterGridBuilder({ letter }) {
   };
 
   const handleSave = () => {
-    if (!letter?.id) {
+    if (!activeEntity?.id) {
       message.warning("Surat belum tersedia untuk menyimpan layout.");
       return;
     }
 
     router.put(
-      route("secretariat.letters.layout", letter.id),
+      route(saveRouteName, activeEntity.id),
       { layout, blocks },
       {
         preserveScroll: true,
@@ -195,11 +201,11 @@ export default function LetterGridBuilder({ letter }) {
 
         <Divider />
 
-        <Button type="primary" onClick={handleSave} disabled={!letter?.id}>
+        <Button type="primary" onClick={handleSave} disabled={!activeEntity?.id}>
           Simpan Layout
         </Button>
 
-        {!letter?.id && (
+        {!activeEntity?.id && (
           <Text type="secondary" style={{ marginTop: 8 }}>
             Buat/simpan surat dulu agar layout bisa disimpan.
           </Text>
@@ -215,14 +221,16 @@ export default function LetterGridBuilder({ letter }) {
               {previewMode ? "Edit" : "Pratinjau"}
             </Button>
 
-            <Button
-              icon={<DownloadOutlined />}
-              href={letter?.id ? route("secretariat.letters.pdf", letter.id) : "#"}
-              target="_blank"
-              disabled={!letter?.id}
-            >
-              Unduh PDF
-            </Button>
+            {showPdf && (
+              <Button
+                icon={<DownloadOutlined />}
+                href={activeEntity?.id ? route("secretariat.letters.pdf", activeEntity.id) : "#"}
+                target="_blank"
+                disabled={!activeEntity?.id}
+              >
+                Unduh PDF
+              </Button>
+            )}
           </Space>
         }
       >
@@ -242,7 +250,7 @@ export default function LetterGridBuilder({ letter }) {
           {/* width must be known; render grid after measurement */}
           {canvasWidth > 0 && (
             <ReactGridLayout
-              key={letter?.id ?? "new"}
+              key={activeEntity?.id ?? "new"}
               width={canvasWidth - 16} // padding compensation (8 left + 8 right)
               layout={layout}
               cols={12}

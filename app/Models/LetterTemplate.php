@@ -20,6 +20,7 @@ class LetterTemplate extends Model
         'paper',
         'margin_json',
         'blocks_json',
+        'layout_json',
         'placeholders_schema_json',
         'is_active',
         'created_by',
@@ -28,6 +29,7 @@ class LetterTemplate extends Model
     protected $casts = [
         'margin_json' => 'array',
         'blocks_json' => 'array',
+        'layout_json' => 'array',
         'placeholders_schema_json' => 'array',
         'is_active' => 'boolean',
     ];

@@ -28,7 +28,7 @@ class LetterTemplatesController extends Controller
             'code' => ['nullable', 'string', 'max:120'],
             'classification' => ['nullable', 'string', 'max:120'],
             'numbering_profile_id' => ['nullable', 'integer', 'exists:letter_numbering_profiles,id'],
-            'context_text' => ['nullable', 'string'],
+            'content_text' => ['nullable', 'string'],
             'paper' => ['nullable', 'string', 'max:20'],
             'margin_json' => ['nullable', 'array'],
             'blocks_json' => ['nullable', 'array'],
@@ -51,7 +51,7 @@ class LetterTemplatesController extends Controller
             'code' => ['nullable', 'string', 'max:120'],
             'classification' => ['nullable', 'string', 'max:120'],
             'numbering_profile_id' => ['nullable', 'integer', 'exists:letter_numbering_profiles,id'],
-            'context_text' => ['nullable', 'string'],
+            'content_text' => ['nullable', 'string'],
             'paper' => ['nullable', 'string', 'max:20'],
             'margin_json' => ['nullable', 'array'],
             'blocks_json' => ['nullable', 'array'],
@@ -66,6 +66,28 @@ class LetterTemplatesController extends Controller
         $template->update($data);
 
         return redirect()->route('secretariat.templates.index')->with('success', 'Template diperbarui.');
+    }
+
+    public function builder(LetterTemplate $template): Response
+    {
+        return Inertia::render('Secretariat/Templates/Builder', [
+            'template' => $template,
+        ]);
+    }
+
+    public function saveLayout(Request $request, LetterTemplate $template): RedirectResponse
+    {
+        $data = $request->validate([
+            'layout' => ['required', 'array'],
+            'blocks' => ['required', 'array'],
+        ]);
+
+        $template->update([
+            'layout_json' => $data['layout'],
+            'blocks_json' => $data['blocks'],
+        ]);
+
+        return redirect()->back()->with('success', 'Layout template berhasil disimpan.');
     }
 
     public function destroy(LetterTemplate $template): RedirectResponse

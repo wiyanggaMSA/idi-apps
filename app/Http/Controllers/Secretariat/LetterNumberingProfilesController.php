@@ -31,7 +31,7 @@ class LetterNumberingProfilesController extends Controller
 
         LetterNumberingProfile::create($data);
 
-        return redirect()->route('secretariat.numbering.index')->with('success', 'Profil penomoran disimpan.');
+        return redirect()->back()->with('success', 'Profil penomoran disimpan.');
     }
 
     public function update(Request $request, LetterNumberingProfile $profile): RedirectResponse
@@ -47,13 +47,13 @@ class LetterNumberingProfilesController extends Controller
 
         $profile->update($data);
 
-        return redirect()->route('secretariat.numbering.index')->with('success', 'Profil penomoran diperbarui.');
+        return redirect()->back()->with('success', 'Profil penomoran diperbarui.');
     }
 
     public function destroy(LetterNumberingProfile $profile): RedirectResponse
     {
         $profile->delete();
 
-        return redirect()->route('secretariat.numbering.index')->with('success', 'Profil penomoran dihapus.');
+        return redirect()->back()->with('success', 'Profil penomoran dihapus.');
     }
 }
