@@ -1,46 +1,41 @@
-import React, { useMemo, useState } from "react";
-import { Layout } from "antd";
+import React, { useState } from "react";
 import { usePage } from "@inertiajs/react";
 import AppSidebar from "@/Components/App/AppSidebar";
 import AppHeader from "@/Components/App/AppHeader";
 
-const { Content } = Layout;
-
 export default function AppLayout({ title, children }) {
-  const [collapsed, setCollapsed] = useState(false);
-  const { props } = usePage();
-  const auth = props?.auth || {};
-  const user = auth?.user || null;
-  const orgProfile = props?.orgProfile || {};
+    const [collapsed, setCollapsed] = useState(false);
+    const { props } = usePage();
+    const auth = props?.auth || {};
+    const user = auth?.user || null;
+    const orgProfile = props?.orgProfile || {};
 
-  return (
-    <Layout style={{ minHeight: "100vh", height: "100vh", overflow: "hidden" }}>
-      <AppSidebar
-        collapsed={collapsed}
-        onCollapse={setCollapsed}
-        orgName={orgProfile?.org_name}
-      />
+    return (
+        <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(239,68,68,0.10),_transparent_32%),linear-gradient(180deg,_#f8fafc_0%,_#f4f4f5_100%)] text-zinc-900">
+            <AppSidebar
+                collapsed={collapsed}
+                onCollapse={setCollapsed}
+                orgName={orgProfile?.org_name}
+            />
 
-      <Layout style={{ height: "100vh", overflow: "hidden" }}>
-        <AppHeader
-          title={title || "Aplikasi Keuangan Organisasi"}
-          user={user}
-          collapsed={collapsed}
-          onToggle={() => setCollapsed((v) => !v)}
-          orgName={orgProfile?.org_name}
-          brandColor={orgProfile?.brand_color}
-        />
+            <div
+                className={`min-h-screen transition-all duration-300 ${
+                    collapsed ? "xl:pl-[104px]" : "xl:pl-[308px]"
+                }`}
+            >
+                <AppHeader
+                    title={title || "Aplikasi Keuangan Organisasi"}
+                    user={user}
+                    collapsed={collapsed}
+                    onToggle={() => setCollapsed((value) => !value)}
+                    orgName={orgProfile?.org_name}
+                    brandColor={orgProfile?.brand_color}
+                />
 
-        <Content
-          style={{
-            padding: 16,
-            overflowY: "auto",
-            height: "calc(100vh - 64px)",
-          }}
-        >
-          {children}
-        </Content>
-      </Layout>
-    </Layout>
-  );
+                <main className="px-8 py-8">
+                    <div className="mx-auto max-w-[1680px]">{children}</div>
+                </main>
+            </div>
+        </div>
+    );
 }

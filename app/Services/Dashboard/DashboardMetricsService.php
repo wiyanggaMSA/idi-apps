@@ -8,6 +8,7 @@ use App\Models\DuesInvoice;
 use App\Models\DuesPayment;
 use App\Models\Letter;
 use App\Models\Member;
+use App\Models\MemberStatus;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 
@@ -30,6 +31,8 @@ class DashboardMetricsService
                 'dues_billed' => $duesMetrics['billed'],
                 'dues_collected' => $duesMetrics['collected'],
                 'dues_outstanding' => $duesMetrics['outstanding'],
+                'dues_balance' => $duesMetrics['balance'],
+                'dues_net_month' => $duesMetrics['net_month'],
                 'dues_collection_rate' => $duesMetrics['collection_rate'],
                 'cash_in' => $cashMetrics['in'],
                 'cash_out' => $cashMetrics['out'],
@@ -46,7 +49,13 @@ class DashboardMetricsService
     public function getMemberMetrics(Carbon $startDate, Carbon $endDate): array
     {
         $total = Member::query()->count();
-        $active = Member::query()->where('status', 'aktif')->count();
+        $activeCodes = MemberStatus::query()
+            ->active()
+            ->activeMember()
+            ->pluck('code');
+        $active = Member::query()
+            ->whereIn('status', $activeCodes->isNotEmpty() ? $activeCodes : collect(['aktif']))
+            ->count();
         $new = Member::query()
             ->where(function ($query) use ($startDate, $endDate) {
                 $query->whereBetween('join_date', [$startDate->toDateString(), $endDate->toDateString()])
@@ -78,12 +87,18 @@ class DashboardMetricsService
         $collected = (int) DuesPayment::query()
             ->whereBetween('paid_at', [$startDate, $endDate])
             ->sum('amount');
+        $balance = (int) DuesPayment::query()
+            ->where('paid_at', '<=', $endDate)
+            ->sum('amount');
         $outstanding = max(0, $billed - $collected);
         $collectionRate = $billed > 0 ? round(($collected / $billed) * 100, 1) : 0;
+        $netMonth = $collected - $billed;
 
         return [
             'billed' => $billed,
             'collected' => $collected,
+            'balance' => $balance,
+            'net_month' => $netMonth,
             'outstanding' => $outstanding,
             'collection_rate' => $collectionRate,
         ];

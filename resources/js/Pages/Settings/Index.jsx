@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { router, usePage } from "@inertiajs/react";
+import dayjs from "dayjs";
 import AppLayout from "@/layouts/AppLayout";
 import PageShell from "@/components/app/PageShell";
 import PageHeader from "@/components/app/PageHeader";
@@ -8,6 +9,7 @@ import {
     Card,
     Checkbox,
     Col,
+    DatePicker,
     Divider,
     Form,
     Input,
@@ -35,10 +37,13 @@ import {
     ReloadOutlined,
     WarningOutlined,
 } from "@ant-design/icons";
+import { useI18n } from "@/Contexts/I18nContext";
 
 const { Text } = Typography;
 
 export default function SettingsIndex() {
+    const { t, language } = useI18n();
+    const isEn = language === "en";
     const { props } = usePage();
     const access = props.access || { users: [], roles: [], permissions: [] };
     const profile = props.profile || {};
@@ -54,6 +59,7 @@ export default function SettingsIndex() {
     const [positionForm] = Form.useForm();
     const [cashCategoryForm] = Form.useForm();
     const [cashMethodForm] = Form.useForm();
+    const [memberStatusForm] = Form.useForm();
     const [paymentStatusForm] = Form.useForm();
     const [logoFile, setLogoFile] = useState(null);
     const [logoFileList, setLogoFileList] = useState([]);
@@ -70,9 +76,11 @@ export default function SettingsIndex() {
     const positions = masterData.positions || [];
     const cashCategories = masterData.cash_categories || [];
     const cashMethods = masterData.cash_methods || [];
+    const memberStatuses = masterData.member_statuses || [];
     const paymentStatuses = masterData.payment_statuses || [];
     const duesSettings = props.duesSettings || {
         dues_amount: 100000,
+        dues_start_period: dayjs().format("YYYY-MM"),
         due_day: 10,
         grace_days: 7,
         auto_mark_arrears: true,
@@ -110,22 +118,30 @@ export default function SettingsIndex() {
     const [positionModalOpen, setPositionModalOpen] = useState(false);
     const [cashCategoryModalOpen, setCashCategoryModalOpen] = useState(false);
     const [cashMethodModalOpen, setCashMethodModalOpen] = useState(false);
+    const [memberStatusModalOpen, setMemberStatusModalOpen] = useState(false);
     const [paymentStatusModalOpen, setPaymentStatusModalOpen] = useState(false);
     const [selectedResetTables, setSelectedResetTables] = useState([]);
 
     // --- helpers CRUD dummy ---
     useEffect(() => {
-        duesForm.setFieldsValue(duesSettings);
+        duesForm.setFieldsValue({
+            ...duesSettings,
+            dues_start_period: duesSettings.dues_start_period
+                ? dayjs(`${duesSettings.dues_start_period}-01`)
+                : null,
+        });
     }, [duesForm, duesSettings]);
 
     const defaultOrgProfile = {
         org_name: "IDI Cabang Purwakarta",
+        org_unit: "Sekretariat IDI Purwakarta",
         address: "Alamat sekretariat...",
         phone: "",
         email: "",
         currency: "IDR",
         timezone: "Asia/Jakarta",
         brand_color: "#1677ff",
+        header_variant: "logo_left",
     };
 
     useEffect(() => {
@@ -165,8 +181,15 @@ export default function SettingsIndex() {
 
     const saveDues = async () => {
         try {
-            const v = await duesForm.validateFields();
-            router.patch(route("settings.dues.update"), v, {
+            const values = await duesForm.validateFields();
+            const payload = {
+                ...values,
+                dues_start_period: values.dues_start_period
+                    ? values.dues_start_period.format("YYYY-MM")
+                    : null,
+            };
+
+            router.patch(route("settings.dues.update"), payload, {
                 onSuccess: () => {
                     message.success("Pengaturan iuran tersimpan.");
                 },
@@ -267,6 +290,20 @@ export default function SettingsIndex() {
                     cashMethodForm.resetFields();
                     setCashMethodModalOpen(false);
                     message.success("Metode bayar berhasil ditambahkan.");
+                },
+            });
+        } catch {}
+    };
+
+    const submitMemberStatus = async () => {
+        try {
+            const v = await memberStatusForm.validateFields();
+            router.post(route("settings.master-data.member-statuses.store"), v, {
+                preserveScroll: true,
+                onSuccess: () => {
+                    memberStatusForm.resetFields();
+                    setMemberStatusModalOpen(false);
+                    message.success("Status anggota berhasil ditambahkan.");
                 },
             });
         } catch {}
@@ -397,6 +434,28 @@ export default function SettingsIndex() {
                         preserveScroll: true,
                         onSuccess: () =>
                             message.success("Status bayar berhasil dihapus."),
+                    },
+                ),
+        });
+    };
+
+    const confirmDeleteMemberStatus = (status) => {
+        Modal.confirm({
+            title: "Hapus status anggota?",
+            content: `${status.name} akan dihapus.`,
+            okText: "Hapus",
+            okButtonProps: { danger: true },
+            cancelText: "Batal",
+            onOk: () =>
+                router.delete(
+                    route(
+                        "settings.master-data.member-statuses.destroy",
+                        status.id,
+                    ),
+                    {
+                        preserveScroll: true,
+                        onSuccess: () =>
+                            message.success("Status anggota berhasil dihapus."),
                     },
                 ),
         });
@@ -600,6 +659,7 @@ export default function SettingsIndex() {
             { key: "backups", label: "backups", note: "Log backup" },
             { key: "activity_log", label: "activity_log", note: "Log aktivitas" },
             { key: "members", label: "members", note: "Data anggota" },
+            { key: "member_statuses", label: "member_statuses", note: "Status keanggotaan" },
             { key: "positions", label: "positions", note: "Master jabatan" },
             { key: "divisions", label: "divisions", note: "Master divisi" },
             { key: "payment_statuses", label: "payment_statuses", note: "Status pembayaran" },
@@ -704,6 +764,15 @@ export default function SettingsIndex() {
 
                                         <Col xs={24} md={12}>
                                             <Form.Item
+                                                label="Unit/Judul Kop"
+                                                name="org_unit"
+                                            >
+                                                <Input placeholder="Sekretariat IDI Purwakarta" />
+                                            </Form.Item>
+                                        </Col>
+
+                                        <Col xs={24} md={12}>
+                                            <Form.Item
                                                 label="Telepon"
                                                 name="phone"
                                             >
@@ -775,6 +844,26 @@ export default function SettingsIndex() {
                                                 name="brand_color"
                                             >
                                                 <Input placeholder="#1677ff" />
+                                            </Form.Item>
+                                        </Col>
+
+                                        <Col xs={24} md={12}>
+                                            <Form.Item
+                                                label="Layout Kop Surat"
+                                                name="header_variant"
+                                            >
+                                                <Select
+                                                    options={[
+                                                        {
+                                                            value: "logo_left",
+                                                            label: "Logo kiri + teks kanan",
+                                                        },
+                                                        {
+                                                            value: "classic_center",
+                                                            label: "Logo dan teks di tengah",
+                                                        },
+                                                    ]}
+                                                />
                                             </Form.Item>
                                         </Col>
 
@@ -1152,6 +1241,95 @@ export default function SettingsIndex() {
                                     ),
                                 },
                                 {
+                                    key: "member_statuses",
+                                    label: "Status Anggota",
+                                    children: (
+                                        <Table
+                                            size="small"
+                                            pagination={false}
+                                            dataSource={memberStatuses}
+                                            rowKey="id"
+                                            title={() => (
+                                                <Space>
+                                                    <Text strong>
+                                                        Status Anggota
+                                                    </Text>
+                                                    <Button
+                                                        size="small"
+                                                        icon={<PlusOutlined />}
+                                                        onClick={() =>
+                                                            setMemberStatusModalOpen(
+                                                                true,
+                                                            )
+                                                        }
+                                                    >
+                                                        Tambah
+                                                    </Button>
+                                                </Space>
+                                            )}
+                                            columns={[
+                                                {
+                                                    title: "Code",
+                                                    dataIndex: "code",
+                                                    key: "code",
+                                                    width: 120,
+                                                },
+                                                {
+                                                    title: "Nama",
+                                                    dataIndex: "name",
+                                                    key: "name",
+                                                },
+                                                {
+                                                    title: "Flags",
+                                                    key: "flags",
+                                                    render: (_, r) => (
+                                                        <Space wrap>
+                                                            {r.is_active_member ? (
+                                                                <Tag color="green">Active Member</Tag>
+                                                            ) : null}
+                                                            {r.is_billable ? (
+                                                                <Tag color="blue">Billable</Tag>
+                                                            ) : null}
+                                                            {r.is_deceased ? (
+                                                                <Tag color="red">Deceased</Tag>
+                                                            ) : null}
+                                                            {!r.is_active ? (
+                                                                <Tag>Inactive</Tag>
+                                                            ) : null}
+                                                        </Space>
+                                                    ),
+                                                },
+                                                {
+                                                    title: "Urutan",
+                                                    dataIndex: "sort_order",
+                                                    key: "sort_order",
+                                                    width: 90,
+                                                },
+                                                {
+                                                    title: "Aksi",
+                                                    key: "aksi",
+                                                    width: 80,
+                                                    align: "right",
+                                                    render: (_, r) => (
+                                                        <Button
+                                                            size="small"
+                                                            danger
+                                                            icon={
+                                                                <DeleteOutlined />
+                                                            }
+                                                            onClick={() =>
+                                                                confirmDeleteMemberStatus(
+                                                                    r,
+                                                                )
+                                                            }
+                                                        />
+                                                    ),
+                                                },
+                                            ]}
+                                        />
+                                    ),
+                                },
+                                {
                                     key: "payment_statuses",
                                     label: "Status Bayar",
                                     children: (
@@ -1257,6 +1435,38 @@ export default function SettingsIndex() {
                                                                 }}
                                                                 min={0}
                                                                 step={1000}
+                                                            />
+                                                        </Form.Item>
+                                                    </Col>
+
+                                                    <Col xs={24} md={12}>
+                                                        <Form.Item
+                                                            label={
+                                                                isEn
+                                                                    ? "Dues Start Period (month/year)"
+                                                                    : "Periode Mulai Iuran (bulan/tahun)"
+                                                            }
+                                                            name="dues_start_period"
+                                                            rules={[
+                                                                {
+                                                                    required: true,
+                                                                    message: isEn
+                                                                        ? "Start period is required"
+                                                                        : "Periode mulai wajib diisi",
+                                                                },
+                                                            ]}
+                                                            tooltip={
+                                                                isEn
+                                                                    ? "All dues calculations start from this month."
+                                                                    : "Semua kalkulasi iuran dimulai dari bulan ini."
+                                                            }
+                                                        >
+                                                            <DatePicker
+                                                                picker="month"
+                                                                style={{
+                                                                    width: "100%",
+                                                                }}
+                                                                format="YYYY-MM"
                                                             />
                                                         </Form.Item>
                                                     </Col>
@@ -2110,14 +2320,20 @@ export default function SettingsIndex() {
     ]);
 
     return (
-        <AppLayout title="Pengaturan">
+        <AppLayout title={t("menu.settings")}>
             <PageShell>
-                <PageHeader title="Pengaturan" />
-                <Tabs
-                    items={tabs}
-                    defaultActiveKey="profile"
-                    tabBarStyle={{ marginBottom: 12 }}
+                <PageHeader
+                    eyebrow="System Control"
+                    title={t("settings.title")}
+                    description={t("settings.description")}
                 />
+                <div className="idi-panel p-4">
+                    <Tabs
+                        items={tabs}
+                        defaultActiveKey="profile"
+                        tabBarStyle={{ marginBottom: 12 }}
+                    />
+                </div>
                 <Modal
                     title={`Assign Role: ${assignRoleModal.user?.name || ""}`}
                     open={assignRoleModal.open}
@@ -2382,6 +2598,80 @@ export default function SettingsIndex() {
                             ]}
                         >
                             <Input placeholder="Contoh: Transfer Bank" />
+                        </Form.Item>
+                        <Form.Item
+                            name="is_active"
+                            label="Aktif"
+                            valuePropName="checked"
+                        >
+                            <Switch />
+                        </Form.Item>
+                    </Form>
+                </Modal>
+
+                <Modal
+                    title="Tambah Status Anggota"
+                    open={memberStatusModalOpen}
+                    onCancel={() => {
+                        setMemberStatusModalOpen(false);
+                        memberStatusForm.resetFields();
+                    }}
+                    onOk={submitMemberStatus}
+                    okText="Simpan"
+                >
+                    <Form
+                        form={memberStatusForm}
+                        layout="vertical"
+                        initialValues={{
+                            sort_order: (memberStatuses.at(-1)?.sort_order ?? 0) + 10,
+                            is_active_member: false,
+                            is_billable: false,
+                            is_deceased: false,
+                            is_active: true,
+                        }}
+                    >
+                        <Form.Item
+                            name="code"
+                            label="Kode"
+                            rules={[{ required: true, message: "Kode wajib" }]}
+                        >
+                            <Input placeholder="aktif" />
+                        </Form.Item>
+                        <Form.Item
+                            name="name"
+                            label="Nama Status"
+                            rules={[
+                                {
+                                    required: true,
+                                    message: "Nama status wajib",
+                                },
+                            ]}
+                        >
+                            <Input placeholder="Aktif" />
+                        </Form.Item>
+                        <Form.Item name="sort_order" label="Urutan">
+                            <InputNumber min={0} style={{ width: "100%" }} />
+                        </Form.Item>
+                        <Form.Item
+                            name="is_active_member"
+                            label="Anggota Aktif"
+                            valuePropName="checked"
+                        >
+                            <Switch />
+                        </Form.Item>
+                        <Form.Item
+                            name="is_billable"
+                            label="Masuk Perhitungan Iuran"
+                            valuePropName="checked"
+                        >
+                            <Switch />
+                        </Form.Item>
+                        <Form.Item
+                            name="is_deceased"
+                            label="Status Meninggal"
+                            valuePropName="checked"
+                        >
+                            <Switch />
                         </Form.Item>
                         <Form.Item
                             name="is_active"

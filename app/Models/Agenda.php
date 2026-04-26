@@ -4,14 +4,17 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Agenda extends Model
 {
     use SoftDeletes;
+
     protected $fillable = [
         'title',
         'type',
+        'status',
         'start_at',
         'end_at',
         'location',
@@ -28,5 +31,10 @@ class Agenda extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function documents(): MorphToMany
+    {
+        return $this->morphToMany(Document::class, 'linkable', 'document_links')->withTimestamps();
     }
 }

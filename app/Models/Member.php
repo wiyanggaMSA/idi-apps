@@ -46,4 +46,9 @@ class Member extends Model
     {
         return $this->belongsTo(Position::class);
     }
+
+    public function memberStatus(): BelongsTo
+    {
+        return $this->belongsTo(MemberStatus::class, 'status', 'code');
+    }
 }

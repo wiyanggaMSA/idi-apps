@@ -2,14 +2,10 @@ import React, { useEffect, useMemo, useState } from "react";
 import { router, usePage } from "@inertiajs/react";
 import axios from "axios";
 import dayjs from "dayjs";
-import AppLayout from "@/layouts/AppLayout";
-import PageShell from "@/components/app/PageShell";
-import PageHeader from "@/components/app/PageHeader";
 import {
     Alert,
     Button,
     Card,
-    Col,
     DatePicker,
     Descriptions,
     Drawer,
@@ -17,12 +13,8 @@ import {
     Input,
     InputNumber,
     Modal,
-    Row,
     Select,
     Space,
-    Table,
-    Tag,
-    Typography,
     message,
 } from "antd";
 import {
@@ -30,28 +22,28 @@ import {
     EyeOutlined,
     PlusOutlined,
     StopOutlined,
+    UserOutlined,
 } from "@ant-design/icons";
+import AppLayout from "@/layouts/AppLayout";
+import PageShell from "@/components/app/PageShell";
+import PageHeader from "@/components/app/PageHeader";
+import StatCard from "@/Components/App/StatCard";
+import FilterBar from "@/Components/App/FilterBar";
+import SearchInput from "@/Components/App/SearchInput";
+import DataTable from "@/Components/App/DataTable";
+import StatusBadge from "@/Components/App/StatusBadge";
+import MoneyDisplay from "@/Components/App/MoneyDisplay";
+import LoadingSkeleton from "@/Components/App/LoadingSkeleton";
+import FormSection from "@/Components/App/FormSection";
+import EmptyState from "@/Components/App/EmptyState";
+import { useI18n } from "@/Contexts/I18nContext";
+import { formatDate, formatIDR, formatMonth, formatMonthCompact } from "@/lib/format";
 
-const { Text } = Typography;
-
-function formatIDR(value) {
-    try {
-        return new Intl.NumberFormat("id-ID", {
-            style: "currency",
-            currency: "IDR",
-            maximumFractionDigits: 0,
-        }).format(value || 0);
-    } catch {
-        return `Rp ${String(value || 0)}`;
-    }
-}
-
-function formatPeriod(period) {
-    if (!period) return "—";
-    return dayjs(`${period}-01`).format("YYYY-MM");
-}
+const { TextArea } = Input;
 
 export default function DuesIndex() {
+    const { t, language } = useI18n();
+    const isEn = language === "en";
     const { props } = usePage();
     const dues = props.dues?.data || [];
     const meta = props.dues?.meta || {};
@@ -60,11 +52,83 @@ export default function DuesIndex() {
     const members = props.members || [];
     const activePeriod = props.active_period;
     const activePeriodLabel = props.active_period_label;
+    const duesStartPeriod = props.dues_start_period || activePeriod;
     const monthlyAmount = props.monthly_amount || 0;
+    const copy = {
+        eyebrow: isEn ? "Member Dues" : "Iuran Anggota",
+        paymentSaved: isEn ? "Dues payment saved successfully." : "Pembayaran iuran berhasil disimpan.",
+        paymentLoadFailed: isEn ? "Failed to load payment details." : "Gagal memuat detail pembayaran.",
+        paymentRefreshFailed: isEn ? "Failed to refresh payment details." : "Gagal memperbarui detail pembayaran.",
+        paymentUpdated: isEn ? "Payment updated successfully." : "Pembayaran berhasil diperbarui.",
+        paymentVoided: isEn ? "Payment voided successfully." : "Pembayaran berhasil dibatalkan.",
+        member: isEn ? "Member" : "Anggota",
+        memberStatus: isEn ? "Member Status" : "Status Anggota",
+        lastPeriod: isEn ? "Last Period" : "Periode Terakhir",
+        currentPeriod: isEn ? "Current Period" : "Periode Aktif",
+        duesStatus: isEn ? "Dues Status" : "Status Iuran",
+        lastMethod: isEn ? "Last Method" : "Metode Terakhir",
+        actions: isEn ? "Actions" : "Aksi",
+        pay: isEn ? "Pay" : "Bayar",
+        detail: isEn ? "Detail" : "Detail",
+        paidLabel: isEn ? "Paid" : "Lunas",
+        advanceMonths: isEn ? "Advance for {count} months" : "Lebih bayar {count} bulan",
+        overdueMonths: isEn ? "Overdue for {count} months" : "Menunggak {count} bulan",
+        monthlyFee: isEn ? "Monthly dues {amount}" : "Iuran bulanan {amount}",
+        paymentDrawerTitle: isEn ? "Enter Dues Payment" : "Input Pembayaran Iuran",
+        cancel: isEn ? "Cancel" : "Batal",
+        save: isEn ? "Save" : "Simpan",
+        allocationInfo: isEn ? "Allocation Information" : "Informasi Alokasi",
+        allocationDescription: isEn ? "Current active period {period} with monthly amount {amount}." : "Periode aktif saat ini {period} dengan nominal bulanan {amount}.",
+        duesStartPeriodHint: isEn ? "Dues calculations start from {period}." : "Perhitungan iuran dimulai dari {period}.",
+        monthlyAmount: isEn ? "Monthly Amount" : "Nominal Bulanan",
+        selectMember: isEn ? "Select member" : "Pilih anggota",
+        searchMember: isEn ? "Search member" : "Cari anggota",
+        startPeriod: isEn ? "Start Period" : "Mulai Periode",
+        selectStartPeriod: isEn ? "Select start period" : "Pilih periode mulai",
+        duration: isEn ? "Duration (months)" : "Durasi (bulan)",
+        enterDuration: isEn ? "Enter duration" : "Masukkan durasi",
+        endPeriod: isEn ? "End Period" : "Periode Akhir",
+        totalPayment: isEn ? "Total Payment" : "Total Pembayaran",
+        method: isEn ? "Method" : "Metode",
+        selectMethod: isEn ? "Select method" : "Pilih metode",
+        paymentDate: isEn ? "Payment Date" : "Tanggal Bayar",
+        selectPaymentDate: isEn ? "Select payment date" : "Pilih tanggal bayar",
+        referenceNo: isEn ? "Reference No." : "No. Referensi",
+        optional: isEn ? "Optional" : "Opsional",
+        notes: isEn ? "Notes" : "Catatan",
+        paymentDetail: isEn ? "Payment Detail" : "Detail Pembayaran",
+        phone: isEn ? "Phone" : "Telepon",
+        education: isEn ? "Education" : "Pendidikan",
+        paymentHistory: isEn ? "Payment History" : "Riwayat Pembayaran",
+        noPaymentsYet: isEn ? "No payments yet" : "Belum ada pembayaran",
+        paymentHistoryHint: isEn ? "This member's payment history will appear here." : "Riwayat pembayaran anggota akan tampil di sini.",
+        date: isEn ? "Date" : "Tanggal",
+        period: isEn ? "Period" : "Periode",
+        amount: isEn ? "Amount" : "Nominal",
+        status: isEn ? "Status" : "Status",
+        active: isEn ? "Active" : "Aktif",
+        edit: isEn ? "Edit" : "Edit",
+        noPaymentDetail: isEn ? "No payment detail available" : "Tidak ada detail pembayaran",
+        noPaymentDetailDesc: isEn ? "Choose a member with payment history to view details." : "Pilih anggota yang memiliki riwayat pembayaran untuk melihat detail.",
+        editPayment: isEn ? "Edit Payment" : "Edit Pembayaran",
+        editReason: isEn ? "Edit Reason" : "Alasan Edit",
+        enterEditReason: isEn ? "Enter edit reason" : "Masukkan alasan edit",
+        voidPayment: isEn ? "Void Payment" : "Void Pembayaran",
+        voidReason: isEn ? "Void Reason" : "Alasan Void",
+        enterVoidReason: isEn ? "Enter void reason" : "Masukkan alasan void",
+        months: isEn ? "months" : "bulan",
+        paymentSetup: isEn ? "Payment Setup" : "Setup Pembayaran",
+        paymentSetupHint: isEn ? "Choose member, billing period, and duration." : "Pilih anggota, periode tagihan, dan durasi pembayaran.",
+        paymentSummary: isEn ? "Payment Summary" : "Ringkasan Pembayaran",
+        paymentSummaryHint: isEn ? "Review amount, end period, and payment schedule." : "Tinjau nominal, periode akhir, dan jadwal pembayaran.",
+        paymentMeta: isEn ? "Payment Metadata" : "Metadata Pembayaran",
+        paymentMetaHint: isEn ? "Method, references, and supporting notes." : "Metode, referensi, dan catatan pendukung.",
+        quickDuration: isEn ? "Quick Duration" : "Durasi Cepat",
+    };
     const memberStatusLabel = {
-        aktif: "Aktif",
-        mutasi: "Mutasi",
-        meninggal: "Meninggal",
+        aktif: t("dues.memberStatus.aktif"),
+        mutasi: t("dues.memberStatus.mutasi"),
+        meninggal: t("dues.memberStatus.meninggal"),
     };
 
     const [searchValue, setSearchValue] = useState(filters.search || "");
@@ -91,7 +155,7 @@ export default function DuesIndex() {
             if (searchValue !== (filters.search || "")) {
                 applyFilters({ search: searchValue, page: 1 });
             }
-        }, 500);
+        }, 400);
 
         return () => clearTimeout(timer);
     }, [searchValue]);
@@ -106,6 +170,11 @@ export default function DuesIndex() {
             { ...filters, ...next },
             { preserveState: true, replace: true },
         );
+    };
+
+    const resetFilters = () => {
+        setSearchValue("");
+        router.get(route("dues.index"), {}, { preserveState: true, replace: true });
     };
 
     const openPaymentDrawer = (row = null) => {
@@ -148,14 +217,12 @@ export default function DuesIndex() {
             router.post(route("dues.payments.store"), payload, {
                 preserveScroll: true,
                 onSuccess: () => {
-                    message.success("Pembayaran iuran berhasil disimpan.");
+                    message.success(copy.paymentSaved);
                     setPaymentOpen(false);
                     paymentForm.resetFields();
                 },
                 onError: (errors) => {
-                    if (errors?.payment) {
-                        message.error(errors.payment);
-                    }
+                    if (errors?.payment) message.error(errors.payment);
                 },
             });
         } catch {}
@@ -166,12 +233,10 @@ export default function DuesIndex() {
         setDetailLoading(true);
         setDetailData(null);
         try {
-            const { data } = await axios.get(
-                route("dues.members.payments", row.member_id),
-            );
+            const { data } = await axios.get(route("dues.members.payments", row.member_id));
             setDetailData(data);
         } catch {
-            message.error("Gagal memuat detail pembayaran.");
+            message.error(copy.paymentLoadFailed);
         } finally {
             setDetailLoading(false);
         }
@@ -185,7 +250,7 @@ export default function DuesIndex() {
             );
             setDetailData(data);
         } catch {
-            message.error("Gagal memperbarui detail pembayaran.");
+            message.error(copy.paymentRefreshFailed);
         }
     };
 
@@ -215,15 +280,13 @@ export default function DuesIndex() {
                 {
                     preserveScroll: true,
                     onSuccess: () => {
-                        message.success("Pembayaran berhasil diperbarui.");
+                        message.success(copy.paymentUpdated);
                         setEditingPayment(null);
                         editForm.resetFields();
                         refreshDetail();
                     },
                     onError: (errors) => {
-                        if (errors?.payment) {
-                            message.error(errors.payment);
-                        }
+                        if (errors?.payment) message.error(errors.payment);
                     },
                 },
             );
@@ -244,15 +307,13 @@ export default function DuesIndex() {
                 {
                     preserveScroll: true,
                     onSuccess: () => {
-                        message.success("Pembayaran berhasil dibatalkan.");
+                        message.success(copy.paymentVoided);
                         setVoidingPayment(null);
                         voidForm.resetFields();
                         refreshDetail();
                     },
                     onError: (errors) => {
-                        if (errors?.payment) {
-                            message.error(errors.payment);
-                        }
+                        if (errors?.payment) message.error(errors.payment);
                     },
                 },
             );
@@ -260,10 +321,11 @@ export default function DuesIndex() {
     };
 
     const statusOptions = [
-        { value: "ALL", label: "Semua" },
-        { value: "LUNAS", label: "Lunas" },
-        { value: "MENUNGGAK", label: "Menunggak" },
-        { value: "ADVANCE", label: "Lebih Bayar" },
+        { value: "ALL", label: t("dues.allStatus") },
+        { value: "LUNAS", label: t("dues.paid") },
+        { value: "BELUM_BAYAR", label: t("dues.unpaid") },
+        { value: "MENUNGGAK", label: t("dues.overdue") },
+        { value: "ADVANCE", label: t("dues.advance") },
     ];
 
     const startPeriod = Form.useWatch("start_period", paymentForm);
@@ -281,266 +343,224 @@ export default function DuesIndex() {
 
     const columns = [
         {
-            title: "NPA",
-            dataIndex: "npa",
-            key: "npa",
-            render: (value) => value || "—",
+            title: copy.member,
+            key: "member",
+            render: (_, row) => (
+                <div>
+                    <p className="font-semibold text-zinc-950">{row.full_name || "—"}</p>
+                    <p className="text-xs text-zinc-500">NPA {row.npa || "—"}</p>
+                </div>
+            ),
         },
         {
-            title: "Nama",
-            dataIndex: "full_name",
-            key: "full_name",
-            render: (value) => value || "—",
-        },
-        {
-            title: "Status Anggota",
+            title: copy.memberStatus,
             dataIndex: "member_status",
             key: "member_status",
-            render: (value) => memberStatusLabel[value] || value || "—",
+            width: 150,
+            render: (value, row) => (
+                <StatusBadge
+                    status={row?.member_status_is_active ? "active" : "inactive"}
+                    label={memberStatusLabel[value] || row?.member_status_name || value || "—"}
+                    color={row?.member_status_is_active ? "blue" : "default"}
+                />
+            ),
         },
         {
-            title: "Cara Bayar",
-            dataIndex: "last_payment_method",
-            key: "last_payment_method",
-            render: (value) => value || "—",
-        },
-        {
-            title: "Iuran Terakhir",
+            title: copy.lastPeriod,
             dataIndex: "last_paid_period",
             key: "last_paid_period",
-            render: (value) => formatPeriod(value),
+            width: 150,
+            render: (value) => formatMonthCompact(value),
         },
         {
-            title: "Bulan Iuran Saat Ini",
+            title: copy.currentPeriod,
             dataIndex: "due_now",
             key: "due_now",
-            render: () => formatPeriod(activePeriod),
+            width: 150,
+            render: () => formatMonthCompact(activePeriod),
         },
         {
-            title: "Kelebihan Iuran",
-            dataIndex: "advance_months",
-            key: "advance_months",
-            render: (value) => value ?? 0,
-        },
-        {
-            title: "Status Iuran",
+            title: copy.duesStatus,
             dataIndex: "status",
             key: "status",
+            width: 170,
             render: (_, row) => {
                 if (row.status === "ADVANCE") {
                     return (
-                        <Tag color="blue">
-                            Lebih bayar {row.advance_months} bulan
-                        </Tag>
+                        <StatusBadge
+                            status="advance"
+                            label={copy.advanceMonths.replace("{count}", row.advance_months)}
+                            color="blue"
+                        />
                     );
                 }
                 if (row.status === "LUNAS") {
-                    return <Tag color="green">Lunas</Tag>;
+                    return <StatusBadge status="paid" label={copy.paidLabel} color="green" />;
+                }
+                if (row.status === "BELUM_BAYAR") {
+                    return <StatusBadge status="unpaid" label={t("dues.unpaid")} color="gold" />;
                 }
                 return (
-                    <Tag color="red">Menunggak {row.arrears_months} bulan</Tag>
+                    <StatusBadge
+                        status="overdue"
+                        label={copy.overdueMonths.replace("{count}", row.arrears_months)}
+                        color="red"
+                    />
                 );
             },
         },
         {
-            title: "Aksi",
+            title: copy.lastMethod,
+            dataIndex: "last_payment_method",
+            key: "last_payment_method",
+            width: 140,
+            render: (value) => value || "—",
+        },
+        {
+            title: copy.actions,
             key: "action",
+            width: 180,
             render: (_, row) => (
                 <Space>
-                    {row.status === "MENUNGGAK" ? (
-                        <>
-                            <Button
-                                size="small"
-                                type="primary"
-                                onClick={() => openPaymentDrawer(row)}
-                                disabled={!canManage}
-                            >
-                                Bayar
-                            </Button>
-                            <Button
-                                size="small"
-                                icon={<EyeOutlined />}
-                                onClick={() => openDetail(row)}
-                            >
-                                Detail
-                            </Button>
-                        </>
-                    ) : (
+                    {row.status === "MENUNGGAK" || row.status === "BELUM_BAYAR" ? (
                         <Button
                             size="small"
-                            icon={<EyeOutlined />}
-                            onClick={() => openDetail(row)}
+                            type="primary"
+                            onClick={() => openPaymentDrawer(row)}
+                            disabled={!canManage}
                         >
-                            Detail
+                            {copy.pay}
                         </Button>
-                    )}
+                    ) : null}
+                    <Button
+                        size="small"
+                        icon={<EyeOutlined />}
+                        onClick={() => openDetail(row)}
+                    >
+                        {copy.detail}
+                    </Button>
                 </Space>
             ),
         },
     ];
 
     return (
-        <AppLayout title="Iuran">
+        <AppLayout title={t("menu.dues")}>
             <PageShell>
                 <PageHeader
-                    title="Manajemen Iuran Anggota"
+                    eyebrow={copy.eyebrow}
+                    title={t("dues.title")}
+                    description={t("dues.description")}
                     extra={
-                        <Space>
-                            <Button
-                                type="primary"
-                                icon={<PlusOutlined />}
-                                onClick={() => openPaymentDrawer()}
-                                disabled={!canManage}
-                            >
-                                Input Pembayaran
-                            </Button>
-                        </Space>
+                        <Button
+                            type="primary"
+                            icon={<PlusOutlined />}
+                            onClick={() => openPaymentDrawer()}
+                            disabled={!canManage}
+                        >
+                            {t("dues.inputPayment")}
+                        </Button>
                     }
                 />
-                <Space
-                    direction="vertical"
-                    size={4}
-                    style={{ marginBottom: 12 }}
-                >
-                    <Text type="secondary">
-                        Periode Aktif: {activePeriodLabel}
-                    </Text>
-                    <Alert
-                        type="info"
-                        showIcon
-                        message="Periode aktif otomatis mengikuti tanggal server."
+
+                <div className="idi-grid">
+                    <StatCard
+                        title={t("dues.totalMembers")}
+                        value={summary.total_members || 0}
+                        hint={`Periode ${activePeriodLabel}`}
+                        icon={<UserOutlined />}
                     />
-                </Space>
+                    <StatCard
+                        title={t("dues.paidMembers")}
+                        value={summary.paid_members || 0}
+                        hint={t("dues.paid")}
+                        tone="success"
+                    />
+                    <StatCard
+                        title={t("dues.unpaidMembers")}
+                        value={summary.unpaid_members || 0}
+                        hint={t("dues.overdue")}
+                        tone="warning"
+                    />
+                    <StatCard
+                        title={t("dues.totalArrears")}
+                        value={<MoneyDisplay value={summary.total_arrears} emphasize tone="danger" />}
+                        hint={copy.monthlyFee.replace("{amount}", formatIDR(monthlyAmount))}
+                        tone="danger"
+                    />
+                </div>
 
-                <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
-                    <Col xs={24} md={6}>
-                        <Card
-                            style={{ borderRadius: 12 }}
-                            bodyStyle={{ padding: 16 }}
-                        >
-                            <Text type="secondary">Wajib Bayar</Text>
-                            <div style={{ fontSize: 20, fontWeight: 600 }}>
-                                <span>{summary.total_members || 0}</span>
-                            </div>
-                        </Card>
-                    </Col>
-                    <Col xs={24} md={6}>
-                        <Card
-                            style={{ borderRadius: 12 }}
-                            bodyStyle={{ padding: 16 }}
-                        >
-                            <Text type="secondary">Sudah Bayar</Text>
-                            <div style={{ fontSize: 20, fontWeight: 600 }}>
-                                <span>{summary.paid_members || 0}</span>
-                            </div>
-                        </Card>
-                    </Col>
-                    <Col xs={24} md={6}>
-                        <Card
-                            style={{ borderRadius: 12 }}
-                            bodyStyle={{ padding: 16 }}
-                        >
-                            <Text type="secondary">Belum Bayar</Text>
-                            <div style={{ fontSize: 20, fontWeight: 600 }}>
-                                <span>{summary.unpaid_members || 0}</span>
-                            </div>
-                        </Card>
-                    </Col>
-                    <Col xs={24} md={6}>
-                        <Card
-                            style={{ borderRadius: 12 }}
-                            bodyStyle={{ padding: 16 }}
-                        >
-                            <Text type="secondary">Total Tunggakan</Text>
-                            <div style={{ fontSize: 20, fontWeight: 600 }}>
-                                <span>{formatIDR(summary.total_arrears)}</span>
-                            </div>
-                        </Card>
-                    </Col>
-                </Row>
+                <Alert
+                    type="info"
+                    showIcon
+                    message={t("dues.activePeriod", { period: activePeriodLabel })}
+                    description={t("dues.activePeriodDesc")}
+                    className="!rounded-[24px] !border-zinc-200"
+                />
 
-                <Card
-                    style={{ borderRadius: 12, marginBottom: 12 }}
-                    bodyStyle={{ padding: 12 }}
-                >
-                    <Space wrap size={16} style={{ width: "100%" }}>
-                        <Space direction="vertical" size={4}>
-                            <Text type="secondary" style={{ fontSize: 12 }}>
-                                Cari Anggota
-                            </Text>
-                            <Input
-                                allowClear
-                                placeholder="NPA / Nama"
-                                value={searchValue}
-                                onChange={(e) => setSearchValue(e.target.value)}
-                                style={{ width: 220 }}
-                            />
-                        </Space>
+                <FilterBar>
+                    <div className="space-y-2">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-400">
+                            {t("dues.searchMembers")}
+                        </p>
+                        <SearchInput
+                            placeholder={t("dues.searchPlaceholder")}
+                            value={searchValue}
+                            onChange={(e) => setSearchValue(e.target.value)}
+                        />
+                    </div>
 
-                        <Space direction="vertical" size={4}>
-                            <Text type="secondary" style={{ fontSize: 12 }}>
-                                Status Iuran
-                            </Text>
-                            <Select
-                                options={statusOptions}
-                                value={filters.status || "ALL"}
-                                onChange={(value) =>
-                                    applyFilters({ status: value, page: 1 })
-                                }
-                                style={{ width: 160 }}
-                            />
-                        </Space>
+                    <div className="space-y-2">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-400">
+                            {t("dues.duesStatus")}
+                        </p>
+                        <Select
+                            options={statusOptions}
+                            value={filters.status || "ALL"}
+                            onChange={(value) => applyFilters({ status: value, page: 1 })}
+                            style={{ width: 180 }}
+                        />
+                    </div>
 
-                        <Space direction="vertical" size={4}>
-                            <Text type="secondary" style={{ fontSize: 12 }}>
-                                Iuran Tertunggak
-                            </Text>
-                            <Select
-                                value={filters.arrears_only ? "1" : ""}
-                                onChange={(value) =>
-                                    applyFilters({
-                                        arrears_only: value === "1",
-                                        page: 1,
-                                    })
-                                }
-                                style={{ width: 180 }}
-                                options={[
-                                    { value: "", label: "Semua" },
-                                    {
-                                        value: "1",
-                                        label: "Tunggakan > 1 bulan",
-                                    },
-                                ]}
-                            />
-                        </Space>
+                    <div className="space-y-2">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-400">
+                            {t("dues.arrears")}
+                        </p>
+                        <Select
+                            value={filters.arrears_only ? "1" : ""}
+                            onChange={(value) =>
+                                applyFilters({ arrears_only: value === "1", page: 1 })
+                            }
+                            style={{ width: 190 }}
+                            options={[
+                                { value: "", label: t("dues.allMembers") },
+                                { value: "1", label: t("dues.arrearsMoreThanOne") },
+                            ]}
+                        />
+                    </div>
 
-                        <Space direction="vertical" size={4}>
-                            <Text type="secondary" style={{ fontSize: 12 }}>
-                                Iuran Lebih Bayar
-                            </Text>
-                            <Select
-                                value={filters.advance_only ? "1" : ""}
-                                onChange={(value) =>
-                                    applyFilters({
-                                        advance_only: value === "1",
-                                        page: 1,
-                                    })
-                                }
-                                style={{ width: 180 }}
-                                options={[
-                                    { value: "", label: "Semua" },
-                                    {
-                                        value: "1",
-                                        label: "Lebih bayar > 1 bulan",
-                                    },
-                                ]}
-                            />
-                        </Space>
-                    </Space>
-                </Card>
+                    <div className="space-y-2">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-400">
+                            {t("dues.advance")}
+                        </p>
+                        <Select
+                            value={filters.advance_only ? "1" : ""}
+                            onChange={(value) =>
+                                applyFilters({ advance_only: value === "1", page: 1 })
+                            }
+                            style={{ width: 190 }}
+                            options={[
+                                { value: "", label: t("dues.allMembers") },
+                                { value: "1", label: t("dues.advanceMoreThanOne") },
+                            ]}
+                        />
+                    </div>
 
-                <Card style={{ borderRadius: 12 }} bodyStyle={{ padding: 0 }}>
-                    <Table
+                    <Button onClick={resetFilters}>{t("common.resetFilter")}</Button>
+                </FilterBar>
+
+                <Card title={t("dues.duesTable")}>
+                    <DataTable
                         columns={columns}
                         dataSource={dues}
                         rowKey="member_id"
@@ -550,6 +570,8 @@ export default function DuesIndex() {
                             pageSize: meta.per_page || 20,
                             onChange: (page) => applyFilters({ page }),
                         }}
+                        emptyTitle={t("dues.noDues")}
+                        emptyDescription={t("dues.noDuesDesc")}
                     />
                 </Card>
             </PageShell>
@@ -557,288 +579,286 @@ export default function DuesIndex() {
             <Drawer
                 open={paymentOpen}
                 size="large"
-                title="Input Pembayaran Iuran"
+                title={
+                    <div className="pr-6">
+                        <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-red-700/80">
+                            {copy.paymentDrawerTitle}
+                        </p>
+                        <h3 className="m-0 text-xl font-semibold text-zinc-950">
+                            {copy.allocationInfo}
+                        </h3>
+                    </div>
+                }
+                className="dues-payment-drawer"
                 onClose={() => {
                     setPaymentOpen(false);
                     paymentForm.resetFields();
                 }}
+                styles={{
+                    header: {
+                        padding: "24px 28px 4px",
+                        marginBottom: 0,
+                    },
+                    body: {
+                        padding: "20px 28px 20px",
+                    },
+                    footer: {
+                        padding: "18px 28px 24px",
+                        borderTop: "1px solid rgba(228, 228, 231, 0.85)",
+                    },
+                }}
                 footer={
-                    <Space
-                        style={{ display: "flex", justifyContent: "flex-end" }}
-                    >
-                        <Button onClick={() => setPaymentOpen(false)}>
-                            Batal
-                        </Button>
-                        <Button
-                            type="primary"
-                            onClick={submitPayment}
-                            disabled={!canManage}
-                        >
-                            Simpan
+                    <Space style={{ display: "flex", justifyContent: "flex-end" }}>
+                        <Button onClick={() => setPaymentOpen(false)}>{copy.cancel}</Button>
+                        <Button type="primary" onClick={submitPayment} disabled={!canManage}>
+                            {copy.save}
                         </Button>
                     </Space>
                 }
             >
-                <Form form={paymentForm} layout="vertical" requiredMark={false}>
-                    <Form.Item
-                        label="Anggota"
-                        name="member_id"
-                        rules={[{ required: true, message: "Pilih anggota" }]}
-                    >
-                        <Select
-                            showSearch={{ optionFilterProp: "label" }}
-                            placeholder="Cari anggota"
-                            onChange={handleMemberChange}
-                            options={members.map((member) => ({
-                                value: member.id,
-                                label: `${member.npa} - ${member.full_name}`,
-                            }))}
-                        />
-                    </Form.Item>
-                    <Form.Item
-                        label={
-                            <>
-                                <span style={{ color: "red" }}>*</span> Nominal
-                                Bulanan
-                            </>
-                        }
-                    >
-                        <Input value={formatIDR(monthlyAmount)} readOnly />
-                    </Form.Item>
-                    <Form.Item
-                        label={
-                            <>
-                                <span style={{ color: "red" }}>*</span> Mode
-                                Alokasi
-                            </>
-                        }
-                    >
-                        <Input value="Rentang Periode" readOnly />
-                    </Form.Item>
-                    <Form.Item
-                        label="Mulai Periode"
-                        name="start_period"
-                        rules={[
-                            { required: true, message: "Pilih periode mulai" },
-                        ]}
-                    >
-                        <DatePicker
-                            picker="month"
-                            style={{ width: "100%" }}
-                            format="YYYY-MM"
-                        />
-                    </Form.Item>
-                    <Form.Item
-                        label="Durasi (bulan)"
-                        name="duration"
-                        rules={[{ required: true, message: "Masukkan durasi" }]}
-                    >
-                        <InputNumber
-                            min={1}
-                            max={36}
-                            style={{ width: "100%" }}
-                        />
-                    </Form.Item>
-                    <Space wrap style={{ marginBottom: 12 }}>
-                        {[3, 6, 12, 24].map((count) => (
-                            <Button
-                                key={count}
-                                onClick={() =>
-                                    paymentForm.setFieldsValue({
-                                        duration: count,
-                                    })
-                                }
-                            >
-                                +{count}
-                            </Button>
-                        ))}
-                    </Space>
-                    <Form.Item
-                        label={
-                            <>
-                                <span style={{ color: "red" }}>*</span> Periode
-                                Akhir
-                            </>
-                        }
-                    >
-                        <Input value={endPeriodLabel} readOnly />
-                    </Form.Item>
-                    <Form.Item
-                        label={
-                            <>
-                                <span style={{ color: "red" }}>*</span> Total
-                            </>
-                        }
-                    >
-                        <Input value={formatIDR(totalAmount)} readOnly />
-                    </Form.Item>
-                    <Form.Item
-                        label="Metode"
-                        name="method"
-                        rules={[{ required: true, message: "Pilih metode" }]}
-                    >
-                        <Select
-                            options={[
-                                { value: "cash", label: "Cash" },
-                                { value: "transfer", label: "Transfer" },
-                            ]}
-                        />
-                    </Form.Item>
-                    <Form.Item
-                        label="Tanggal Bayar"
-                        name="paid_at"
-                        rules={[
-                            { required: true, message: "Pilih tanggal bayar" },
-                        ]}
-                    >
-                        <DatePicker
-                            style={{ width: "100%" }}
-                            format="DD-MM-YYYY"
-                        />
-                    </Form.Item>
-                    <Form.Item label="No. Referensi" name="reference_no">
-                        <Input placeholder="Opsional" />
-                    </Form.Item>
-                    <Form.Item label="Catatan" name="notes">
-                        <Input.TextArea rows={2} />
-                    </Form.Item>
-                </Form>
+                <div className="space-y-6">
+                    <Form form={paymentForm} layout="vertical" requiredMark={false} className="dues-payment-form">
+                        <section className="rounded-[24px] border border-zinc-200/80 bg-zinc-50/75 p-5">
+                            <div className="mb-5">
+                                <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                                    {copy.paymentSetup}
+                                </p>
+                                <p className="m-0 text-sm text-zinc-500">
+                                    {copy.allocationDescription
+                                        .replace("{period}", formatMonth(activePeriod))
+                                        .replace("{amount}", formatIDR(monthlyAmount))}
+                                </p>
+                                <p className="mt-1 text-xs text-zinc-500">
+                                    {copy.duesStartPeriodHint.replace(
+                                        "{period}",
+                                        formatMonth(duesStartPeriod),
+                                    )}
+                                </p>
+                            </div>
+
+                            <div className="grid gap-x-5 gap-y-1 md:grid-cols-2">
+                                <Form.Item
+                                    label={copy.member}
+                                    name="member_id"
+                                    rules={[{ required: true, message: copy.selectMember }]}
+                                >
+                                    <Select
+                                        showSearch
+                                        optionFilterProp="label"
+                                        placeholder={copy.searchMember}
+                                        onChange={handleMemberChange}
+                                        options={members.map((member) => ({
+                                            value: member.id,
+                                            label: `${member.npa} - ${member.full_name}`,
+                                        }))}
+                                    />
+                                </Form.Item>
+
+                                <Form.Item label={copy.monthlyAmount}>
+                                    <Input value={formatIDR(monthlyAmount)} readOnly />
+                                </Form.Item>
+
+                                <Form.Item
+                                    label={copy.startPeriod}
+                                    name="start_period"
+                                    rules={[{ required: true, message: copy.selectStartPeriod }]}
+                                >
+                                    <DatePicker
+                                        picker="month"
+                                        style={{ width: "100%" }}
+                                        format="YYYY-MM"
+                                        disabledDate={(current) =>
+                                            current &&
+                                            current.isBefore(
+                                                dayjs(`${duesStartPeriod}-01`),
+                                                "month",
+                                            )
+                                        }
+                                    />
+                                </Form.Item>
+
+                                <Form.Item
+                                    label={copy.duration}
+                                    name="duration"
+                                    rules={[{ required: true, message: copy.enterDuration }]}
+                                >
+                                    <InputNumber
+                                        min={1}
+                                        max={36}
+                                        style={{ width: "100%" }}
+                                    />
+                                </Form.Item>
+                            </div>
+
+                            <div className="mt-2">
+                                <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                                    {copy.quickDuration}
+                                </p>
+                                <Space wrap>
+                                    {[3, 6, 12, 24].map((count) => (
+                                        <Button
+                                            key={count}
+                                            onClick={() => paymentForm.setFieldsValue({ duration: count })}
+                                        >
+                                            +{count} {copy.months}
+                                        </Button>
+                                    ))}
+                                </Space>
+                            </div>
+                        </section>
+
+                        <section className="rounded-[24px] border border-zinc-200/80 bg-white p-5 mt-4">
+                            <div className="mb-5">
+                                <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                                    {copy.paymentSummary}
+                                </p>
+                                <p className="m-0 text-sm text-zinc-500">{copy.paymentSummaryHint}</p>
+                            </div>
+
+                            <div className="grid gap-x-5 gap-y-1 md:grid-cols-2">
+                                <Form.Item label={copy.endPeriod}>
+                                    <Input value={endPeriodLabel} readOnly />
+                                </Form.Item>
+
+                                <Form.Item label={copy.totalPayment}>
+                                    <Input value={formatIDR(totalAmount)} readOnly />
+                                </Form.Item>
+
+                                <Form.Item
+                                    label={copy.method}
+                                    name="method"
+                                    rules={[{ required: true, message: copy.selectMethod }]}
+                                >
+                                    <Select
+                                        options={[
+                                            { value: "cash", label: "Cash" },
+                                            { value: "transfer", label: "Transfer" },
+                                        ]}
+                                    />
+                                </Form.Item>
+
+                                <Form.Item
+                                    label={copy.paymentDate}
+                                    name="paid_at"
+                                    rules={[{ required: true, message: copy.selectPaymentDate }]}
+                                >
+                                    <DatePicker
+                                        style={{ width: "100%" }}
+                                        format="DD-MM-YYYY"
+                                    />
+                                </Form.Item>
+                            </div>
+                        </section>
+
+                        <section className="rounded-[24px] border border-zinc-200/80 bg-zinc-50/75 p-5 mt-4">
+                            <div className="mb-5">
+                                <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                                    {copy.paymentMeta}
+                                </p>
+                                <p className="m-0 text-sm text-zinc-500">{copy.paymentMetaHint}</p>
+                            </div>
+
+                            <div className="grid gap-x-5 gap-y-1 md:grid-cols-2">
+                                <Form.Item label={copy.referenceNo} name="reference_no">
+                                    <Input placeholder={copy.optional} />
+                                </Form.Item>
+                                <div />
+                                <Form.Item label={copy.notes} name="notes" className="md:col-span-2 !mb-0">
+                                    <TextArea rows={4} placeholder={copy.notes} />
+                                </Form.Item>
+                            </div>
+                        </section>
+                    </Form>
+                </div>
             </Drawer>
 
             <Drawer
                 open={detailOpen}
                 size="large"
-                title="Detail Pembayaran"
+                title={copy.paymentDetail}
                 onClose={() => setDetailOpen(false)}
             >
                 {detailLoading ? (
-                    <Text>Memuat...</Text>
+                    <div className="space-y-4">
+                        <LoadingSkeleton variant="card" rows={3} />
+                        <LoadingSkeleton variant="table" rows={6} />
+                    </div>
                 ) : detailData ? (
-                    <Space
-                        direction="vertical"
-                        style={{ width: "100%" }}
-                        size={12}
-                    >
-                        <Card size="small">
-                            <Space
-                                direction="vertical"
-                                style={{ width: "100%" }}
-                            >
-                                <Text strong>
-                                    {detailData.member?.full_name}
-                                </Text>
-                                <Text type="secondary">
-                                    {detailData.member?.npa}
-                                </Text>
-                            </Space>
+                    <div className="space-y-4">
+                        <FormSection
+                            title={detailData.member?.full_name}
+                            description={`NPA ${detailData.member?.npa || "—"}`}
+                        >
                             <Descriptions
-                                size="small"
+                                size="middle"
                                 column={2}
-                                style={{ marginTop: 12 }}
                                 items={[
-                                    {
-                                        key: "npa",
-                                        label: "NPA",
-                                        children:
-                                            detailData.member?.npa || "—",
-                                    },
-                                    {
-                                        key: "email",
-                                        label: "Email",
-                                        children:
-                                            detailData.member?.email || "—",
-                                    },
-                                    {
-                                        key: "phone",
-                                        label: "Telepon",
-                                        children:
-                                            detailData.member?.phone || "—",
-                                    },
-                                    {
-                                        key: "education",
-                                        label: "Pendidikan",
-                                        children:
-                                            detailData.member?.education || "—",
-                                    },
-                                    {
-                                        key: "sip_1",
-                                        label: "SIP 1",
-                                        children:
-                                            detailData.member?.sip_1 || "—",
-                                    },
-                                    {
-                                        key: "sip_2",
-                                        label: "SIP 2",
-                                        children:
-                                            detailData.member?.sip_2 || "—",
-                                    },
-                                    {
-                                        key: "sip_3",
-                                        label: "SIP 3",
-                                        children:
-                                            detailData.member?.sip_3 || "—",
-                                    },
+                                    { key: "npa", label: "NPA", children: detailData.member?.npa || "—" },
+                                    { key: "email", label: "Email", children: detailData.member?.email || "—" },
+                                    { key: "phone", label: copy.phone, children: detailData.member?.phone || "—" },
+                                    { key: "education", label: copy.education, children: detailData.member?.education || "—" },
+                                    { key: "sip_1", label: "SIP 1", children: detailData.member?.sip_1 || "—" },
+                                    { key: "sip_2", label: "SIP 2", children: detailData.member?.sip_2 || "—" },
+                                    { key: "sip_3", label: "SIP 3", children: detailData.member?.sip_3 || "—" },
                                 ]}
                             />
-                        </Card>
-                        <Card size="small" title="Riwayat Pembayaran">
-                            <Table
-                                size="small"
+                        </FormSection>
+
+                        <Card title={copy.paymentHistory}>
+                            <DataTable
+                                size="middle"
                                 dataSource={detailData.payments || []}
                                 rowKey="id"
                                 pagination={false}
+                                emptyTitle={copy.noPaymentsYet}
+                                emptyDescription={copy.paymentHistoryHint}
                                 columns={[
-                                    { title: "Tanggal", dataIndex: "paid_at" },
                                     {
-                                        title: "Periode",
+                                        title: copy.date,
+                                        dataIndex: "paid_at",
+                                        render: (value) => formatDate(value),
+                                    },
+                                    {
+                                        title: copy.period,
                                         render: (_, row) =>
                                             row.start_period
                                                 ? `${row.start_period} - ${row.end_period}`
                                                 : "—",
                                     },
                                     {
-                                        title: "Nominal",
+                                        title: copy.amount,
                                         dataIndex: "amount",
-                                        render: (value) => formatIDR(value),
+                                        align: "right",
+                                        render: (value) => <MoneyDisplay value={value} />,
                                     },
-                                    { title: "Metode", dataIndex: "method" },
+                                    { title: copy.method, dataIndex: "method" },
                                     {
-                                        title: "Status",
+                                        title: copy.status,
                                         render: (_, row) =>
                                             row.voided_at ? (
-                                                <Tag color="red">Void</Tag>
+                                                <StatusBadge status="void" label="Void" color="red" />
                                             ) : (
-                                                <Tag color="green">Aktif</Tag>
+                                                <StatusBadge status="active" label={copy.active} color="green" />
                                             ),
                                     },
                                     {
-                                        title: "Aksi",
+                                        title: copy.actions,
                                         render: (_, row) => (
                                             <Space>
                                                 <Button
                                                     size="small"
                                                     icon={<EditOutlined />}
-                                                    onClick={() =>
-                                                        openEditModal(row)
-                                                    }
-                                                    disabled={
-                                                        !canManage ||
-                                                        row.voided_at
-                                                    }
+                                                    onClick={() => openEditModal(row)}
+                                                    disabled={!canManage || row.voided_at}
                                                 >
-                                                    Edit
+                                                    {copy.edit}
                                                 </Button>
                                                 <Button
                                                     size="small"
                                                     danger
                                                     icon={<StopOutlined />}
-                                                    onClick={() =>
-                                                        openVoidModal(row)
-                                                    }
-                                                    disabled={
-                                                        !canVoid ||
-                                                        row.voided_at
-                                                    }
+                                                    onClick={() => openVoidModal(row)}
+                                                    disabled={!canVoid || row.voided_at}
                                                 >
                                                     Void
                                                 </Button>
@@ -848,36 +868,34 @@ export default function DuesIndex() {
                                 ]}
                             />
                         </Card>
-                    </Space>
+                    </div>
                 ) : (
-                    <Text type="secondary">Tidak ada data.</Text>
+                    <EmptyState
+                        title={copy.noPaymentDetail}
+                        description={copy.noPaymentDetailDesc}
+                    />
                 )}
             </Drawer>
 
             <Modal
                 open={!!editingPayment}
-                title="Edit Pembayaran"
+                title={copy.editPayment}
                 onCancel={() => setEditingPayment(null)}
                 onOk={submitEdit}
-                okText="Simpan"
+                okText={copy.save}
             >
                 <Form form={editForm} layout="vertical" requiredMark={false}>
                     <Form.Item
-                        label="Tanggal Bayar"
+                        label={copy.paymentDate}
                         name="paid_at"
-                        rules={[
-                            { required: true, message: "Pilih tanggal bayar" },
-                        ]}
+                        rules={[{ required: true, message: copy.selectPaymentDate }]}
                     >
-                        <DatePicker
-                            style={{ width: "100%" }}
-                            format="DD-MM-YYYY"
-                        />
+                        <DatePicker style={{ width: "100%" }} format="DD-MM-YYYY" />
                     </Form.Item>
                     <Form.Item
-                        label="Metode"
+                        label={copy.method}
                         name="method"
-                        rules={[{ required: true, message: "Pilih metode" }]}
+                        rules={[{ required: true, message: copy.selectMethod }]}
                     >
                         <Select
                             options={[
@@ -886,27 +904,25 @@ export default function DuesIndex() {
                             ]}
                         />
                     </Form.Item>
-                    <Form.Item label="No. Referensi" name="reference_no">
-                        <Input placeholder="Opsional" />
+                    <Form.Item label={copy.referenceNo} name="reference_no">
+                        <Input placeholder={copy.optional} />
                     </Form.Item>
-                    <Form.Item label="Catatan" name="notes">
-                        <Input.TextArea rows={2} />
+                    <Form.Item label={copy.notes} name="notes">
+                        <TextArea rows={2} />
                     </Form.Item>
                     <Form.Item
-                        label="Alasan Edit"
+                        label={copy.editReason}
                         name="reason"
-                        rules={[
-                            { required: true, message: "Masukkan alasan edit" },
-                        ]}
+                        rules={[{ required: true, message: copy.enterEditReason }]}
                     >
-                        <Input.TextArea rows={2} />
+                        <TextArea rows={2} />
                     </Form.Item>
                 </Form>
             </Modal>
 
             <Modal
                 open={!!voidingPayment}
-                title="Void Pembayaran"
+                title={copy.voidPayment}
                 onCancel={() => setVoidingPayment(null)}
                 onOk={submitVoid}
                 okText="Void"
@@ -914,13 +930,11 @@ export default function DuesIndex() {
             >
                 <Form form={voidForm} layout="vertical" requiredMark={false}>
                     <Form.Item
-                        label="Alasan Void"
+                        label={copy.voidReason}
                         name="reason"
-                        rules={[
-                            { required: true, message: "Masukkan alasan void" },
-                        ]}
+                        rules={[{ required: true, message: copy.enterVoidReason }]}
                     >
-                        <Input.TextArea rows={3} />
+                        <TextArea rows={3} />
                     </Form.Item>
                 </Form>
             </Modal>

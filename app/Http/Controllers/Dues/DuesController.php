@@ -34,6 +34,7 @@ class DuesController extends Controller
             'members' => $payload['members'],
             'active_period' => $payload['active_period'],
             'active_period_label' => $payload['active_period_label'],
+            'dues_start_period' => $payload['dues_start_period'],
             'monthly_amount' => $payload['monthly_amount'],
             'filters' => array_merge($filters, [
                 'perPage' => $perPage,
@@ -44,9 +45,11 @@ class DuesController extends Controller
 
     public function storePayment(Request $request, DuesLedgerService $ledgerService): RedirectResponse
     {
+        $duesStartPeriod = $ledgerService->duesStartPeriod();
+
         $data = $request->validate([
             'member_id' => ['required', 'exists:members,id'],
-            'start_period' => ['required', 'date_format:Y-m', 'after_or_equal:'.DuesLedgerService::GO_LIVE_PERIOD],
+            'start_period' => ['required', 'date_format:Y-m', 'after_or_equal:'.$duesStartPeriod],
             'duration' => ['required', 'integer', 'min:1', 'max:36'],
             'method' => ['required', 'in:cash,transfer'],
             'paid_at' => ['required', 'date'],

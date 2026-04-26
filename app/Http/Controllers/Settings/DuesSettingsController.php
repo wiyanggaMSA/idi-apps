@@ -13,6 +13,7 @@ class DuesSettingsController extends Controller
     {
         $data = $request->validate([
             'dues_amount' => ['required', 'integer', 'min:0'],
+            'dues_start_period' => ['nullable', 'date_format:Y-m'],
             'due_day' => ['required', 'integer', 'min:1', 'max:28'],
             'grace_days' => ['required', 'integer', 'min:0', 'max:60'],
             'auto_mark_arrears' => ['required', 'boolean'],

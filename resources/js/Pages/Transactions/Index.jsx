@@ -1,55 +1,50 @@
 import React, { useMemo, useState } from "react";
 import { router, usePage } from "@inertiajs/react";
-import AppLayout from "@/Layouts/AppLayout";
-import PageShell from "@/Components/App/PageShell";
-import PageHeader from "@/Components/App/PageHeader";
+import dayjs from "dayjs";
+import {
+    DeleteOutlined,
+    DownloadOutlined,
+    EyeOutlined,
+    EditOutlined,
+    FilterOutlined,
+    MoreOutlined,
+    PaperClipOutlined,
+    PlusOutlined,
+} from "@ant-design/icons";
 import {
     Button,
     Card,
-    Col,
     DatePicker,
     Dropdown,
     Form,
     Input,
     InputNumber,
     Modal,
-    Row,
     Select,
     Space,
-    Table,
-    Tag,
-    Typography,
     Upload,
+    message,
 } from "antd";
-import {
-    PlusOutlined,
-    FilterOutlined,
-    EditOutlined,
-    DeleteOutlined,
-    MoreOutlined,
-    PaperClipOutlined,
-} from "@ant-design/icons";
-import dayjs from "dayjs";
 import {
     flexRender,
     getCoreRowModel,
     useReactTable,
 } from "@tanstack/react-table";
+import AppLayout from "@/Layouts/AppLayout";
+import PageShell from "@/Components/App/PageShell";
+import PageHeader from "@/Components/App/PageHeader";
+import FilterBar from "@/Components/App/FilterBar";
+import SearchInput from "@/Components/App/SearchInput";
+import StatCard from "@/Components/App/StatCard";
+import MoneyDisplay from "@/Components/App/MoneyDisplay";
+import DataTable from "@/Components/App/DataTable";
+import StatusBadge from "@/Components/App/StatusBadge";
+import FormSection from "@/Components/App/FormSection";
+import { useI18n } from "@/Contexts/I18nContext";
+import { formatDate, formatIDR } from "@/lib/format";
 
 const { RangePicker } = DatePicker;
-const { Text } = Typography;
-
-function formatIDR(value) {
-    try {
-        return new Intl.NumberFormat("id-ID", {
-            style: "currency",
-            currency: "IDR",
-            maximumFractionDigits: 0,
-        }).format(value || 0);
-    } catch {
-        return `Rp ${String(value || 0)}`;
-    }
-}
+const { TextArea } = Input;
 
 function buildQuery(filters) {
     const params = { ...filters };
@@ -61,11 +56,7 @@ function buildQuery(filters) {
     delete params.range;
 
     Object.keys(params).forEach((key) => {
-        if (
-            params[key] === null ||
-            params[key] === undefined ||
-            params[key] === ""
-        ) {
+        if (params[key] === null || params[key] === undefined || params[key] === "") {
             delete params[key];
         }
     });
@@ -74,6 +65,7 @@ function buildQuery(filters) {
 }
 
 export default function TransactionsIndex() {
+    const { t } = useI18n();
     const { props } = usePage();
     const {
         transactions,
@@ -88,6 +80,15 @@ export default function TransactionsIndex() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editing, setEditing] = useState(null);
     const [fileList, setFileList] = useState([]);
+    const [previewOpen, setPreviewOpen] = useState(false);
+    const [attachmentPreview, setAttachmentPreview] = useState(null);
+    const maxAttachmentKb = 500;
+    const acceptedAttachmentTypes = [
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "application/pdf",
+    ];
 
     const [filterState, setFilterState] = useState({
         search: filters?.search || "",
@@ -101,117 +102,153 @@ export default function TransactionsIndex() {
     });
 
     const data = transactions?.data || [];
-
     const [columnVisibility, setColumnVisibility] = useState({});
+    const attachmentPreviewMeta = useMemo(() => {
+        const attachment = attachmentPreview;
+        if (!attachment?.url) {
+            return { isImage: false, isPdf: false };
+        }
+
+        const source = String(attachment.mime_type || attachment.title || attachment.url || "").toLowerCase();
+        const isImage =
+            source.includes("image/") ||
+            source.endsWith(".jpg") ||
+            source.endsWith(".jpeg") ||
+            source.endsWith(".png");
+        const isPdf = source.includes("pdf") || source.endsWith(".pdf");
+
+        return { isImage, isPdf };
+    }, [attachmentPreview]);
+
+    const categoryOptions = useMemo(
+        () =>
+            categories.map((category) => ({
+                value: category.id,
+                label: category.name,
+                type: category.type,
+            })),
+        [categories],
+    );
+
+    const methodOptions = useMemo(
+        () =>
+            methods.map((method) => ({ value: method.id, label: method.name })),
+        [methods],
+    );
+
+    const openAttachmentPreview = (attachment) => {
+        if (!attachment?.url) return;
+        setAttachmentPreview(attachment);
+        setPreviewOpen(true);
+    };
 
     const columns = useMemo(
         () => [
             {
                 accessorKey: "tx_date",
-                header: "Tanggal",
-                cell: ({ row }) =>
-                    row.original.tx_date
-                        ? dayjs(row.original.tx_date).format("DD/MM/YYYY")
-                        : "-",
-                meta: { width: 120, sorter: true },
+                header: t("common.date"),
+                cell: ({ row }) => formatDate(row.original.tx_date),
+                meta: { width: 132, sorter: true },
             },
             {
                 accessorKey: "type",
-                header: "Tipe",
+                header: t("common.type"),
                 cell: ({ row }) =>
                     row.original.type === "in" ? (
-                        <Tag color="green">Masuk</Tag>
+                        <StatusBadge status="active" label={t("transactions.typeIn")} color="green" />
                     ) : (
-                        <Tag color="red">Keluar</Tag>
+                        <StatusBadge status="overdue" label={t("transactions.typeOut")} color="red" />
                     ),
                 meta: { width: 110 },
             },
             {
                 accessorKey: "category",
-                header: "Kategori",
+                header: t("common.category"),
                 cell: ({ row }) => row.original.category || "-",
-                meta: { width: 160 },
+                meta: { width: 180 },
             },
             {
                 accessorKey: "method",
-                header: "Metode",
+                header: t("common.method"),
                 cell: ({ row }) => row.original.method || "-",
-                meta: { width: 140 },
+                meta: { width: 150 },
             },
             {
                 accessorKey: "description",
-                header: "Keterangan",
+                header: t("common.description"),
                 cell: ({ row }) => row.original.description || "-",
             },
             {
                 accessorKey: "amount",
-                header: "Nominal",
+                header: t("common.amount"),
                 cell: ({ row }) => (
-                    <Text
-                        strong
-                        style={{
-                            color:
-                                row.original.type === "out"
-                                    ? "#cf1322"
-                                    : "#135200",
-                        }}
-                    >
-                        {row.original.type === "out" ? "-" : "+"}{" "}
-                        {formatIDR(row.original.amount)}
-                    </Text>
+                    <MoneyDisplay
+                        value={row.original.amount}
+                        tone={row.original.type === "out" ? "danger" : "success"}
+                        showPrefix={row.original.type === "in"}
+                    />
                 ),
-                meta: { width: 160, align: "right", sorter: true },
+                meta: { width: 170, align: "right", sorter: true },
             },
             {
                 accessorKey: "reference_no",
-                header: "Referensi",
-                cell: ({ row }) =>
-                    row.original.reference_no || row.original.source,
-                meta: { width: 160 },
+                header: t("common.reference"),
+                cell: ({ row }) => row.original.reference_no || row.original.source || "-",
+                meta: { width: 170 },
             },
             {
                 accessorKey: "attachment",
-                header: "Lampiran",
-                cell: ({ row }) =>
-                    row.original.attachment ? (
-                        <a
-                            href={row.original.attachment.url}
-                            target="_blank"
-                            rel="noreferrer"
-                        >
-                            Buka
-                        </a>
-                    ) : (
-                        <Text type="secondary">-</Text>
-                    ),
-                meta: { width: 100 },
+                header: t("common.attachment"),
+                cell: ({ row }) => {
+                    const attachment = row.original.attachment;
+                    if (!attachment?.url) {
+                        return "-";
+                    }
+
+                    return (
+                        <Space size={6}>
+                            <Button
+                                size="small"
+                                icon={<EyeOutlined />}
+                                onClick={() => openAttachmentPreview(attachment)}
+                                title={t("transactions.attachmentOpen")}
+                            />
+                            <Button
+                                size="small"
+                                icon={<DownloadOutlined />}
+                                href={attachment.download_url || attachment.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                download={attachment.title || true}
+                                title={t("transactions.attachmentDownload")}
+                            />
+                        </Space>
+                    );
+                },
+                meta: { width: 130 },
             },
             {
                 accessorKey: "running_balance",
-                header: "Saldo Berjalan",
-                cell: ({ row }) => (
-                    <Text type="secondary">
-                        {formatIDR(row.original.running_balance)}
-                    </Text>
-                ),
+                header: t("common.runningBalance"),
+                cell: ({ row }) => <MoneyDisplay value={row.original.running_balance} tone="muted" />,
                 meta: { width: 170, align: "right" },
             },
             {
                 id: "actions",
-                header: "Aksi",
+                header: t("common.actions"),
                 cell: ({ row }) => {
                     const items = [
                         {
                             key: "edit",
                             icon: <EditOutlined />,
-                            label: "Edit",
+                            label: t("common.edit"),
                             disabled: row.original.is_locked,
                             onClick: () => handleEdit(row.original),
                         },
                         {
                             key: "delete",
                             icon: <DeleteOutlined />,
-                            label: "Batalkan",
+                            label: t("transactions.canceled"),
                             danger: true,
                             disabled: row.original.is_locked,
                             onClick: () => handleDelete(row.original),
@@ -228,7 +265,7 @@ export default function TransactionsIndex() {
                 enableHiding: false,
             },
         ],
-        [],
+        [t],
     );
 
     const table = useReactTable({
@@ -252,22 +289,6 @@ export default function TransactionsIndex() {
                 getValue: () => row[column.id],
             }),
     }));
-
-    const categoryOptions = useMemo(
-        () =>
-            categories.map((category) => ({
-                value: category.id,
-                label: category.name,
-                type: category.type,
-            })),
-        [categories],
-    );
-
-    const methodOptions = useMemo(
-        () =>
-            methods.map((method) => ({ value: method.id, label: method.name })),
-        [methods],
-    );
 
     const applyFilters = () => {
         router.get(route("transactions.index"), buildQuery(filterState), {
@@ -293,6 +314,7 @@ export default function TransactionsIndex() {
         setEditing(null);
         setFileList([]);
         form.resetFields();
+        form.setFieldsValue({ remove_attachment: false });
         setIsModalOpen(true);
     };
 
@@ -307,15 +329,16 @@ export default function TransactionsIndex() {
             amount: record.amount,
             description: record.description,
             reference_no: record.reference_no,
+            remove_attachment: false,
         });
         setIsModalOpen(true);
     };
 
     const handleDelete = (record) => {
         Modal.confirm({
-            title: "Batalkan transaksi?",
-            content: "Transaksi akan ditandai sebagai void.",
-            okText: "Ya, batalkan",
+            title: t("transactions.cancelTransaction"),
+            content: t("transactions.cancelTransactionDesc"),
+            okText: t("transactions.confirmCancel"),
             okButtonProps: { danger: true },
             onOk: () =>
                 router.delete(route("transactions.destroy", record.id), {
@@ -332,13 +355,13 @@ export default function TransactionsIndex() {
         payload.append("category_id", values.category_id);
         payload.append("method_id", values.method_id);
         payload.append("amount", values.amount);
-        if (values.description)
-            payload.append("description", values.description);
-        if (values.reference_no)
-            payload.append("reference_no", values.reference_no);
-
+        if (values.description) payload.append("description", values.description);
+        if (values.reference_no) payload.append("reference_no", values.reference_no);
         if (fileList[0]?.originFileObj) {
             payload.append("attachment", fileList[0].originFileObj);
+        }
+        if (values.remove_attachment) {
+            payload.append("remove_attachment", "1");
         }
 
         if (editing) {
@@ -369,62 +392,79 @@ export default function TransactionsIndex() {
         }));
 
     const columnMenu = {
-        items: visibleColumns.map((col) => ({
-            key: col.key,
+        items: visibleColumns.map((column) => ({
+            key: column.key,
             label: (
-                <label style={{ display: "flex", gap: 8 }}>
+                <label className="flex items-center gap-2">
                     <input
                         type="checkbox"
-                        checked={col.checked}
-                        onChange={() =>
-                            table.getColumn(col.key).toggleVisibility()
-                        }
+                        checked={column.checked}
+                        onChange={() => table.getColumn(column.key).toggleVisibility()}
                     />
-                    {col.label}
+                    {column.label}
                 </label>
             ),
         })),
     };
 
     return (
-        <AppLayout title="Kas / Transaksi">
+        <AppLayout title={t("menu.cash")}>
             <PageShell>
                 <PageHeader
-                    title="Kas / Transaksi"
+                    eyebrow="Cash Flow"
+                    title={t("transactions.title")}
+                    description={t("transactions.description")}
                     extra={
-                        <Space>
-                            <Button
-                                type="primary"
-                                icon={<PlusOutlined />}
-                                onClick={openModal}
-                            >
-                                Tambah Transaksi
+                        <Space wrap>
+                            <Button type="primary" icon={<PlusOutlined />} onClick={openModal}>
+                                {t("transactions.addTransaction")}
                             </Button>
                             <Dropdown menu={columnMenu} trigger={["click"]}>
-                                <Button icon={<FilterOutlined />}>Kolom</Button>
+                                <Button icon={<FilterOutlined />}>{t("transactions.columns")}</Button>
                             </Dropdown>
                         </Space>
                     }
                 />
 
-                <Card
-                    style={{ borderRadius: 12, marginBottom: 12 }}
-                    bodyStyle={{ padding: 12 }}
-                >
-                    <Space wrap size={10} style={{ width: "100%" }}>
-                        <Input
-                            allowClear
+                <div className="idi-grid">
+                    <StatCard
+                        title={t("transactions.totalIn")}
+                        value={<MoneyDisplay value={summary.total_in} emphasize tone="success" />}
+                        hint={t("transactions.incomeAccumulated")}
+                        tone="success"
+                    />
+                    <StatCard
+                        title={t("transactions.totalOut")}
+                        value={<MoneyDisplay value={summary.total_out} emphasize tone="danger" />}
+                        hint={t("transactions.expenseAccumulated")}
+                        tone="danger"
+                    />
+                    <StatCard
+                        title={t("transactions.closingBalance")}
+                        value={<MoneyDisplay value={summary.closing_balance} emphasize tone="inverse" />}
+                        hint={t("transactions.balanceClosing")}
+                        tone="primary"
+                    />
+                </div>
+
+                <FilterBar>
+                    <div className="space-y-2">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-400">
+                            {t("common.search")}
+                        </p>
+                        <SearchInput
                             value={filterState.search}
                             onChange={(e) =>
-                                setFilterState((prev) => ({
-                                    ...prev,
-                                    search: e.target.value,
-                                }))
+                                setFilterState((prev) => ({ ...prev, search: e.target.value }))
                             }
-                            placeholder="Cari deskripsi, referensi, anggota"
-                            style={{ width: 260 }}
+                            placeholder={t("common.search")}
                         />
+                    </div>
 
+                    <div className="space-y-2">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-400">
+                            {t("common.type")}
+                        </p>
                         <Select
                             value={filterState.type || undefined}
                             onChange={(value) =>
@@ -436,13 +476,18 @@ export default function TransactionsIndex() {
                             }
                             style={{ width: 160 }}
                             allowClear
-                            placeholder="Tipe"
+                            placeholder={t("common.type")}
                             options={[
-                                { value: "in", label: "Masuk" },
-                                { value: "out", label: "Keluar" },
+                                { value: "in", label: t("transactions.typeIn") },
+                                { value: "out", label: t("transactions.typeOut") },
                             ]}
                         />
+                    </div>
 
+                    <div className="space-y-2">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-400">
+                            {t("common.category")}
+                        </p>
                         <Select
                             value={filterState.category_id || undefined}
                             onChange={(value) =>
@@ -451,21 +496,24 @@ export default function TransactionsIndex() {
                                     category_id: value || "",
                                 }))
                             }
-                            style={{ width: 200 }}
+                            style={{ width: 220 }}
                             allowClear
-                            placeholder="Kategori"
+                            placeholder={t("common.category")}
                             options={categoryOptions
                                 .filter((option) =>
-                                    filterState.type
-                                        ? option.type === filterState.type
-                                        : true,
+                                    filterState.type ? option.type === filterState.type : true,
                                 )
                                 .map((option) => ({
                                     value: option.value,
                                     label: option.label,
                                 }))}
                         />
+                    </div>
 
+                    <div className="space-y-2">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-400">
+                            {t("common.method")}
+                        </p>
                         <Select
                             value={filterState.method_id || undefined}
                             onChange={(value) =>
@@ -476,137 +524,51 @@ export default function TransactionsIndex() {
                             }
                             style={{ width: 180 }}
                             allowClear
-                            placeholder="Metode"
+                            placeholder={t("common.method")}
                             options={methodOptions}
                         />
+                    </div>
 
+                    <div className="space-y-2">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-400">
+                            {t("common.date")}
+                        </p>
                         <RangePicker
                             value={filterState.range}
                             onChange={(value) =>
-                                setFilterState((prev) => ({
-                                    ...prev,
-                                    range: value || [],
-                                }))
+                                setFilterState((prev) => ({ ...prev, range: value || [] }))
                             }
                             format="DD/MM/YYYY"
                         />
+                    </div>
 
-                        <Button type="primary" onClick={applyFilters}>
-                            Terapkan
-                        </Button>
-                        <Button onClick={resetFilters}>Reset</Button>
-                    </Space>
-                </Card>
+                    <Button type="primary" onClick={applyFilters}>
+                        {t("common.apply")}
+                    </Button>
+                    <Button onClick={resetFilters}>{t("common.reset")}</Button>
+                </FilterBar>
 
-                <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
-                    <Col xs={24} md={6}>
-                        <Card
-                            style={{ borderRadius: 12, background: "#dff4ea" }}
-                            bodyStyle={{ padding: 14 }}
-                        >
-                            <Text style={{ color: "#135200", fontWeight: 600 }}>
-                                Total Masuk
-                            </Text>
-                            <div
-                                style={{
-                                    marginTop: 8,
-                                    fontSize: 18,
-                                    fontWeight: 800,
-                                    color: "#135200",
-                                }}
-                            >
-                                {formatIDR(summary.total_in)}
-                            </div>
-                        </Card>
-                    </Col>
-                    <Col xs={24} md={6}>
-                        <Card
-                            style={{ borderRadius: 12, background: "#ffe3e3" }}
-                            bodyStyle={{ padding: 14 }}
-                        >
-                            <Text style={{ color: "#a8071a", fontWeight: 600 }}>
-                                Total Keluar
-                            </Text>
-                            <div
-                                style={{
-                                    marginTop: 8,
-                                    fontSize: 18,
-                                    fontWeight: 800,
-                                    color: "#a8071a",
-                                }}
-                            >
-                                {formatIDR(summary.total_out)}
-                            </div>
-                        </Card>
-                    </Col>
-                    <Col xs={24} md={6}>
-                        <Card
-                            style={{ borderRadius: 12, background: "#dbeafe" }}
-                            bodyStyle={{ padding: 14 }}
-                        >
-                            <Text style={{ color: "#003a8c", fontWeight: 600 }}>
-                                Net Kas
-                            </Text>
-                            <div
-                                style={{
-                                    marginTop: 8,
-                                    fontSize: 18,
-                                    fontWeight: 800,
-                                    color: "#003a8c",
-                                }}
-                            >
-                                {formatIDR(summary.net_cash ?? summary.net)}
-                            </div>
-                        </Card>
-                    </Col>
-                    <Col xs={24} md={6}>
-                        <Card
-                            style={{ borderRadius: 12, background: "#fff7e6" }}
-                            bodyStyle={{ padding: 14 }}
-                        >
-                            <Text style={{ color: "#ad4e00", fontWeight: 600 }}>
-                                Saldo Akhir
-                            </Text>
-                            <div
-                                style={{
-                                    marginTop: 8,
-                                    fontSize: 18,
-                                    fontWeight: 800,
-                                    color: "#ad4e00",
-                                }}
-                            >
-                                {formatIDR(summary.closing_balance)}
-                            </div>
-                        </Card>
-                    </Col>
-                </Row>
-
-                <Card
-                    style={{ borderRadius: 12, marginBottom: 12 }}
-                    bodyStyle={{ padding: 12 }}
-                >
-                    <Text strong>Saldo per Metode (akhir periode)</Text>
-                    <Row gutter={[8, 8]} style={{ marginTop: 8 }}>
+                <Card title={t("transactions.balanceByMethod")}>
+                    <div className="grid gap-4 md:grid-cols-3">
                         {methods.map((method) => (
-                            <Col xs={24} md={8} key={method.id}>
-                                <Card size="small" style={{ borderRadius: 10 }}>
-                                    <Space direction="vertical">
-                                        <Text>{method.name}</Text>
-                                        <Text strong>
-                                            {formatIDR(
-                                                balancesByMethod?.[method.id] ||
-                                                    0,
-                                            )}
-                                        </Text>
-                                    </Space>
-                                </Card>
-                            </Col>
+                            <div
+                                key={method.id}
+                                className="rounded-3xl border border-zinc-200 bg-zinc-50 px-5 py-4"
+                            >
+                                <p className="text-sm font-semibold text-zinc-900">{method.name}</p>
+                                <p className="mt-2 text-lg font-semibold text-zinc-950">
+                                    {formatIDR(balancesByMethod?.[method.id] || 0)}
+                                </p>
+                            </div>
                         ))}
-                    </Row>
+                    </div>
                 </Card>
 
-                <Card style={{ borderRadius: 12 }} bodyStyle={{ padding: 0 }}>
-                    <Table
+                <Card title={t("transactions.transactionList")}>
+                    <p className="mb-4 text-sm text-zinc-500">
+                        {t("common.runningBalance")} {t("common.calculatedChronologically")}
+                    </p>
+                    <DataTable
                         columns={antdColumns}
                         dataSource={data}
                         rowKey="id"
@@ -616,11 +578,16 @@ export default function TransactionsIndex() {
                             total: transactions?.total || 0,
                             showSizeChanger: true,
                         }}
+                        emptyTitle={t("transactions.noTransactions")}
+                        emptyDescription={t("transactions.noTransactionsDesc")}
                         onChange={(pagination, _filters, sorter) => {
-                            const sortBy =
-                                sorter?.field || filters?.sortBy || "tx_date";
+                            const sortBy = sorter?.field || filters?.sortBy || "tx_date";
                             const sortDir =
-                                sorter?.order === "ascend" ? "asc" : "desc";
+                                sorter?.order === "ascend"
+                                    ? "asc"
+                                    : sorter?.order === "descend"
+                                      ? "desc"
+                                      : filters?.sortDir || "desc";
                             router.get(
                                 route("transactions.index"),
                                 {
@@ -638,144 +605,276 @@ export default function TransactionsIndex() {
             </PageShell>
 
             <Modal
-                title={editing ? "Edit Transaksi" : "Tambah Transaksi"}
+                title={
+                    <div className="pr-6">
+                        <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-red-700/80">
+                            {t("transactions.transactionInfo")}
+                        </p>
+                        <h3 className="m-0 text-xl font-semibold text-zinc-950">
+                            {editing ? t("transactions.editModal") : t("transactions.addModal")}
+                        </h3>
+                    </div>
+                }
                 open={isModalOpen}
                 onCancel={() => setIsModalOpen(false)}
                 onOk={submitForm}
                 okText={editing ? "Simpan" : "Tambah"}
+                width={760}
+                className="transaction-form-modal"
+                styles={{
+                    header: {
+                        padding: "22px 24px 4px",
+                        marginBottom: 0,
+                    },
+                    body: {
+                        padding: "18px 24px 10px",
+                    },
+                    footer: {
+                        padding: "16px 24px 22px",
+                        marginTop: 0,
+                        borderTop: "1px solid rgba(228, 228, 231, 0.85)",
+                    },
+                }}
             >
-                <Form layout="vertical" form={form}>
-                    <Form.Item
-                        label="Tanggal"
-                        name="tx_date"
-                        rules={[
-                            { required: true, message: "Tanggal wajib diisi" },
-                        ]}
-                    >
-                        <DatePicker showTime style={{ width: "100%" }} />
-                    </Form.Item>
-                    <Form.Item
-                        label="Tipe"
-                        name="type"
-                        rules={[
-                            { required: true, message: "Tipe wajib diisi" },
-                        ]}
-                    >
-                        <Select
-                            onChange={() =>
-                                form.setFieldsValue({ category_id: null })
-                            }
-                            options={[
-                                { value: "in", label: "Masuk" },
-                                { value: "out", label: "Keluar" },
-                            ]}
-                        />
-                    </Form.Item>
-                    <Form.Item
-                        shouldUpdate={(prev, curr) => prev.type !== curr.type}
-                    >
-                        {() => (
+                <FormSection
+                    title={t("transactions.transactionInfo")}
+                    description={t("transactions.transactionInfoDesc")}
+                >
+                    <Form layout="vertical" form={form} className="transaction-form-grid">
+                        <section className="rounded-[22px] border border-zinc-200/80 bg-zinc-50/75 p-4">
+                            <div className="grid gap-4 md:grid-cols-2">
                             <Form.Item
-                                label="Kategori"
-                                name="category_id"
-                                rules={[
-                                    {
-                                        required: true,
-                                        message: "Kategori wajib diisi",
-                                    },
-                                ]}
+                                label="Tanggal"
+                                name="tx_date"
+                                rules={[{ required: true, message: "Tanggal wajib diisi" }]}
+                            >
+                                <DatePicker showTime style={{ width: "100%" }} />
+                            </Form.Item>
+
+                            <Form.Item
+                                label="Tipe"
+                                name="type"
+                                rules={[{ required: true, message: "Tipe wajib diisi" }]}
                             >
                                 <Select
-                                    options={categoryOptions
-                                        .filter((option) => {
-                                            const type =
-                                                form.getFieldValue("type");
-                                            return type
-                                                ? option.type === type
-                                                : true;
-                                        })
-                                        .map((option) => ({
-                                            value: option.value,
-                                            label: option.label,
-                                        }))}
+                                    onChange={() => form.setFieldsValue({ category_id: null })}
+                                    options={[
+                                        { value: "in", label: "Masuk" },
+                                        { value: "out", label: "Keluar" },
+                                    ]}
                                 />
                             </Form.Item>
-                        )}
-                    </Form.Item>
-                    <Form.Item
-                        label="Metode"
-                        name="method_id"
-                        rules={[
-                            { required: true, message: "Metode wajib diisi" },
-                        ]}
-                    >
-                        <Select options={methodOptions} />
-                    </Form.Item>
-                    <Space.Compact style={{ width: "100%" }}>
-                        <Input
-                            value="Rp"
-                            disabled
-                            style={{
-                                width: 60,
-                                textAlign: "center",
-                                fontWeight: 500,
-                            }}
-                        />
 
-                        <Form.Item
-                            name="amount"
-                            noStyle
-                            rules={[
-                                {
-                                    required: true,
-                                    message: "Nominal wajib diisi",
-                                },
-                            ]}
-                        >
-                            <InputNumber
-                                style={{ width: "100%" }}
-                                min={1}
-                                inputMode="numeric"
-                                formatter={(value) =>
-                                    value
-                                        ? value
-                                              .toString()
-                                              .replace(
-                                                  /\B(?=(\d{3})+(?!\d))/g,
-                                                  ".",
-                                              )
-                                        : ""
-                                }
-                                parser={(value) =>
-                                    value
-                                        ?.toString()
-                                        .replace(/\./g, "")
-                                        .replace(/[^0-9]/g, "")
-                                }
+                            <Form.Item shouldUpdate={(prev, curr) => prev.type !== curr.type}>
+                                {() => (
+                                    <Form.Item
+                                        label="Kategori"
+                                        name="category_id"
+                                        rules={[{ required: true, message: "Kategori wajib diisi" }]}
+                                    >
+                                        <Select
+                                            options={categoryOptions
+                                                .filter((option) => {
+                                                    const type = form.getFieldValue("type");
+                                                    return type ? option.type === type : true;
+                                                })
+                                                .map((option) => ({
+                                                    value: option.value,
+                                                    label: option.label,
+                                                }))}
+                                        />
+                                    </Form.Item>
+                                )}
+                            </Form.Item>
+
+                            <Form.Item
+                                label="Metode"
+                                name="method_id"
+                                rules={[{ required: true, message: "Metode wajib diisi" }]}
+                            >
+                                <Select options={methodOptions} />
+                            </Form.Item>
+
+                            <div className="md:col-span-2">
+                                <Form.Item
+                                    label="Nominal"
+                                    name="amount"
+                                    rules={[{ required: true, message: "Nominal wajib diisi" }]}
+                                >
+                                    <InputNumber
+                                        style={{ width: "100%" }}
+                                        min={1}
+                                        inputMode="numeric"
+                                        addonBefore="Rp"
+                                        formatter={(value) =>
+                                            value
+                                                ? value
+                                                      .toString()
+                                                      .replace(/\B(?=(\d{3})+(?!\d))/g, ".")
+                                                : ""
+                                        }
+                                        parser={(value) =>
+                                            value
+                                                ?.toString()
+                                                .replace(/\./g, "")
+                                                .replace(/[^0-9]/g, "")
+                                        }
+                                    />
+                                </Form.Item>
+                            </div>
+                            </div>
+                        </section>
+
+                        <section className="mt-4 rounded-[22px] border border-zinc-200/80 bg-white p-4">
+                            <div className="grid gap-4 md:grid-cols-2">
+                            <Form.Item label="Keterangan" name="description" className="md:col-span-2">
+                                <TextArea rows={3} />
+                            </Form.Item>
+
+                            <Form.Item label="Referensi" name="reference_no">
+                                <Input />
+                            </Form.Item>
+
+                            <Form.Item
+                                label="Lampiran Bukti"
+                                extra={`Format: JPG/PNG/PDF • Maks ${maxAttachmentKb}KB • Folder: /public/transactions/YYYY-MM`}
+                            >
+                                <Upload
+                                    fileList={fileList}
+                                    beforeUpload={(file) => {
+                                        const isValidType = acceptedAttachmentTypes.includes(
+                                            String(file.type || "").toLowerCase(),
+                                        );
+                                        if (!isValidType) {
+                                            message.error("Format lampiran harus JPG, PNG, atau PDF.");
+                                            return Upload.LIST_IGNORE;
+                                        }
+
+                                        const isValidSize = file.size / 1024 <= maxAttachmentKb;
+                                        if (!isValidSize) {
+                                            message.error(`Ukuran lampiran maksimal ${maxAttachmentKb}KB.`);
+                                            return Upload.LIST_IGNORE;
+                                        }
+
+                                        return false;
+                                    }}
+                                    maxCount={1}
+                                    onChange={({ fileList: newFileList }) =>
+                                        setFileList(newFileList)
+                                    }
+                                >
+                                    <Button icon={<PaperClipOutlined />}>Pilih File</Button>
+                                </Upload>
+                            </Form.Item>
+                            </div>
+
+                            {editing?.attachment?.url ? (
+                                <div className="mt-1 rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3">
+                                    <div className="flex flex-wrap items-center justify-between gap-3">
+                                        <div className="min-w-0">
+                                            <p className="m-0 text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                                                Lampiran Saat Ini
+                                            </p>
+                                            <p className="m-0 mt-1 truncate text-sm font-medium text-zinc-800">
+                                                {editing.attachment.title || "Bukti transaksi"}
+                                            </p>
+                                        </div>
+                                        <Space>
+                                            <Button
+                                                size="small"
+                                                icon={<EyeOutlined />}
+                                                onClick={() => openAttachmentPreview(editing.attachment)}
+                                            >
+                                                Lihat
+                                            </Button>
+                                            <Button
+                                                size="small"
+                                                icon={<DownloadOutlined />}
+                                                href={editing.attachment.download_url || editing.attachment.url}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                download={editing.attachment.title || true}
+                                            >
+                                                Unduh
+                                            </Button>
+                                        </Space>
+                                    </div>
+                                    <Form.Item
+                                        className="!mb-0 mt-3"
+                                        name="remove_attachment"
+                                        valuePropName="checked"
+                                    >
+                                        <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-zinc-700">
+                                            <input
+                                                type="checkbox"
+                                                checked={!!form.getFieldValue("remove_attachment")}
+                                                onChange={(event) =>
+                                                    form.setFieldsValue({
+                                                        remove_attachment: event.target.checked,
+                                                    })
+                                                }
+                                            />
+                                            Hapus lampiran saat simpan
+                                        </label>
+                                    </Form.Item>
+                                </div>
+                            ) : null}
+                        </section>
+                    </Form>
+                </FormSection>
+            </Modal>
+
+            <Modal
+                title={t("transactions.attachmentPreview")}
+                open={previewOpen}
+                onCancel={() => {
+                    setPreviewOpen(false);
+                    setAttachmentPreview(null);
+                }}
+                footer={null}
+                width={860}
+                destroyOnClose
+            >
+                {attachmentPreview?.url ? (
+                    attachmentPreviewMeta.isImage ? (
+                        <div className="flex justify-center">
+                            <img
+                                src={attachmentPreview.url}
+                                alt={attachmentPreview.title || "attachment-preview"}
+                                className="max-h-[70vh] w-auto max-w-full rounded-xl border border-zinc-200"
                             />
-                        </Form.Item>
-                    </Space.Compact>
-                    <Form.Item label="Keterangan" name="description">
-                        <Input.TextArea rows={3} />
-                    </Form.Item>
-                    <Form.Item label="Referensi" name="reference_no">
-                        <Input />
-                    </Form.Item>
-                    <Form.Item label="Lampiran">
-                        <Upload
-                            fileList={fileList}
-                            beforeUpload={() => false}
-                            maxCount={1}
-                            onChange={({ fileList: newFileList }) =>
-                                setFileList(newFileList)
-                            }
-                        >
-                            <Button icon={<PaperClipOutlined />}>
-                                Pilih File
-                            </Button>
-                        </Upload>
-                    </Form.Item>
-                </Form>
+                        </div>
+                    ) : attachmentPreviewMeta.isPdf ? (
+                        <iframe
+                            title={attachmentPreview.title || "attachment-preview"}
+                            src={attachmentPreview.url}
+                            className="h-[70vh] w-full rounded-xl border border-zinc-200"
+                        />
+                    ) : (
+                        <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+                            <p className="mb-2 text-sm text-zinc-700">{t("transactions.attachmentPreviewUnsupported")}</p>
+                            <Space>
+                                <Button
+                                    icon={<EyeOutlined />}
+                                    href={attachmentPreview.url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                >
+                                    {t("transactions.attachmentOpen")}
+                                </Button>
+                                <Button
+                                    icon={<DownloadOutlined />}
+                                    href={attachmentPreview.download_url || attachmentPreview.url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    download={attachmentPreview.title || true}
+                                >
+                                    {t("transactions.attachmentDownload")}
+                                </Button>
+                            </Space>
+                        </div>
+                    )
+                ) : null}
             </Modal>
         </AppLayout>
     );

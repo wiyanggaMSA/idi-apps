@@ -6,27 +6,26 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Secretariat\LetterDraftRequest;
 use App\Http\Requests\Secretariat\LetterFinalizeRequest;
 use App\Models\Letter;
-use App\Models\AppSetting;
 use App\Models\LetterNumberingProfile;
 use App\Models\LetterTemplate;
-use App\Services\Secretariat\LetterHtmlRenderer;
 use App\Models\Member;
-use App\Models\LetterSignature;
-use App\Services\Secretariat\LetterNumberService;
-use App\Services\Secretariat\LetterPlaintextService;
+use App\Services\Secretariat\ArchiveService;
+use App\Services\Secretariat\LetterDraftWorkflowService;
+use App\Services\Secretariat\LetterFinalizeWorkflowService;
+use App\Services\Secretariat\LetterNumberGeneratorService;
 use App\Services\Secretariat\LetterPdfService;
-use App\Services\Secretariat\LetterVersionService;
-use App\Services\Secretariat\QrCodeService;
-
+use App\Services\Secretariat\LetterRenderDataService;
+use App\Services\Secretariat\LetterWorkflowException;
 use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\URL;
-use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\Process\Exception\ProcessTimedOutException;
 
 class LettersController extends Controller
 {
@@ -38,7 +37,7 @@ class LettersController extends Controller
         $dateFrom = $request->input('date_from');
         $dateTo = $request->input('date_to');
 
-        $query = Letter::query()->with('template')->withCount('versions')->latest();
+        $query = Letter::query()->with('template:id,name,classification')->withCount(['versions', 'documents'])->latest();
 
         if ($classification !== '') {
             $query->where('classification', $classification);
@@ -78,22 +77,51 @@ class LettersController extends Controller
             'letters' => $query->paginate(10)->withQueryString(),
             'templates' => LetterTemplate::query()
                 ->where('is_active', true)
-                ->get(['id', 'name', 'classification', 'numbering_profile_id', 'blocks_json']),
+                ->get(['id', 'name', 'classification', 'numbering_profile_id', 'number_format', 'blocks_json']),
+            'summary' => [
+                'draft' => Letter::query()->where('status', 'draft')->count(),
+                'finalized' => Letter::query()->where('status', 'finalized')->count(),
+                'archived' => Letter::query()->where('status', 'archived')->count(),
+            ],
             'filters' => [
                 'search' => $search,
                 'classification' => $classification,
                 'status' => $status,
-                'date_from' => $dateFrom?->toDateString(),
-                'date_to' => $dateTo?->toDateString(),
+                'date_from' => $dateFrom ?: null,
+                'date_to' => $dateTo ?: null,
             ],
+        ]);
+    }
+
+    public function dashboard(): Response
+    {
+        return Inertia::render('Secretariat/Dashboard', [
+            'summary' => [
+                'draft' => Letter::query()->where('status', 'draft')->count(),
+                'finalized' => Letter::query()->where('status', 'finalized')->count(),
+                'archived' => Letter::query()->where('status', 'archived')->count(),
+                'templates' => LetterTemplate::query()->where('is_active', true)->count(),
+            ],
+            'latestLetters' => Letter::query()
+                ->with('template:id,name')
+                ->latest()
+                ->limit(6)
+                ->get(['id', 'template_id', 'number', 'subject', 'date', 'status', 'created_at']),
+            'upcomingAgenda' => \App\Models\Agenda::query()
+                ->where('status', 'planned')
+                ->where('start_at', '>=', now()->subDay())
+                ->orderBy('start_at')
+                ->limit(5)
+                ->get(['id', 'title', 'start_at', 'location', 'status']),
         ]);
     }
 
     public function create(): Response
     {
         return Inertia::render('Secretariat/Letters/Builder', [
-            'templates' => LetterTemplate::query()->where('is_active', true)->get(),
-            'numberingProfiles' => LetterNumberingProfile::query()->where('is_active', true)->get(),
+            'templates' => $this->builderTemplates(),
+            'numberingProfiles' => $this->builderNumberingProfiles(),
+            'signerMembers' => $this->signerMembersOptions(),
             'placeholders' => [
                 'org.name',
                 'org.address',
@@ -112,9 +140,10 @@ class LettersController extends Controller
     public function edit(Letter $letter): Response
     {
         return Inertia::render('Secretariat/Letters/Builder', [
-            'letter' => $letter->load('template'),
-            'templates' => LetterTemplate::query()->where('is_active', true)->get(),
-            'numberingProfiles' => LetterNumberingProfile::query()->where('is_active', true)->get(),
+            'letter' => $letter->load('template:id,name,classification,numbering_profile_id,number_format,number_reset_policy,last_number,blocks_json,layout_json,content_text,signer_name,signer_title,signers_json,qr_enabled'),
+            'templates' => $this->builderTemplates(),
+            'numberingProfiles' => $this->builderNumberingProfiles(),
+            'signerMembers' => $this->signerMembersOptions(),
             'placeholders' => [
                 'org.name',
                 'org.address',
@@ -130,79 +159,69 @@ class LettersController extends Controller
         ]);
     }
 
+    public function show(Letter $letter): Response
+    {
+        $letter->load([
+            'template:id,name,classification,number_format',
+            'documents' => fn ($query) => $query->latest(),
+            'latestSignature',
+        ])->loadCount(['versions', 'documents']);
+
+        return Inertia::render('Secretariat/Letters/Show', [
+            'letter' => $this->serializeLetter($letter),
+        ]);
+    }
+
     public function builder(Letter $letter): Response
     {
-        $signerMembers = Member::query()
-            ->with('position')
-            ->orderBy('full_name')
-            ->get()
-            ->map(fn ($member) => [
-                'id' => $member->id,
-                'full_name' => $member->full_name,
-                'position_name' => $member->position?->name,
-            ])
-            ->values();
         return Inertia::render('Secretariat/Letters/GridBuilder', [
             'letter' => $letter,
-            'signerMembers' => $signerMembers,
+            'signerMembers' => $this->signerMembersOptions(),
+            'numberingProfiles' => LetterNumberingProfile::query()->where('is_active', true)->get(),
         ]);
     }
 
-    public function storeDraft(LetterDraftRequest $request, LetterPlaintextService $plaintextService): RedirectResponse
+    public function storeDraft(LetterDraftRequest $request, LetterDraftWorkflowService $draftWorkflow): RedirectResponse
     {
-        $blocks = $request->input('content_blocks_json', []);
-        $layout = $request->input('layout', []);
-        $gridBlocks = $request->input('blocks', []);
-
-        $letter = Letter::create([
-            'type' => $request->input('type', 'out'),
-            'template_id' => $request->input('template_id'),
-            'classification' => $request->input('classification'),
-            'number' => $request->input('number'),
-            'date' => $request->input('date') ? Carbon::parse($request->input('date')) : null,
-            'subject' => $request->input('subject') ?? '(Draft)',
-            'recipient_text' => $request->input('recipient_text'),
-            'attachments_meta_json' => $request->input('attachments_meta_json'),
-            'cc_text' => $request->input('cc_text'),
-            'signer_name' => $request->input('signer_name'),
-            'signer_title' => $request->input('signer_title'),
-            'stamp_enabled' => $request->boolean('stamp_enabled'),
-            'stamp_image_path' => $request->input('stamp_image_path'),
-            'content_blocks_json' => $blocks,
-            'content_plaintext' => $plaintextService->extract($blocks),
-            'layout_json' => $layout,
-            'blocks_json' => $gridBlocks,
-            'status' => 'DRAFT',
-            'created_by' => $request->user()->id,
+        $startedAt = microtime(true);
+        $letter = $draftWorkflow->createFromRequest($request, $request->user()->id);
+        app(ArchiveService::class)->attachUploads($letter, $request->file('attachments', []), $request->user()->id, [
+            'category' => 'lampiran-surat',
+            'source' => 'letter_attachment',
+        ]);
+        $durationMs = (int) round((microtime(true) - $startedAt) * 1000);
+        $this->logDraftMetric('letters.draft.store', [
+            'letter_id' => $letter->id,
+            'user_id' => $request->user()->id,
+            'duration_ms' => $durationMs,
+            'blocks_count' => is_array($request->input('blocks')) ? count($request->input('blocks')) : 0,
+            'layout_count' => is_array($request->input('layout')) ? count($request->input('layout')) : 0,
         ]);
 
-        return redirect()->route('secretariat.letters.edit', $letter)->with('success', 'Draft surat disimpan.');
+        return redirect()->route('secretariat.letters.show', $letter)->with('success', 'Draft surat disimpan.');
     }
 
-    public function updateDraft(LetterDraftRequest $request, Letter $letter, LetterPlaintextService $plaintextService): RedirectResponse
-    {
-        $blocks = $request->input('content_blocks_json', []);
-
-        $letter->update([
-            'type' => $request->input('type', $letter->type),
-            'template_id' => $request->input('template_id'),
-            'classification' => $request->input('classification'),
-            'number' => $request->input('number'),
-            'date' => $request->input('date') ? Carbon::parse($request->input('date')) : null,
-            'subject' => $request->input('subject') ?? '(Draft)',
-            'recipient_text' => $request->input('recipient_text'),
-            'attachments_meta_json' => $request->input('attachments_meta_json'),
-            'cc_text' => $request->input('cc_text'),
-            'signer_name' => $request->input('signer_name'),
-            'signer_title' => $request->input('signer_title'),
-            'stamp_enabled' => $request->boolean('stamp_enabled'),
-            'stamp_image_path' => $request->input('stamp_image_path'),
-            'content_blocks_json' => $blocks,
-            'content_plaintext' => $plaintextService->extract($blocks),
-            'updated_by' => $request->user()->id,
+    public function updateDraft(
+        LetterDraftRequest $request,
+        Letter $letter,
+        LetterDraftWorkflowService $draftWorkflow
+    ): RedirectResponse {
+        $startedAt = microtime(true);
+        $draftWorkflow->updateFromRequest($request, $letter, $request->user()->id);
+        app(ArchiveService::class)->attachUploads($letter, $request->file('attachments', []), $request->user()->id, [
+            'category' => 'lampiran-surat',
+            'source' => 'letter_attachment',
+        ]);
+        $durationMs = (int) round((microtime(true) - $startedAt) * 1000);
+        $this->logDraftMetric('letters.draft.update', [
+            'letter_id' => $letter->id,
+            'user_id' => $request->user()->id,
+            'duration_ms' => $durationMs,
+            'blocks_count' => is_array($request->input('blocks')) ? count($request->input('blocks')) : 0,
+            'layout_count' => is_array($request->input('layout')) ? count($request->input('layout')) : 0,
         ]);
 
-        return redirect()->route('secretariat.letters.edit', $letter)->with('success', 'Draft surat diperbarui.');
+        return redirect()->route('secretariat.letters.show', $letter)->with('success', 'Draft surat diperbarui.');
     }
 
     public function saveLayout(Request $request, Letter $letter): RedirectResponse
@@ -224,92 +243,55 @@ class LettersController extends Controller
     public function finalize(
         LetterFinalizeRequest $request,
         Letter $letter,
-        LetterNumberService $numberService,
-        LetterPlaintextService $plaintextService,
-        QrCodeService $qrCodeService,
-        LetterHtmlRenderer $htmlRenderer,
-        LetterPdfService $pdfService,
-        LetterVersionService $versionService
+        LetterFinalizeWorkflowService $finalizeWorkflow
     ): RedirectResponse {
-        $date = Carbon::parse($request->input('date'));
-        $number = $request->input('number');
+        try {
+            $result = $finalizeWorkflow->finalize($letter, $request->all(), $request->user()->id);
+            $number = $result['number'];
+            $version = $result['version'];
+        } catch (LetterWorkflowException $e) {
+            return redirect()->back()->withErrors([
+                $e->field() => $e->getMessage(),
+            ]);
+        } catch (\Throwable $e) {
+            report($e);
 
-        if (!$number) {
-            $profileId = $request->input('numbering_profile_id');
-            $profile = $profileId ? LetterNumberingProfile::find($profileId) : null;
-            if ($profile) {
-                $number = $numberService->commitNextNumber($profile, $date, $request->input('classification'));
-            }
+            return redirect()->back()->withErrors([
+                'pdf' => $this->pdfGenerationErrorMessage($e),
+            ]);
         }
 
-        if (!$number) {
-            return redirect()->back()->withErrors(['number' => 'Nomor surat wajib diisi atau pilih profil penomoran.']);
-        }
+        return redirect()
+            ->route('secretariat.letters.show', ['letter' => $letter->id, 'v' => $version])
+            ->with('success', "Surat berhasil difinalisasi dengan nomor {$number}.");
+    }
 
-        $publicHash = $letter->public_hash ?: Str::uuid()->toString();
-        $version = (int) $letter->versions()->max('version');
-        $version += 1;
-
-        $blocks = $request->input('content_blocks_json', $letter->content_blocks_json ?? []);
-        $plaintext = $plaintextService->extract($blocks);
-
-        $verificationUrl = route('letters.verify', ['public_hash' => $publicHash, 'v' => $version]);
-        $logoPath = public_path('images/idi-logo.png');
-        $qrDataUri = $qrCodeService->generateQrWithCenterLogo(
-            $verificationUrl,
-            file_exists($logoPath) ? $logoPath : null
-        );
-
-        $placeholders = [
-            'org.name' => config('app.name'),
-            'org.address' => config('app.org_address', ''),
-            'letter.number' => $number,
-            'letter.date' => $date->format('d/m/Y'),
-            'letter.subject' => $request->input('subject'),
-            'letter.signer_name' => $request->input('signer_name'),
-            'letter.signer_title' => $request->input('signer_title'),
-            'letter.cc' => $request->input('cc_text'),
-            'recipient.name' => $request->input('recipient_text'),
-            'qr' => $qrDataUri,
-        ];
-
-        $margins = $letter->template?->margin_json ?? [
-            'top_mm' => 20,
-            'right_mm' => 20,
-            'bottom_mm' => 20,
-            'left_mm' => 20,
-        ];
-
-        $html = $htmlRenderer->render($blocks, $margins, $placeholders);
-
-        $path = "letters/{$letter->id}/v{$version}.pdf";
-        Storage::disk('public')->makeDirectory("letters/{$letter->id}");
-        $pdfService->generateFromHtml($html, storage_path('app/public/' . $path));
+    public function archive(Letter $letter, Request $request): RedirectResponse
+    {
+        abort_unless(in_array($letter->status, ['finalized', 'archived'], true), 422, 'Hanya surat final yang bisa diarsipkan.');
 
         $letter->update([
-            'classification' => $request->input('classification'),
-            'number' => $number,
-            'date' => $date,
-            'subject' => $request->input('subject'),
-            'recipient_text' => $request->input('recipient_text'),
-            'cc_text' => $request->input('cc_text'),
-            'signer_name' => $request->input('signer_name'),
-            'signer_title' => $request->input('signer_title'),
-            'content_blocks_json' => $blocks,
-            'content_plaintext' => $plaintext,
-            'public_hash' => $publicHash,
-            'qr_payload_json' => [
-                'signer_name' => $request->input('signer_name'),
-                'generated_at' => now()->toISOString(),
-            ],
-            'pdf_path' => $path,
-            'status' => 'ARCHIVED',
+            'status' => 'archived',
+            'archived_at' => now(),
             'updated_by' => $request->user()->id,
         ]);
 
-        $versionService->createSnapshot($letter, $version, $request->user()->id);
+        return redirect()->route('secretariat.letters.show', $letter)->with('success', 'Surat dipindahkan ke arsip.');
+    }
 
-        return redirect()->route('secretariat.letters.edit', $letter)->with('success', 'Surat berhasil diarsipkan.');
+    public function storeAttachments(Letter $letter, LetterDraftRequest $request, ArchiveService $archiveService): RedirectResponse
+    {
+        $archiveService->attachUploads($letter, $request->file('attachments', []), $request->user()->id, [
+            'category' => 'lampiran-surat',
+            'source' => 'letter_attachment',
+        ]);
+
+        return redirect()->back()->with('success', 'Lampiran berhasil diunggah.');
+    }
+
+    public function previewPdf(Request $request, Letter $letter, LetterPdfService $pdfService, LetterRenderDataService $renderDataService)
+    {
+        return $this->pdfResponse($request, $letter, $pdfService, $renderDataService, true);
     }
 
     public function versions(Letter $letter): Response
@@ -320,49 +302,12 @@ class LettersController extends Controller
         ]);
     }
 
-    public function showHtml(
-        Letter $letter,
-        LetterHtmlRenderer $htmlRenderer,
-        QrCodeService $qrCodeService
-    ) {
-        $version = (int) ($letter->versions()->max('version') ?? 1);
-        $verificationUrl = $letter->public_hash
-            ? route('letters.verify', ['public_hash' => $letter->public_hash, 'v' => $version])
-            : null;
-        $logoPath = public_path('images/idi-logo.png');
-        $qrDataUri = $verificationUrl
-            ? $qrCodeService->generateQrWithCenterLogo(
-                $verificationUrl,
-                file_exists($logoPath) ? $logoPath : null
-            )
-            : '';
-
-        $placeholders = [
-            'org.name' => config('app.name'),
-            'org.address' => config('app.org_address', ''),
-            'letter.number' => $letter->number,
-            'letter.date' => optional($letter->date)->format('d/m/Y'),
-            'letter.subject' => $letter->subject,
-            'letter.signer_name' => $letter->signer_name,
-            'letter.signer_title' => $letter->signer_title,
-            'letter.cc' => $letter->cc_text,
-            'recipient.name' => $letter->recipient_text,
-            'qr' => $qrDataUri,
-        ];
-
-        $margins = $letter->template?->margin_json ?? [
-            'top_mm' => 20,
-            'right_mm' => 20,
-            'bottom_mm' => 20,
-            'left_mm' => 20,
-        ];
-        $blocks = $letter->content_blocks_json ?? [];
-        $html = $htmlRenderer->render($blocks, $margins, $placeholders);
-
-        return response($html)->header('Content-Type', 'text/html');
+    public function showHtml(Request $request, Letter $letter, LetterRenderDataService $renderDataService)
+    {
+        return $this->renderDocument($request, $letter, $renderDataService);
     }
 
-    public function renderDocument(Request $request, Letter $letter, QrCodeService $qrCodeService)
+    public function renderDocument(Request $request, Letter $letter, LetterRenderDataService $renderDataService)
     {
         $layout = $letter->layout_json ?? [];
         $blocks = $letter->blocks_json ?? [];
@@ -371,79 +316,70 @@ class LettersController extends Controller
             abort(404);
         }
 
-        $orgProfile = AppSetting::query()->first();
-        $addressLines = $orgProfile?->address
-            ? preg_split('/\\r\\n|\\r|\\n/', $orgProfile->address)
-            : [];
-
-        $organization = [
-            'logo_url' => $orgProfile?->logo_path ? Storage::url($orgProfile->logo_path) : null,
-            'org_name' => $orgProfile?->org_name ?? config('app.name'),
-            'org_unit' => $orgProfile?->org_unit ?? null,
-            'address_lines' => array_values(array_filter($addressLines)),
-            'contacts' => [
-                'tel' => $orgProfile?->phone,
-                'email' => $orgProfile?->email,
-                'website' => config('app.url'),
-            ],
-            'header_variant' => $orgProfile?->header_variant ?? 'classic_center',
-        ];
-
-        $signature = LetterSignature::query()
-            ->where('letter_id', $letter->id)
-            ->latest('updated_at')
-            ->first();
-
-        $signaturePayload = null;
-
-        if ($signature) {
-            $verificationUrl = route('letters.signature.verify', [
-                'signature' => $signature->id,
-                'k' => $signature->verification_code,
-            ]);
-            $logoPath = $orgProfile?->logo_path ? Storage::disk('public')->path($orgProfile->logo_path) : null;
-            $qrDataUri = $qrCodeService->generateQrWithCenterLogo(
-                $verificationUrl,
-                $logoPath && file_exists($logoPath) ? $logoPath : null
-            );
-
-            $signaturePayload = [
-                'signature_id' => $signature->id,
-                'verification_url' => $verificationUrl,
-                'qr_data_uri' => $qrDataUri,
-                'org_logo_url' => $organization['logo_url'],
-            ];
-        }
-
-        $renderData = [
-            'blocks' => $blocks,
-            'layout' => $layout,
-            'gridConfig' => [
-                'cols' => 12,
-                'rowHeight' => 24,
-            ],
-            'data' => [
-                'organization' => $organization,
-                'signature' => $signaturePayload,
-                'signer' => [
-                    'name' => $signature?->signer_name_snapshot ?? $letter->signer_name,
-                    'role' => $signature?->signer_role_snapshot ?? $letter->signer_title,
-                ],
-                'letter' => [
-                    'number' => $letter->number ?? '',
-                    'date' => optional($letter->date)->format('d/m/Y') ?? '',
-                    'subject' => $letter->subject ?? '',
-                ],
-            ],
-        ];
-
         return response()->view('letters.render', [
-            'renderData' => $renderData,
+            'renderData' => $renderDataService->build($letter),
         ]);
     }
 
-    public function downloadPdf(Request $request, Letter $letter, LetterPdfService $pdfService)
+    public function downloadPdf(
+        Request $request,
+        Letter $letter,
+        LetterPdfService $pdfService,
+        LetterRenderDataService $renderDataService
+    ) {
+        return $this->pdfResponse($request, $letter, $pdfService, $renderDataService, false);
+    }
+
+    public function regeneratePdf(Letter $letter, LetterPdfService $pdfService, LetterRenderDataService $renderDataService): RedirectResponse
     {
+        abort_unless(in_array($letter->status, ['finalized', 'archived'], true), 422, 'PDF hanya bisa dibuat untuk surat final.');
+        abort_if(empty($letter->layout_json) || empty($letter->blocks_json), 404);
+
+        $path = $letter->pdf_path ?: "letters/{$letter->id}/v".max(1, (int) $letter->versions()->max('version')).'.pdf';
+        Storage::disk('public')->makeDirectory("letters/{$letter->id}");
+        $html = view('letters.render', [
+            'renderData' => $renderDataService->build($letter),
+        ])->render();
+        $pdfService->generateFromHtml($html, storage_path('app/public/'.$path));
+        $letter->update(['pdf_path' => $path]);
+
+        return redirect()->back()->with('success', 'PDF berhasil dibuat ulang.');
+    }
+
+    public function generateNumber(
+        Request $request,
+        Letter $letter,
+        LetterNumberGeneratorService $numberGenerator
+    ): JsonResponse {
+        $data = $request->validate([
+            'template_id' => ['nullable', 'integer', 'exists:letter_templates,id'],
+            'date' => ['required', 'date'],
+            'classification' => ['nullable', 'string', 'max:120'],
+            'commit' => ['nullable', 'boolean'],
+        ]);
+
+        $template = LetterTemplate::query()->find($data['template_id'] ?? $letter->template_id);
+        abort_unless($template, 422, 'Pilih template surat terlebih dahulu.');
+
+        $date = Carbon::parse($data['date']);
+        $number = $request->boolean('commit')
+            ? $numberGenerator->commit($template, $date, $data['classification'] ?? $template->classification, $letter->id)
+            : $numberGenerator->preview($template, $date, $data['classification'] ?? $template->classification);
+
+        if ($request->boolean('commit')) {
+            $letter->update(['number' => $number, 'updated_by' => $request->user()->id]);
+        }
+
+        return response()->json(['number' => $number]);
+    }
+
+    private function pdfResponse(
+        Request $request,
+        Letter $letter,
+        LetterPdfService $pdfService,
+        LetterRenderDataService $renderDataService,
+        bool $inline
+    ) {
         $version = $request->integer('v');
         $path = $letter->pdf_path;
 
@@ -451,8 +387,18 @@ class LettersController extends Controller
             $path = $letter->versions()->where('version', $version)->value('pdf_path');
         }
 
-        if ($path) {
-            return response()->download(storage_path('app/public/' . $path));
+        if ($path && Storage::disk('public')->exists($path)) {
+            $size = (int) Storage::disk('public')->size($path);
+            if ($size > 0) {
+                $filename = $this->pdfFilename($letter);
+
+                return $inline
+                    ? response()->file(storage_path('app/public/'.$path), [
+                        'Content-Type' => 'application/pdf',
+                        'Content-Disposition' => 'inline; filename="'.$filename.'"',
+                    ])
+                    : response()->download(storage_path('app/public/'.$path), $filename);
+            }
         }
 
         $layout = $letter->layout_json ?? [];
@@ -462,12 +408,19 @@ class LettersController extends Controller
             abort(404);
         }
 
-       $renderUrl = URL::signedRoute('letters.render', ['letter' => $letter->id]);
-        $pdfContent = $pdfService->generateFromUrl($renderUrl);
+        try {
+            $html = view('letters.render', [
+                'renderData' => $renderDataService->build($letter),
+            ])->render();
+            $pdfContent = $pdfService->generateFromHtmlContent($html);
+        } catch (\Throwable $e) {
+            report($e);
+            abort(503, $this->pdfGenerationErrorMessage($e));
+        }
 
         return response($pdfContent, 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'inline; filename=\"surat-layout.pdf\"',
+            'Content-Disposition' => ($inline ? 'inline' : 'attachment').'; filename="'.$this->pdfFilename($letter).'"',
         ]);
     }
 
@@ -475,10 +428,111 @@ class LettersController extends Controller
     {
         $letter->update([
             'is_revoked' => true,
-            'status' => 'REVOKED',
             'updated_by' => $request->user()->id,
         ]);
 
         return redirect()->route('secretariat.letters.index')->with('success', 'Surat berhasil dicabut.');
+    }
+
+    private function pdfGenerationErrorMessage(\Throwable $e): string
+    {
+        $message = $e->getMessage();
+
+        if ($e instanceof ProcessTimedOutException) {
+            return 'PDF timeout. Jika memakai "php artisan serve", jalankan dengan worker > 1 (contoh: PHP_CLI_SERVER_WORKERS=4 php artisan serve) atau gunakan web server (Nginx/Apache).';
+        }
+
+        if (str_contains($message, "Cannot find module 'puppeteer'")) {
+            return 'Puppeteer belum tersedia di server. Jalankan: PUPPETEER_SKIP_DOWNLOAD=1 npm install puppeteer --save.';
+        }
+
+        return 'Gagal membuat PDF. Periksa konfigurasi Puppeteer/Chrome pada server.';
+    }
+
+    private function signerMembersOptions()
+    {
+        return Member::query()
+            ->select(['id', 'full_name', 'position_id'])
+            ->with(['position:id,name'])
+            ->orderBy('full_name')
+            ->get()
+            ->map(fn ($member) => [
+                'id' => $member->id,
+                'full_name' => $member->full_name,
+                'position_name' => $member->position?->name,
+            ])
+            ->values();
+    }
+
+    private function logDraftMetric(string $event, array $context): void
+    {
+        if (app()->environment('testing')) {
+            return;
+        }
+
+        Log::debug($event, $context);
+    }
+
+    private function builderTemplates()
+    {
+        return LetterTemplate::query()
+            ->where('is_active', true)
+            ->select([
+                'id',
+                'name',
+                'classification',
+                'numbering_profile_id',
+                'number_format',
+                'number_reset_policy',
+                'last_number',
+                'blocks_json',
+                'layout_json',
+                'content_text',
+                'signer_name',
+                'signer_title',
+                'signers_json',
+                'qr_enabled',
+            ])
+            ->orderBy('name')
+            ->get();
+    }
+
+    private function builderNumberingProfiles()
+    {
+        return LetterNumberingProfile::query()
+            ->where('is_active', true)
+            ->select(['id', 'name'])
+            ->orderBy('name')
+            ->get();
+    }
+
+    private function serializeLetter(Letter $letter): array
+    {
+        return [
+            ...$letter->toArray(),
+            'preview_url' => route('secretariat.letters.pdf.preview', $letter),
+            'download_url' => route('secretariat.letters.pdf', $letter),
+            'verify_url' => $letter->public_hash ? route('letters.verify', $letter->public_hash) : null,
+            'documents' => $letter->documents->map(fn ($document) => [
+                'id' => $document->id,
+                'title' => $document->title,
+                'category' => $document->category,
+                'document_number' => $document->document_number,
+                'document_date' => optional($document->document_date)->toDateString(),
+                'mime_type' => $document->mime_type,
+                'size' => $document->size,
+                'source' => $document->source,
+                'original_name' => $document->original_name,
+                'preview_url' => route('secretariat.documents.preview', $document),
+                'download_url' => route('secretariat.documents.download', $document),
+            ])->values(),
+        ];
+    }
+
+    private function pdfFilename(Letter $letter): string
+    {
+        $number = preg_replace('/[^A-Za-z0-9\\-_]+/', '-', $letter->number ?: 'surat');
+
+        return trim($number, '-').'.pdf';
     }
 }

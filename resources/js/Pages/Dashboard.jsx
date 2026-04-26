@@ -1,319 +1,542 @@
 import React, { useMemo } from "react";
 import { Link, router, usePage } from "@inertiajs/react";
 import dayjs from "dayjs";
+import {
+    ArrowDownOutlined,
+    ArrowUpOutlined,
+    BarChartOutlined,
+    CalendarOutlined,
+    DollarCircleOutlined,
+    FileTextOutlined,
+    PlusOutlined,
+    TeamOutlined,
+} from "@ant-design/icons";
+import { Button, Card, DatePicker, Space } from "antd";
+import {
+    Bar,
+    BarChart,
+    CartesianGrid,
+    Legend,
+    Line,
+    LineChart,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis,
+} from "recharts";
 import AppLayout from "@/layouts/AppLayout";
 import PageShell from "@/components/app/PageShell";
 import PageHeader from "@/components/app/PageHeader";
-import { BarChartOutlined, LineChartOutlined, PlusOutlined } from "@ant-design/icons";
-import { Button, Card, Col, DatePicker, Row, Space, Table, Tag, Typography } from "antd";
-import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import StatCard from "@/Components/App/StatCard";
+import MoneyDisplay from "@/Components/App/MoneyDisplay";
+import DataTable from "@/Components/App/DataTable";
+import StatusBadge from "@/Components/App/StatusBadge";
+import { useI18n } from "@/Contexts/I18nContext";
+import { formatDate, formatDateTime, formatIDR } from "@/lib/format";
 
-const { Text } = Typography;
-
-function formatIDR(n) {
-  try {
-    return new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      maximumFractionDigits: 0,
-    }).format(n || 0);
-  } catch {
-    return `Rp ${String(n || 0)}`;
-  }
+function ChartCard({ title, subtitle, children, extra = null }) {
+    return (
+        <Card
+            title={<span className="text-base font-semibold text-zinc-950">{title}</span>}
+            extra={extra}
+            className="h-full min-w-0"
+        >
+            {subtitle ? (
+                <p className="mb-4 text-sm text-zinc-500">{subtitle}</p>
+            ) : null}
+            <div className="h-[280px] min-w-0">{children}</div>
+        </Card>
+    );
 }
 
-function KPI({ title, value, tone }) {
-  const tones = {
-    green: { bg: "#dff4ea", fg: "#135200" },
-    orange: { bg: "#ffe7d6", fg: "#ad4e00" },
-    blue: { bg: "#dbeafe", fg: "#003a8c" },
-    gray: { bg: "#f5f7fb", fg: "#262626" },
-  };
-  const t = tones[tone] || tones.gray;
-
-  return (
-    <Card style={{ borderRadius: 12, background: t.bg }} bodyStyle={{ padding: 14 }}>
-      <Text style={{ color: t.fg, fontWeight: 600 }}>{title}</Text>
-      <div style={{ marginTop: 8, fontSize: 18, fontWeight: 800, color: t.fg }}>{value}</div>
-    </Card>
-  );
+function QuickAction({ href, label, icon }) {
+    return (
+        <Link href={href}>
+            <Button
+                icon={icon}
+                className="!h-11 !rounded-2xl !border-zinc-200 !bg-white !px-4 !font-medium !text-zinc-700 hover:!border-red-200 hover:!text-red-700"
+            >
+                {label}
+            </Button>
+        </Link>
+    );
 }
 
 export default function DashboardIndex() {
-  const { filters, kpi, charts, tables } = usePage().props;
-  const selectedMonth = filters?.month ? dayjs(`${filters.month}-01`) : dayjs();
+    const { t } = useI18n();
+    const { filters, kpi, charts, tables } = usePage().props;
+    const selectedMonth = filters?.month ? dayjs(`${filters.month}-01`) : dayjs();
 
-  const handleMonthChange = (value) => {
-    const nextMonth = (value || dayjs()).format("YYYY-MM");
-    router.get(route("dashboard"), { month: nextMonth }, { preserveScroll: true, preserveState: true });
-  };
+    const handleMonthChange = (value) => {
+        const nextMonth = (value || dayjs()).format("YYYY-MM");
+        router.get(
+            route("dashboard"),
+            { month: nextMonth },
+            { preserveScroll: true, preserveState: true },
+        );
+    };
 
-  const cashTrend = charts?.cash_trend || [];
-  const duesTrend = charts?.dues_trend || [];
-  const expenseCategories = charts?.expense_categories || [];
+    const cashTrend = charts?.cash_trend || [];
+    const duesTrend = charts?.dues_trend || [];
+    const expenseCategories = charts?.expense_categories || [];
 
-  const txCols = useMemo(
-    () => [
-      {
-        title: "Tanggal",
-        dataIndex: "date",
-        key: "date",
-        width: 120,
-        render: (v) => (v ? dayjs(v).format("DD/MM/YYYY") : "-"),
-      },
-      {
-        title: "Tipe",
-        dataIndex: "type",
-        key: "type",
-        width: 90,
-        render: (v) => (v === "in" ? <Tag color="green">MASUK</Tag> : <Tag color="red">KELUAR</Tag>),
-      },
-      { title: "Kategori", dataIndex: "category", key: "category", width: 140 },
-      { title: "Keterangan", dataIndex: "description", key: "description" },
-      {
-        title: "Nominal",
-        dataIndex: "amount",
-        key: "amount",
-        width: 160,
-        align: "right",
-        render: (v, r) => (
-          <Text style={{ fontWeight: 700, color: r.type === "in" ? "#135200" : "#cf1322" }}>
-            {formatIDR(v)}
-          </Text>
-        ),
-      },
-    ],
-    []
-  );
+    const txCols = useMemo(
+        () => [
+            {
+                title: t("common.date"),
+                dataIndex: "date",
+                key: "date",
+                width: 132,
+                render: (value) => formatDate(value),
+            },
+            {
+                title: t("common.type"),
+                dataIndex: "type",
+                key: "type",
+                width: 110,
+                render: (value) =>
+                    value === "in" ? (
+                        <StatusBadge status="active" label={t("dashboard.in")} color="green" />
+                    ) : (
+                        <StatusBadge status="overdue" label={t("dashboard.out")} color="red" />
+                    ),
+            },
+            { title: t("common.category"), dataIndex: "category", key: "category", width: 180 },
+            {
+                title: t("common.description"),
+                dataIndex: "description",
+                key: "description",
+                width: 320,
+                ellipsis: true,
+                render: (value) => {
+                    const text = String(value || "-");
+                    return (
+                        <span
+                            className="block max-w-[320px] truncate"
+                            title={text}
+                        >
+                            {text}
+                        </span>
+                    );
+                },
+            },
+            {
+                title: t("common.amount"),
+                dataIndex: "amount",
+                key: "amount",
+                width: 180,
+                align: "right",
+                render: (value, record) => (
+                    <MoneyDisplay
+                        value={value}
+                        tone={record.type === "in" ? "success" : "danger"}
+                        showPrefix={record.type === "in"}
+                    />
+                ),
+            },
+        ],
+        [t],
+    );
 
-  const letterCols = useMemo(
-    () => [
-      { title: "Tipe", dataIndex: "type", key: "type", width: 90, render: (v) => (v === "in" ? <Tag>IN</Tag> : <Tag color="blue">OUT</Tag>) },
-      { title: "Nomor", dataIndex: "number", key: "number", width: 180 },
-      { title: "Perihal", dataIndex: "subject", key: "subject" },
-      { title: "Tanggal", dataIndex: "date", key: "date", width: 120, render: (v) => (v ? dayjs(v).format("DD/MM/YYYY") : "-") },
-      {
-        title: "Status",
-        dataIndex: "status",
-        key: "status",
-        width: 110,
-        render: (v) => {
-          const color = v === "archived" ? "green" : v === "sent" ? "blue" : "gold";
-          return <Tag color={color}>{String(v || "").toUpperCase()}</Tag>;
-        },
-      },
-    ],
-    []
-  );
+    const letterCols = useMemo(
+        () => [
+            {
+                title: t("common.type"),
+                dataIndex: "type",
+                key: "type",
+                width: 90,
+                render: (value) => (
+                    <StatusBadge
+                        status={value === "in" ? "inactive" : "active"}
+                        label={value === "in" ? "IN" : "OUT"}
+                        color={value === "in" ? "default" : "blue"}
+                    />
+                ),
+            },
+            { title: t("common.number"), dataIndex: "number", key: "number", width: 180 },
+            { title: t("common.subject"), dataIndex: "subject", key: "subject" },
+            {
+                title: t("common.date"),
+                dataIndex: "date",
+                key: "date",
+                width: 140,
+                render: (value) => formatDate(value),
+            },
+            {
+                title: t("common.status"),
+                dataIndex: "status",
+                key: "status",
+                width: 130,
+                render: (value) => (
+                    <StatusBadge
+                        status={value}
+                        label={String(value || "-").toUpperCase()}
+                        color={
+                            value === "archived"
+                                ? "green"
+                                : value === "sent"
+                                  ? "blue"
+                                  : "gold"
+                        }
+                    />
+                ),
+            },
+        ],
+        [t],
+    );
 
-  const arrearsCols = useMemo(
-    () => [
-      { title: "Anggota", dataIndex: "member_name", key: "member_name" },
-      {
-        title: "Tunggakan",
-        dataIndex: "outstanding",
-        key: "outstanding",
-        width: 160,
-        align: "right",
-        render: (v) => <Text style={{ fontWeight: 700, color: "#cf1322" }}>{formatIDR(v)}</Text>,
-      },
-    ],
-    []
-  );
+    const arrearsCols = useMemo(
+        () => [
+            { title: t("common.member"), dataIndex: "member_name", key: "member_name" },
+            {
+                title: t("common.outstanding"),
+                dataIndex: "outstanding",
+                key: "outstanding",
+                width: 180,
+                align: "right",
+                render: (value) => <MoneyDisplay value={value} tone="danger" />,
+            },
+        ],
+        [t],
+    );
 
-  const agendaCols = useMemo(
-    () => [
-      { title: "Tanggal", dataIndex: "start_at", key: "start_at", width: 170, render: (v) => (v ? dayjs(v).format("DD/MM/YYYY HH:mm") : "-") },
-      { title: "Agenda", dataIndex: "title", key: "title" },
-      { title: "Lokasi", dataIndex: "location", key: "location", width: 160, render: (v) => v || "-" },
-      { title: "Tipe", dataIndex: "type", key: "type", width: 120, render: (v) => <Tag>{String(v || "").toUpperCase()}</Tag> },
-    ],
-    []
-  );
+    const agendaCols = useMemo(
+        () => [
+            {
+                title: t("common.date"),
+                dataIndex: "start_at",
+                key: "start_at",
+                width: 180,
+                render: (value) => formatDateTime(value),
+            },
+            { title: t("menu.agenda"), dataIndex: "title", key: "title" },
+            {
+                title: t("common.location"),
+                dataIndex: "location",
+                key: "location",
+                width: 180,
+                render: (value) => value || "-",
+            },
+            {
+                title: t("common.type"),
+                dataIndex: "type",
+                key: "type",
+                width: 120,
+                render: (value) => (
+                    <StatusBadge label={String(value || "-").toUpperCase()} />
+                ),
+            },
+        ],
+        [t],
+    );
 
-  return (
-    <AppLayout title="Dashboard">
-      <PageShell>
-        <PageHeader
-          title="Dashboard"
-          extra={(
-            <DatePicker
-              picker="month"
-              value={selectedMonth}
-              format="MMMM YYYY"
-              onChange={handleMonthChange}
-              allowClear={false}
-            />
-          )}
-        />
+    return (
+        <AppLayout title={t("menu.dashboard")}>
+            <PageShell>
+                <PageHeader
+                    eyebrow={t("dashboard.eyebrow")}
+                    title={t("dashboard.title")}
+                    description={t("dashboard.description")}
+                    extra={
+                        <Space wrap>
+                            <DatePicker
+                                picker="month"
+                                value={selectedMonth}
+                                format="MMMM YYYY"
+                                onChange={handleMonthChange}
+                                allowClear={false}
+                            />
+                            <QuickAction
+                                href={route("transactions.index")}
+                                label={t("dashboard.addTransaction")}
+                                icon={<PlusOutlined />}
+                            />
+                        </Space>
+                    }
+                />
 
-        {/* KPI */}
-        <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
-          <Col xs={24} sm={12} lg={8} xl={6}>
-            <KPI title="Total Anggota" value={kpi?.members_total ?? 0} tone="gray" />
-          </Col>
-          <Col xs={24} sm={12} lg={8} xl={6}>
-            <KPI title="Anggota Aktif" value={kpi?.members_active ?? 0} tone="gray" />
-          </Col>
-          <Col xs={24} md={8}>
-            <KPI title="Anggota Baru (bulan ini)" value={kpi?.members_new ?? 0} tone="blue" />
-          </Col>
-        </Row>
-        <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
-          <Col xs={24} sm={12} lg={8} xl={6}>
-            <KPI title="Iuran Ditagih" value={formatIDR(kpi?.dues_billed)} tone="orange" />
-          </Col>
-          <Col xs={24} md={8}>
-            <KPI title="Iuran Terkumpul" value={formatIDR(kpi?.dues_collected)} tone="green" />
-          </Col>
-          <Col xs={24} sm={12} lg={8} xl={6}>
-            <KPI title="Tunggakan Iuran" value={formatIDR(kpi?.dues_outstanding)} tone="orange" />
-          </Col>
-          <Col xs={24} sm={12} lg={8} xl={6}>
-            <KPI title="Rasio Kolektif" value={`${kpi?.dues_collection_rate ?? 0}%`} tone="blue" />
-          </Col>
-          <Col xs={24} sm={12} lg={8} xl={6}>
-            <KPI title="Pemasukan Kas (bulan ini)" value={formatIDR(kpi?.cash_in)} tone="green" />
-          </Col>
-          <Col xs={24} sm={12} lg={8} xl={6}>
-            <KPI title="Pengeluaran Kas (bulan ini)" value={formatIDR(kpi?.cash_out)} tone="orange" />
-          </Col>
-          <Col xs={24} sm={12} lg={8} xl={6}>
-            <KPI title="Net Kas (bulan ini)" value={formatIDR(kpi?.cash_net)} tone="blue" />
-          </Col>
-          <Col xs={24} sm={12} lg={8} xl={6}>
-            <KPI title="Saldo Kas (total)" value={formatIDR(kpi?.cash_balance)} tone="green" />
-          </Col>
-          <Col xs={24} sm={12} lg={8} xl={6}>
-            <KPI title="Surat Diarsipkan" value={kpi?.letters_archived ?? 0} tone="gray" />
-          </Col>
-          <Col xs={24} sm={12} lg={8} xl={6}>
-            <KPI title="Agenda 7 Hari ke Depan" value={kpi?.agenda_upcoming ?? 0} tone="gray" />
-          </Col>
-        </Row>
+                <section className="idi-grid">
+                    <StatCard
+                        title={t("dashboard.duesBalance")}
+                        value={<MoneyDisplay value={kpi?.dues_balance ?? 0} emphasize tone="inverse" />}
+                        hint={t("dashboard.duesBalanceHint")}
+                        tone="primary"
+                        icon={<DollarCircleOutlined />}
+                    />
+                    <StatCard
+                        title={t("dashboard.totalIncome")}
+                        value={<MoneyDisplay value={kpi?.cash_in} emphasize tone="success" />}
+                        hint={t("dashboard.incomeMonthly")}
+                        tone="success"
+                        icon={<ArrowDownOutlined />}
+                    />
+                    <StatCard
+                        title={t("dashboard.totalExpense")}
+                        value={<MoneyDisplay value={kpi?.cash_out} emphasize tone="danger" />}
+                        hint={t("dashboard.expenseMonthly")}
+                        tone="danger"
+                        icon={<ArrowUpOutlined />}
+                    />
+                    <StatCard
+                        title={t("dashboard.duesArrears")}
+                        value={<MoneyDisplay value={kpi?.dues_outstanding} emphasize tone="warning" />}
+                        hint={t("dashboard.collectionRate", {
+                            rate: kpi?.dues_collection_rate ?? 0,
+                        })}
+                        tone="warning"
+                        icon={<BarChartOutlined />}
+                    />
+                </section>
 
-        {/* Chart + Recent */}
-        <Row gutter={[12, 12]}>
-          <Col xs={24} lg={14}>
-            <Card title={<Text strong>Tren Kas (Masuk vs Keluar)</Text>} style={{ borderRadius: 12 }}>
-              <ResponsiveContainer width="100%" height={260}>
-                <LineChart data={cashTrend}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" tickFormatter={(v) => dayjs(v).format("D")} />
-                  <YAxis tickFormatter={(v) => `${Number(v) / 1000}k`} />
-                  <Tooltip formatter={(value) => formatIDR(value)} labelFormatter={(v) => dayjs(v).format("DD MMM YYYY")} />
-                  <Legend />
-                  <Line type="monotone" dataKey="cash_in" stroke="#1677ff" name="Pemasukan" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="cash_out" stroke="#fa541c" name="Pengeluaran" strokeWidth={2} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            </Card>
-          </Col>
+                <section className="grid gap-4 xl:grid-cols-4 md:grid-cols-2">
+                    <StatCard
+                        title={t("dashboard.totalBilled")}
+                        value={<MoneyDisplay value={kpi?.dues_billed} emphasize />}
+                        hint={t("dashboard.requiredMembers", {
+                            count: kpi?.members_total ?? 0,
+                        })}
+                        icon={<TeamOutlined />}
+                    />
+                    <StatCard
+                        title={t("dashboard.totalCollected")}
+                        value={<MoneyDisplay value={kpi?.dues_collected} emphasize tone="success" />}
+                        hint={t("dashboard.activeMembers", {
+                            count: kpi?.members_active ?? 0,
+                        })}
+                        tone="neutral"
+                        icon={<DollarCircleOutlined />}
+                    />
+                    <StatCard
+                        title={t("dashboard.netDuesMonth")}
+                        value={<MoneyDisplay value={kpi?.dues_net_month ?? 0} emphasize tone={Number(kpi?.dues_net_month || 0) >= 0 ? "success" : "danger"} />}
+                        hint={t("dashboard.netDuesHint")}
+                        icon={<BarChartOutlined />}
+                    />
+                    <StatCard
+                        title={t("dashboard.upcomingAgenda")}
+                        value={kpi?.agenda_upcoming ?? 0}
+                        hint={t("dashboard.lettersArchived", {
+                            count: kpi?.letters_archived ?? 0,
+                        })}
+                        icon={<CalendarOutlined />}
+                        tone="dark"
+                    />
+                </section>
 
-          <Col xs={24} lg={10}>
-            <Card title={<Text strong>Quick Actions</Text>} style={{ borderRadius: 12 }}>
-              <Space wrap>
-                <Link href={route("transactions.index")}>
-                  <Button type="primary" icon={<PlusOutlined />}>
-                    Tambah Transaksi
-                  </Button>
-                </Link>
-                <Link href={route("dues.index")}>
-                  <Button icon={<PlusOutlined />}>Bayar Iuran</Button>
-                </Link>
-                <Link href={route("members.index")}>
-                  <Button icon={<PlusOutlined />}>Tambah Anggota</Button>
-                </Link>
-                <Link href={route("secretariat.letters.create")}>
-                  <Button icon={<PlusOutlined />}>Buat Surat</Button>
-                </Link>
-                <Link href={route("secretariat.agenda.index")}>
-                  <Button icon={<PlusOutlined />}>Tambah Agenda</Button>
-                </Link>
-              </Space>
-              <div style={{ marginTop: 10 }}>
-                <Text type="secondary">Gunakan tombol di atas untuk mempercepat input data harian.</Text>
-              </div>
-            </Card>
-          </Col>
+                <section className="grid gap-4 xl:grid-cols-[1.55fr_1fr]">
+                    <ChartCard
+                        title={t("dashboard.cashTrend")}
+                        subtitle={t("dashboard.cashTrendDesc")}
+                    >
+                        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={280}>
+                            <LineChart data={cashTrend}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
+                                <XAxis
+                                    dataKey="date"
+                                    tickFormatter={(value) => dayjs(value).format("D")}
+                                    stroke="#71717a"
+                                />
+                                <YAxis
+                                    tickFormatter={(value) => `${Number(value) / 1000}k`}
+                                    stroke="#71717a"
+                                />
+                                <Tooltip
+                                    formatter={(value) => formatIDR(value)}
+                                    labelFormatter={(value) =>
+                                        dayjs(value).format("DD MMM YYYY")
+                                    }
+                                />
+                                <Legend />
+                                <Line
+                                    type="monotone"
+                                    dataKey="cash_in"
+                                    stroke="#16a34a"
+                                    name={t("dashboard.totalIncome")}
+                                    strokeWidth={3}
+                                    dot={false}
+                                />
+                                <Line
+                                    type="monotone"
+                                    dataKey="cash_out"
+                                    stroke="#b91c1c"
+                                    name={t("dashboard.totalExpense")}
+                                    strokeWidth={3}
+                                    dot={false}
+                                />
+                            </LineChart>
+                        </ResponsiveContainer>
+                    </ChartCard>
 
-          <Col xs={24} lg={14}>
-            <Card title={<Text strong>Tren Iuran Terkumpul</Text>} style={{ borderRadius: 12 }} extra={<LineChartOutlined />}>
-              <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={duesTrend}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" tickFormatter={(v) => dayjs(v).format("D")} />
-                  <YAxis tickFormatter={(v) => `${Number(v) / 1000}k`} />
-                  <Tooltip formatter={(value) => formatIDR(value)} labelFormatter={(v) => dayjs(v).format("DD MMM YYYY")} />
-                  <Bar dataKey="collected" fill="#52c41a" name="Iuran Terkumpul" />
-                </BarChart>
-              </ResponsiveContainer>
-            </Card>
-          </Col>
+                    <Card className="h-full">
+                        <div className="flex h-full flex-col">
+                            <div>
+                                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-zinc-400">
+                                    {t("dashboard.quickActions")}
+                                </p>
+                                <h3 className="mt-2 text-xl font-semibold text-zinc-950">
+                                    {t("dashboard.quickActionsTitle")}
+                                </h3>
+                                <p className="mt-2 text-sm text-zinc-500">
+                                    {t("dashboard.quickActionsDesc")}
+                                </p>
+                            </div>
 
-          <Col xs={24} lg={10}>
-            <Card title={<Text strong>Top Kategori Pengeluaran</Text>} style={{ borderRadius: 12 }} extra={<BarChartOutlined />}>
-              <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={expenseCategories} layout="vertical" margin={{ left: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" tickFormatter={(v) => `${Number(v) / 1000}k`} />
-                  <YAxis type="category" dataKey="name" width={120} />
-                  <Tooltip formatter={(value) => formatIDR(value)} />
-                  <Bar dataKey="total" fill="#fa8c16" name="Pengeluaran" />
-                </BarChart>
-              </ResponsiveContainer>
-            </Card>
-          </Col>
+                            <div className="mt-6 grid gap-3">
+                                <QuickAction
+                                    href={route("transactions.index")}
+                                    label={t("dashboard.addTransaction")}
+                                    icon={<PlusOutlined />}
+                                />
+                                <QuickAction
+                                    href={route("dues.index")}
+                                    label={t("dashboard.inputDues")}
+                                    icon={<DollarCircleOutlined />}
+                                />
+                                <QuickAction
+                                    href={route("members.index")}
+                                    label={t("dashboard.manageMembers")}
+                                    icon={<TeamOutlined />}
+                                />
+                                <QuickAction
+                                    href={route("reports.cash")}
+                                    label={t("dashboard.openCashReport")}
+                                    icon={<BarChartOutlined />}
+                                />
+                                <QuickAction
+                                    href={route("secretariat.agenda.index")}
+                                    label={t("dashboard.viewAgenda")}
+                                    icon={<CalendarOutlined />}
+                                />
+                            </div>
+                        </div>
+                    </Card>
+                </section>
 
-          <Col xs={24} lg={14}>
-            <Card title={<Text strong>Transaksi Terbaru</Text>} style={{ borderRadius: 12 }}>
-              <Table
-                columns={txCols}
-                dataSource={tables?.recent_transactions || []}
-                rowKey="id"
-                size="small"
-                pagination={false}
-              />
-            </Card>
-          </Col>
+                <section className="grid gap-4 xl:grid-cols-[1.2fr_0.9fr]">
+                    <ChartCard
+                        title={t("dashboard.duesTrend")}
+                        subtitle={t("dashboard.duesTrendDesc")}
+                        extra={<BarChartOutlined className="text-zinc-400" />}
+                    >
+                        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={280}>
+                            <BarChart data={duesTrend}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
+                                <XAxis
+                                    dataKey="date"
+                                    tickFormatter={(value) => dayjs(value).format("D")}
+                                    stroke="#71717a"
+                                />
+                                <YAxis
+                                    tickFormatter={(value) => `${Number(value) / 1000}k`}
+                                    stroke="#71717a"
+                                />
+                                <Tooltip
+                                    formatter={(value) => formatIDR(value)}
+                                    labelFormatter={(value) =>
+                                        dayjs(value).format("DD MMM YYYY")
+                                    }
+                                />
+                                <Bar
+                                    dataKey="collected"
+                                    fill="#b91c1c"
+                                    radius={[10, 10, 0, 0]}
+                                    name={t("dashboard.totalCollected")}
+                                />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </ChartCard>
 
-          <Col xs={24} lg={10}>
-            <Card title={<Text strong>Top Tunggakan Iuran</Text>} style={{ borderRadius: 12 }}>
-              <Table
-                columns={arrearsCols}
-                dataSource={tables?.top_arrears || []}
-                rowKey={(record) => record.member_id}
-                size="small"
-                pagination={false}
-              />
-            </Card>
-          </Col>
+                    <ChartCard
+                        title={t("dashboard.topExpenseCategories")}
+                        subtitle={t("dashboard.topExpenseCategoriesDesc")}
+                        extra={<FileTextOutlined className="text-zinc-400" />}
+                    >
+                        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={280}>
+                            <BarChart
+                                data={expenseCategories}
+                                layout="vertical"
+                                margin={{ left: 20 }}
+                            >
+                                <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
+                                <XAxis
+                                    type="number"
+                                    tickFormatter={(value) => `${Number(value) / 1000}k`}
+                                    stroke="#71717a"
+                                />
+                                <YAxis
+                                    type="category"
+                                    dataKey="name"
+                                    width={120}
+                                    stroke="#71717a"
+                                />
+                                <Tooltip formatter={(value) => formatIDR(value)} />
+                                <Bar
+                                    dataKey="total"
+                                    fill="#18181b"
+                                    radius={[0, 10, 10, 0]}
+                                    name={t("dashboard.totalExpense")}
+                                />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </ChartCard>
+                </section>
 
-          <Col xs={24} lg={14}>
-            <Card title={<Text strong>Agenda 7 Hari ke Depan</Text>} style={{ borderRadius: 12 }}>
-              <Table
-                columns={agendaCols}
-                dataSource={tables?.upcoming_agenda || []}
-                rowKey="id"
-                size="small"
-                pagination={false}
-              />
-            </Card>
-          </Col>
+                <section className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+                    <Card title={t("dashboard.recentTransactions")} className="min-w-0">
+                        <DataTable
+                            columns={txCols}
+                            dataSource={tables?.recent_transactions || []}
+                            rowKey="id"
+                            size="middle"
+                            pagination={false}
+                            scroll={{ x: "max-content" }}
+                            emptyTitle={t("dashboard.noTransactions")}
+                            emptyDescription={t("dashboard.noTransactionsDesc")}
+                        />
+                    </Card>
 
-          <Col xs={24} lg={10}>
-            <Card title={<Text strong>Surat Terbaru (Arsip)</Text>} style={{ borderRadius: 12 }}>
-              <Table
-                columns={letterCols}
-                dataSource={tables?.recent_letters || []}
-                rowKey="id"
-                size="small"
-                pagination={false}
-              />
-            </Card>
-          </Col>
-        </Row>
-      </PageShell>
-    </AppLayout>
-  );
+                    <Card title={t("dashboard.topArrears")} className="min-w-0">
+                        <DataTable
+                            columns={arrearsCols}
+                            dataSource={tables?.top_arrears || []}
+                            rowKey={(record) => record.member_id}
+                            size="middle"
+                            pagination={false}
+                            scroll={{ x: "max-content" }}
+                            emptyTitle={t("dashboard.noArrears")}
+                            emptyDescription={t("dashboard.noArrearsDesc")}
+                        />
+                    </Card>
+                </section>
+
+                <section className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+                    <Card title={t("dashboard.upcomingAgendaTable")} className="min-w-0">
+                        <DataTable
+                            columns={agendaCols}
+                            dataSource={tables?.upcoming_agenda || []}
+                            rowKey="id"
+                            size="middle"
+                            pagination={false}
+                            scroll={{ x: "max-content" }}
+                            emptyTitle={t("dashboard.noAgenda")}
+                            emptyDescription={t("dashboard.noAgendaDesc")}
+                        />
+                    </Card>
+
+                    <Card title={t("dashboard.recentLetters")} className="min-w-0">
+                        <DataTable
+                            columns={letterCols}
+                            dataSource={tables?.recent_letters || []}
+                            rowKey="id"
+                            size="middle"
+                            pagination={false}
+                            scroll={{ x: "max-content" }}
+                            emptyTitle={t("dashboard.noLetters")}
+                            emptyDescription={t("dashboard.noLettersDesc")}
+                        />
+                    </Card>
+                </section>
+            </PageShell>
+        </AppLayout>
+    );
 }

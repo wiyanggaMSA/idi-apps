@@ -27,10 +27,106 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
+import { useI18n } from "@/Contexts/I18nContext";
 
 const { Text } = Typography;
 
 export default function MembersImportExport() {
+  const { language } = useI18n();
+  const copy =
+    language === "en"
+      ? {
+          pageTitle: "Member Import / Export",
+          title: "Member Import / Export",
+          row: "Row",
+          name: "Name",
+          phone: "Phone",
+          division: "Division",
+          position: "Position",
+          status: "Status",
+          conflict: "Conflict",
+          match: "Match",
+          actions: "Actions",
+          selectAction: "Select action",
+          update: "Update Existing",
+          create: "Create Duplicate",
+          discard: "Ignore",
+          selectTarget: "Select target",
+          resolved: "Resolved",
+          chooseFileFirst: "Please choose a file first.",
+          importDone: "Import finished successfully.",
+          importFailed: "Failed to import file.",
+          chooseConflictAction: "Please choose an action for conflicts first.",
+          resolveSaved: "Conflict resolution saved.",
+          resolveFailed: "Failed to save conflict resolution.",
+          chooseFile: "Choose File",
+          importData: "Import Data",
+          exportDatabase: "Export member database.",
+          exportXlsx: "Export (XLSX)",
+          exportCsv: "Export (CSV)",
+          importSummary: "Import Summary",
+          totalRows: "Total rows",
+          createdCount: "Created successfully",
+          conflictCount: "Conflicts",
+          errorCount: "Errors",
+          warnings: "Warnings",
+          rowWarning: "Row",
+          close: "Close",
+          seeMore: "See more",
+          noConflicts: "No conflicts found for this batch.",
+          conflictRange: "conflicts",
+          applyResolution: "Apply Resolution",
+          downloadTemplateXlsx: "Download Template (XLSX)",
+          downloadTemplateCsv: "Download Template (CSV)",
+          uploadFile: "Upload File",
+          startImport: "Start Import",
+        }
+      : {
+          pageTitle: "Import / Export Anggota",
+          title: "Import / Export Anggota",
+          row: "Baris",
+          name: "Nama",
+          phone: "Telepon",
+          division: "Divisi",
+          position: "Jabatan",
+          status: "Status",
+          conflict: "Conflict",
+          match: "Match",
+          actions: "Aksi",
+          selectAction: "Pilih aksi",
+          update: "Perbaharui",
+          create: "Buat Duplikat",
+          discard: "Abaikan",
+          selectTarget: "Pilih target",
+          resolved: "Resolved",
+          chooseFileFirst: "Pilih file terlebih dahulu.",
+          importDone: "Import selesai diproses.",
+          importFailed: "Gagal mengimpor file.",
+          chooseConflictAction: "Pilih aksi untuk konflik terlebih dahulu.",
+          resolveSaved: "Resolusi konflik tersimpan.",
+          resolveFailed: "Gagal menyimpan resolusi konflik.",
+          chooseFile: "Pilih File",
+          importData: "Import Data",
+          exportDatabase: "Export database anggota.",
+          exportXlsx: "Export (XLSX)",
+          exportCsv: "Export (CSV)",
+          importSummary: "Ringkasan Import",
+          totalRows: "Total baris",
+          createdCount: "Berhasil dibuat",
+          conflictCount: "Konflik",
+          errorCount: "Error",
+          warnings: "Peringatan",
+          rowWarning: "Baris",
+          close: "Tutup",
+          seeMore: "Lihat selengkapnya",
+          noConflicts: "Tidak ada konflik untuk batch ini.",
+          conflictRange: "konflik",
+          applyResolution: "Terapkan Resolusi",
+          downloadTemplateXlsx: "Download Template (XLSX)",
+          downloadTemplateCsv: "Download Template (CSV)",
+          uploadFile: "Upload File",
+          startImport: "Mulai Import",
+        };
   const [fileList, setFileList] = useState([]);
   const [summary, setSummary] = useState(null);
   const [batchId, setBatchId] = useState(null);
@@ -79,7 +175,7 @@ export default function MembersImportExport() {
 
   const handleImport = async () => {
     if (!fileList.length) {
-      message.warning("Pilih file terlebih dahulu.");
+      message.warning(copy.chooseFileFirst);
       return;
     }
 
@@ -92,9 +188,9 @@ export default function MembersImportExport() {
       setBatchId(data.batch_id);
       setConflictActions({});
       await fetchConflicts(1, data.batch_id, conflictPageSize);
-      message.success("Import selesai diproses.");
+      message.success(copy.importDone);
     } catch (error) {
-      message.error("Gagal mengimpor file.");
+      message.error(copy.importFailed);
     }
   };
 
@@ -108,7 +204,7 @@ export default function MembersImportExport() {
       .filter((action) => action.action);
 
     if (!actions.length) {
-      message.warning("Pilih aksi untuk konflik terlebih dahulu.");
+      message.warning(copy.chooseConflictAction);
       return;
     }
 
@@ -122,9 +218,9 @@ export default function MembersImportExport() {
         created_count: data.created_count,
         conflict_count: data.remaining_conflicts,
       }));
-      message.success("Resolusi konflik tersimpan.");
+      message.success(copy.resolveSaved);
     } catch (error) {
-      message.error("Gagal menyimpan resolusi konflik.");
+      message.error(copy.resolveFailed);
     }
   };
 
@@ -132,8 +228,8 @@ export default function MembersImportExport() {
   const columns = useMemo(
     () => [
       columnHelper.accessor("row_number", {
-        header: "Baris",
-        meta: { label: "Baris" },
+        header: copy.row,
+        meta: { label: copy.row },
         cell: (info) => info.getValue(),
       }),
       columnHelper.accessor("npa", {
@@ -142,8 +238,8 @@ export default function MembersImportExport() {
         cell: (info) => info.getValue() || "-",
       }),
       columnHelper.accessor("full_name", {
-        header: "Nama",
-        meta: { label: "Nama" },
+        header: copy.name,
+        meta: { label: copy.name },
         cell: (info) => info.getValue() || "-",
       }),
       columnHelper.accessor("email", {
@@ -152,28 +248,28 @@ export default function MembersImportExport() {
         cell: (info) => info.getValue() || "-",
       }),
       columnHelper.accessor("phone", {
-        header: "Telepon",
-        meta: { label: "Telepon" },
+        header: copy.phone,
+        meta: { label: copy.phone },
         cell: (info) => info.getValue() || "-",
       }),
       columnHelper.accessor("division_name", {
-        header: "Divisi",
-        meta: { label: "Divisi" },
+        header: copy.division,
+        meta: { label: copy.division },
         cell: (info) => info.getValue() || "-",
       }),
       columnHelper.accessor("position_name", {
-        header: "Jabatan",
-        meta: { label: "Jabatan" },
+        header: copy.position,
+        meta: { label: copy.position },
         cell: (info) => info.getValue() || "-",
       }),
       columnHelper.accessor("status", {
-        header: "Status",
-        meta: { label: "Status" },
+        header: copy.status,
+        meta: { label: copy.status },
         cell: (info) => info.getValue() || "-",
       }),
       columnHelper.accessor("conflict_type", {
-        header: "Conflict",
-        meta: { label: "Conflict" },
+        header: copy.conflict,
+        meta: { label: copy.conflict },
         cell: (info) => {
           const conflicts = info.getValue();
           if (!conflicts || conflicts.length === 0) return "-";
@@ -192,8 +288,8 @@ export default function MembersImportExport() {
         },
       }),
       columnHelper.accessor("conflict_members", {
-        header: "Match",
-        meta: { label: "Match" },
+        header: copy.match,
+        meta: { label: copy.match },
         cell: (info) => {
           const members = info.getValue() || [];
           if (!members.length) return "-";
@@ -210,8 +306,8 @@ export default function MembersImportExport() {
       }),
       columnHelper.display({
         id: "action",
-        header: "Aksi",
-        meta: { label: "Aksi" },
+        header: copy.actions,
+        meta: { label: copy.actions },
         cell: (info) => {
           const row = info.row.original;
           const actionValue = conflictActions[row.id]?.action;
@@ -232,13 +328,13 @@ export default function MembersImportExport() {
                     },
                   }))
                 }
-                placeholder="Pilih aksi"
+                placeholder={copy.selectAction}
                 style={{ width: 180 }}
                 disabled={isResolved}
                 options={[
-                  { value: "update", label: "Perbaharui" },
-                  { value: "create", label: "Buat Duplikat" },
-                  { value: "discard", label: "Abaikan" },
+                  { value: "update", label: copy.update },
+                  { value: "create", label: copy.create },
+                  { value: "discard", label: copy.discard },
                 ]}
               />
               {actionValue === "update" && (
@@ -253,7 +349,7 @@ export default function MembersImportExport() {
                       },
                     }))
                   }
-                  placeholder="Pilih target"
+                  placeholder={copy.selectTarget}
                   style={{ width: 240 }}
                   disabled={isResolved}
                   options={matches.map((member) => ({
@@ -262,13 +358,13 @@ export default function MembersImportExport() {
                   }))}
                 />
               )}
-              {isResolved && <Text type="secondary">Resolved</Text>}
+              {isResolved && <Text type="secondary">{copy.resolved}</Text>}
             </Space>
           );
         },
       }),
     ],
-    [conflictActions]
+    [conflictActions, copy]
   );
 
   useEffect(() => {
@@ -296,9 +392,9 @@ export default function MembersImportExport() {
   }));
 
   return (
-    <AppLayout title="Import / Export Anggota">
+    <AppLayout title={copy.pageTitle}>
       <PageShell>
-        <PageHeader title="Import / Export Anggota" />
+        <PageHeader title={copy.title} />
 
         <Card style={{ borderRadius: 12, marginBottom: 16 }}>
           <Space direction="vertical" size={12} style={{ width: "100%" }}>
@@ -308,14 +404,14 @@ export default function MembersImportExport() {
                 href={templateUrl("xlsx")}
                 target="_blank"
               >
-                Download Template (XLSX)
+                {copy.downloadTemplateXlsx}
               </Button>
               <Button
                 icon={<FileTextOutlined />}
                 href={templateUrl("csv")}
                 target="_blank"
               >
-                Download Template (CSV)
+                {copy.downloadTemplateCsv}
               </Button>
             </Space>
 
@@ -330,10 +426,10 @@ export default function MembersImportExport() {
                 maxCount={1}
                 accept=".xlsx,.csv"
               >
-                <Button icon={<UploadOutlined />}>Pilih File</Button>
+                <Button icon={<UploadOutlined />}>{copy.chooseFile}</Button>
               </Upload>
               <Button type="primary" icon={<CheckOutlined />} onClick={handleImport}>
-                Import Data
+                {copy.importData}
               </Button>
             </Space>
           </Space>
@@ -342,21 +438,20 @@ export default function MembersImportExport() {
         <Card style={{ borderRadius: 12, marginBottom: 16 }}>
           <Space orientation="vertical" size={12} style={{ width: "100%" }}>
             <Text type="primary" strong>
-              Export Database Anggota.
+              {copy.exportDatabase}
             </Text>
             <Space wrap>
-              
               <Button
                 icon={<CloudDownloadOutlined />}
                 href={exportUrl("xlsx")}
               >
-                Export (XLSX)
+                {copy.exportXlsx}
               </Button>
               <Button
                 icon={<CloudDownloadOutlined />}
                 href={exportUrl("csv")}
               >
-                Export (CSV)
+                {copy.exportCsv}
               </Button>
             </Space>
           </Space>
@@ -365,19 +460,19 @@ export default function MembersImportExport() {
         {summary && (
           <Card style={{ borderRadius: 12, marginBottom: 16 }}>
             <Space direction="vertical" size={6}>
-              <Text strong>Ringkasan Import</Text>
-              <Text>Total baris: {summary.total_rows}</Text>
-              <Text>Berhasil dibuat: {summary.created_count}</Text>
-              <Text>Konflik: {summary.conflict_count}</Text>
-              <Text>Error: {summary.error_count}</Text>
+              <Text strong>{copy.importSummary}</Text>
+              <Text>{copy.totalRows}: {summary.total_rows}</Text>
+              <Text>{copy.createdCount}: {summary.created_count}</Text>
+              <Text>{copy.conflictCount}: {summary.conflict_count}</Text>
+              <Text>{copy.errorCount}: {summary.error_count}</Text>
               {summary.warnings?.length > 0 && (
                 <Space orientation="vertical" size={4}>
-                  <Text strong>Warnings</Text>
+                  <Text strong>{copy.warnings}</Text>
                   <Text>
                     {(showAllWarnings ? summary.warnings : summary.warnings.slice(0, 5))
                       .map(
                         (warning) =>
-                          `Baris ${warning.row_number}: ${warning.reasons?.join(", ")}`
+                          `${copy.rowWarning} ${warning.row_number}: ${warning.reasons?.join(", ")}`
                       )
                       .join(", ")}
                   </Text>
@@ -387,7 +482,7 @@ export default function MembersImportExport() {
                       size="small"
                       onClick={() => setShowAllWarnings((prev) => !prev)}
                     >
-                      {showAllWarnings ? "Tutup" : "Lihat selengkapnya"}
+                      {showAllWarnings ? copy.close : copy.seeMore}
                     </Button>
                   )}
                 </Space>
@@ -409,7 +504,7 @@ export default function MembersImportExport() {
               showSizeChanger: true,
               pageSizeOptions: [25, 50, 100, 200],
               showTotal: (total, range) =>
-                `${range[0]}-${range[1]} dari ${total} konflik`,
+                `${range[0]}-${range[1]} / ${total} ${copy.conflictRange}`,
               onChange: (page, pageSize) => {
                 setConflictPage(page);
                 setConflictPageSize(pageSize);
@@ -417,7 +512,7 @@ export default function MembersImportExport() {
               },
             }}
             locale={{
-              emptyText: "Tidak ada konflik untuk batch ini.",
+              emptyText: copy.noConflicts,
             }}
           />
         </Card>
@@ -425,7 +520,7 @@ export default function MembersImportExport() {
         {conflicts.length > 0 && (
           <Space style={{ marginTop: 16 }}>
             <Button type="primary" onClick={handleResolve}>
-              Terapkan Resolusi 
+              {copy.applyResolution}
             </Button>
           </Space>
         )}

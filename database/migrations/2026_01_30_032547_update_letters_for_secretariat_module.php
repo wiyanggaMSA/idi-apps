@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
@@ -27,15 +28,21 @@ return new class extends Migration {
             $table->foreignId('updated_by')->nullable()->after('created_by')->constrained('users')->nullOnDelete();
         });
 
-        Schema::table('letters', function (Blueprint $table) {
-            $table->fullText(['content_plaintext', 'subject', 'recipient_text', 'cc_text', 'number'], 'letters_fulltext');
-        });
+        $driver = DB::connection()->getDriverName();
+        if (in_array($driver, ['mysql', 'mariadb', 'pgsql'], true)) {
+            Schema::table('letters', function (Blueprint $table) {
+                $table->fullText(['content_plaintext', 'subject', 'recipient_text', 'cc_text', 'number'], 'letters_fulltext');
+            });
+        }
     }
 
     public function down(): void
     {
         Schema::table('letters', function (Blueprint $table) {
-            $table->dropFullText('letters_fulltext');
+            $driver = DB::connection()->getDriverName();
+            if (in_array($driver, ['mysql', 'mariadb', 'pgsql'], true)) {
+                $table->dropFullText('letters_fulltext');
+            }
             $table->dropConstrainedForeignId('updated_by');
             $table->dropColumn([
                 'classification',

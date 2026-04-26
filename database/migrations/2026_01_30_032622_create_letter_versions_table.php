@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
@@ -25,8 +26,14 @@ return new class extends Migration {
             $table->timestamps();
 
             $table->unique(['letter_id', 'version']);
-            $table->fullText(['content_plaintext', 'subject', 'recipient_text', 'cc_text', 'number'], 'letter_versions_fulltext');
         });
+
+        $driver = DB::connection()->getDriverName();
+        if (in_array($driver, ['mysql', 'mariadb', 'pgsql'], true)) {
+            Schema::table('letter_versions', function (Blueprint $table) {
+                $table->fullText(['content_plaintext', 'subject', 'recipient_text', 'cc_text', 'number'], 'letter_versions_fulltext');
+            });
+        }
     }
 
     public function down(): void

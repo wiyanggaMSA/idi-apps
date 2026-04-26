@@ -1,46 +1,45 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
-use Illuminate\Foundation\Application;
-use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
-
-//Controllers
+use App\Http\Controllers\Cash\CashController;
+use App\Http\Controllers\Cash\CashExportController;
+use App\Http\Controllers\Cash\CashReportsController;
+use App\Http\Controllers\Cash\TransactionsController;
+// Controllers
 use App\Http\Controllers\Dashboard\DashboardController;
-use App\Http\Controllers\Secretariat\LettersController;
-use App\Http\Controllers\Secretariat\AgendaController;
-use App\Http\Controllers\Secretariat\ArchiveController;
-use App\Http\Controllers\Secretariat\LetterTemplatesController;
-use App\Http\Controllers\Secretariat\LetterNumberingProfilesController;
-use App\Http\Controllers\Secretariat\LetterSignatureController;
-use App\Http\Controllers\PublicVerifyLetterController;
-use App\Http\Controllers\PublicLetterSignatureController;
-use App\Http\Controllers\Members\MemberController;
-use App\Http\Controllers\Members\MemberImportExportController;
 use App\Http\Controllers\Dues\DuesController;
 use App\Http\Controllers\Dues\DuesRecapController;
-use App\Http\Controllers\Cash\CashController;
-use App\Http\Controllers\Cash\CashReportsController;
-use App\Http\Controllers\Cash\CashExportController;
-use App\Http\Controllers\Cash\TransactionsController;
-use App\Http\Controllers\Reports\ReportsController;
-use App\Http\Controllers\Reports\ReportsResumeController;
-use App\Http\Controllers\Reports\ReportsExportController;
+use App\Http\Controllers\Members\MemberController;
+use App\Http\Controllers\Members\MemberImportExportController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\PublicLetterSignatureController;
+use App\Http\Controllers\PublicVerifyLetterController;
 use App\Http\Controllers\Reports\CashReportController;
 use App\Http\Controllers\Reports\FinancialSummaryController;
-use App\Http\Controllers\Settings\SettingsController;
+use App\Http\Controllers\Reports\ReportsController;
+use App\Http\Controllers\Reports\ReportsExportController;
+use App\Http\Controllers\Reports\ReportsResumeController;
+use App\Http\Controllers\Secretariat\AgendaController;
+use App\Http\Controllers\Secretariat\ArchiveController;
+use App\Http\Controllers\Secretariat\LetterNumberingProfilesController;
+use App\Http\Controllers\Secretariat\LettersController;
+use App\Http\Controllers\Secretariat\LetterSignatureController;
+use App\Http\Controllers\Secretariat\LetterTemplatesController;
 use App\Http\Controllers\Settings\Access\PermissionsController;
 use App\Http\Controllers\Settings\Access\RolesController;
 use App\Http\Controllers\Settings\Access\UsersController;
-use App\Http\Controllers\Settings\OrganizationProfileController;
 use App\Http\Controllers\Settings\DuesSettingsController;
 use App\Http\Controllers\Settings\FactoryResetController;
 use App\Http\Controllers\Settings\MasterData\CashCategoriesController;
 use App\Http\Controllers\Settings\MasterData\CashMethodsController;
 use App\Http\Controllers\Settings\MasterData\DivisionsController;
+use App\Http\Controllers\Settings\MasterData\MemberStatusesController;
 use App\Http\Controllers\Settings\MasterData\PaymentStatusesController;
 use App\Http\Controllers\Settings\MasterData\PositionsController;
-
+use App\Http\Controllers\Settings\OrganizationProfileController;
+use App\Http\Controllers\Settings\SettingsController;
+use Illuminate\Foundation\Application;
+use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -53,36 +52,56 @@ Route::get('/', function () {
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     // Secretariat
     Route::prefix('secretariat')->name('secretariat.')->group(function () {
-        Route::redirect('/', '/secretariat/letters');
+        Route::get('/', [LettersController::class, 'dashboard'])
+            ->middleware('permission:secretariat.view')
+            ->name('dashboard');
         Route::get('/letters', [LettersController::class, 'index'])
             ->middleware('permission:letters.view')
             ->name('letters.index');
         Route::get('/letters/create', [LettersController::class, 'create'])
             ->middleware('permission:letters.create')
             ->name('letters.create');
-        Route::get('/letters/{letter}', [LettersController::class, 'edit'])
-            ->middleware('permission:letters.update')
+        Route::get('/letters/{letter}', [LettersController::class, 'show'])
+            ->middleware('permission:letters.view')
+            ->name('letters.show');
+        Route::get('/letters/{letter}/edit', [LettersController::class, 'edit'])
+            ->middleware('permission:letters.create|letters.update')
             ->name('letters.edit');
-            Route::get('/letters/{letter}/builder', [LettersController::class, 'builder'])
-            ->middleware('permission:letters.update')
+        Route::get('/letters/{letter}/builder', [LettersController::class, 'builder'])
+            ->middleware('permission:letters.create|letters.update')
             ->name('letters.builder');
         Route::post('/letters', [LettersController::class, 'storeDraft'])
             ->middleware('permission:letters.create')
             ->name('letters.store');
         Route::patch('/letters/{letter}', [LettersController::class, 'updateDraft'])
-            ->middleware('permission:letters.update')
+            ->middleware('permission:letters.create|letters.update')
             ->name('letters.update');
-            Route::put('/letters/{letter}/layout', [LettersController::class, 'saveLayout'])
-            ->middleware('permission:letters.update')
+        Route::put('/letters/{letter}/layout', [LettersController::class, 'saveLayout'])
+            ->middleware('permission:letters.create|letters.update')
             ->name('letters.layout');
-            Route::post('/letters/{letter}/signature/prepare', [LetterSignatureController::class, 'prepare'])
+        Route::post('/letters/{letter}/attachments', [LettersController::class, 'storeAttachments'])
             ->middleware('permission:letters.update')
+            ->name('letters.attachments.store');
+        Route::post('/letters/{letter}/signature/prepare', [LetterSignatureController::class, 'prepare'])
+            ->middleware('permission:letters.create|letters.update')
             ->name('letters.signature.prepare');
         Route::post('/letters/{letter}/finalize', [LettersController::class, 'finalize'])
             ->middleware('permission:letters.finalize')
             ->name('letters.finalize');
+        Route::post('/letters/{letter}/generate-number', [LettersController::class, 'generateNumber'])
+            ->middleware('permission:letters.create|letters.update')
+            ->name('letters.generate-number');
+        Route::post('/letters/{letter}/regenerate-pdf', [LettersController::class, 'regeneratePdf'])
+            ->middleware('permission:letters.export_pdf')
+            ->name('letters.pdf.regenerate');
+        Route::patch('/letters/{letter}/archive', [LettersController::class, 'archive'])
+            ->middleware('permission:letters.update')
+            ->name('letters.archive');
         Route::get('/letters/{letter}/versions', [LettersController::class, 'versions'])
             ->middleware('permission:letters.versions.view')
             ->name('letters.versions');
@@ -92,6 +111,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/letters/{letter}/pdf', [LettersController::class, 'downloadPdf'])
             ->middleware('permission:letters.export_pdf')
             ->name('letters.pdf');
+        Route::get('/letters/{letter}/pdf/preview', [LettersController::class, 'previewPdf'])
+            ->middleware('permission:letters.export_pdf')
+            ->name('letters.pdf.preview');
         Route::patch('/letters/{letter}/revoke', [LettersController::class, 'revoke'])
             ->middleware('permission:letters.revoke')
             ->name('letters.revoke');
@@ -141,11 +163,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->middleware('permission:agenda.manage')
             ->name('agenda.destroy');
 
-        Route::get('/archive', ArchiveController::class)
+        Route::get('/archive', [ArchiveController::class, 'index'])
             ->middleware('permission:secretariat.view')
-            ->name('archive');
+            ->name('archive.index');
+        Route::post('/archive', [ArchiveController::class, 'store'])
+            ->middleware('permission:secretariat.view')
+            ->name('archive.store');
+        Route::get('/documents/{document}/preview', [ArchiveController::class, 'preview'])
+            ->middleware('permission:secretariat.view')
+            ->name('documents.preview');
+        Route::get('/documents/{document}/download', [ArchiveController::class, 'download'])
+            ->middleware('permission:secretariat.view')
+            ->name('documents.download');
     });
-    //MEMBERS
+    // MEMBERS
     Route::prefix('members')->name('members.')->group(function () {
         Route::get('/', [MemberController::class, 'index'])
             ->middleware('permission:members.view')
@@ -179,7 +210,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->middleware('permission:members.export')
             ->name('export');
     });
-    //DUES
+    // DUES
     Route::get('/dues', [DuesController::class, 'index'])
         ->middleware('permission:dues.manage')
         ->name('dues.index');
@@ -204,7 +235,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dues/recap/export', [DuesRecapController::class, 'exportXlsx'])
         ->middleware('permission:dues.export')
         ->name('dues.recap.export');
-    //CASH
+    // CASH
     Route::get('/cash', CashController::class)->name('cash.index');
     Route::get('/cash/reports', CashReportsController::class)->name('cash.reports');
     Route::get('/cash/export', CashExportController::class)->name('cash.export');
@@ -213,6 +244,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/', [TransactionsController::class, 'index'])
             ->middleware('permission:transactions.view')
             ->name('index');
+        Route::get('/{transaction}/attachments/{document}', [TransactionsController::class, 'attachment'])
+            ->middleware(['permission:transactions.view', 'signed'])
+            ->name('attachments.show');
         Route::post('/', [TransactionsController::class, 'store'])
             ->middleware('permission:transactions.create')
             ->name('store');
@@ -224,7 +258,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('destroy');
     });
 
-    //REPORTS
+    // REPORTS
     Route::get('/reports', ReportsController::class)->name('reports.index');
     Route::get('/reports/resume', ReportsResumeController::class)->name('reports.resume');
     Route::get('/reports/export', ReportsExportController::class)->name('reports.export');
@@ -240,7 +274,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/reports/financial-summary/pdf', [FinancialSummaryController::class, 'pdf'])
         ->middleware('permission:reports.export|reports.print')
         ->name('reports.financial-summary.pdf');
-    //SETTINGS
+    // SETTINGS
     Route::middleware(['role:Admin'])->group(function () {
         Route::get('/settings', SettingsController::class)->name('settings.index');
         Route::patch('/settings/profile', [OrganizationProfileController::class, 'update'])->name('settings.profile.update');
@@ -263,6 +297,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::delete('/cash-categories/{cashCategory}', [CashCategoriesController::class, 'destroy'])->name('cash-categories.destroy');
             Route::post('/cash-methods', [CashMethodsController::class, 'store'])->name('cash-methods.store');
             Route::delete('/cash-methods/{cashMethod}', [CashMethodsController::class, 'destroy'])->name('cash-methods.destroy');
+            Route::post('/member-statuses', [MemberStatusesController::class, 'store'])->name('member-statuses.store');
+            Route::delete('/member-statuses/{memberStatus}', [MemberStatusesController::class, 'destroy'])->name('member-statuses.destroy');
             Route::post('/payment-statuses', [PaymentStatusesController::class, 'store'])->name('payment-statuses.store');
             Route::delete('/payment-statuses/{paymentStatus}', [PaymentStatusesController::class, 'destroy'])->name('payment-statuses.destroy');
         });
@@ -290,8 +326,12 @@ Route::get('/letters/{letter}/render', [LettersController::class, 'renderDocumen
     ->middleware('signed')
     ->name('letters.render');
 
+Route::get('/verifikasi-surat/dokumen/{public_hash}', [PublicVerifyLetterController::class, 'show'])
+    ->name('letters.verify');
+Route::get('/verifikasi-surat/dokumen/{public_hash}/download', [PublicVerifyLetterController::class, 'download'])
+    ->name('letters.verify.download');
+
 Route::get('/verifikasi-surat/{signature}', [PublicLetterSignatureController::class, 'show'])
     ->name('letters.signature.verify');
-    
 
 require __DIR__.'/auth.php';

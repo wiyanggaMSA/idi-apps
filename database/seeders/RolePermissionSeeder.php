@@ -69,12 +69,28 @@ class RolePermissionSeeder extends Seeder
             Permission::firstOrCreate(['name' => $permission, 'guard_name' => 'web']);
         }
 
-        $admin = Role::firstOrCreate(['name' => 'Admin', 'guard_name' => 'web']);
-        $bendahara = Role::firstOrCreate(['name' => 'Bendahara', 'guard_name' => 'web']);
-        $ketua = Role::firstOrCreate(['name' => 'Ketua', 'guard_name' => 'web']);
-        $anggota = Role::firstOrCreate(['name' => 'Anggota', 'guard_name' => 'web']);
+        $superadmin = Role::firstOrCreate(['name' => 'superadmin', 'guard_name' => 'web']);
+        $admin = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
+        $sekretaris = Role::firstOrCreate(['name' => 'sekretaris', 'guard_name' => 'web']);
+        $ketua = Role::firstOrCreate(['name' => 'ketua', 'guard_name' => 'web']);
+        $bendahara = Role::firstOrCreate(['name' => 'bendahara', 'guard_name' => 'web']);
+        $anggota = Role::firstOrCreate(['name' => 'anggota', 'guard_name' => 'web']);
 
+        $superadmin->syncPermissions($permissions);
         $admin->syncPermissions($permissions);
+        $sekretaris->syncPermissions([
+            'secretariat.view',
+            'letters.view',
+            'letters.create',
+            'letters.update',
+            'letters.finalize',
+            'letters.export_pdf',
+            'letters.versions.view',
+            'templates.manage',
+            'numbering.manage',
+            'agenda.view',
+            'agenda.manage',
+        ]);
         $bendahara->syncPermissions([
             'dues.manage',
             'dues.void',
@@ -85,6 +101,12 @@ class RolePermissionSeeder extends Seeder
             'permissions.view',
         ]);
         $ketua->syncPermissions([
+            'secretariat.view',
+            'letters.view',
+            'letters.finalize',
+            'letters.export_pdf',
+            'letters.versions.view',
+            'agenda.view',
             'settings.view',
             'users.view',
             'roles.view',
@@ -94,7 +116,7 @@ class RolePermissionSeeder extends Seeder
 
         $firstUser = User::query()->orderBy('id')->first();
         if ($firstUser) {
-            $firstUser->assignRole('Admin');
+            $firstUser->assignRole('superadmin');
         }
     }
 }

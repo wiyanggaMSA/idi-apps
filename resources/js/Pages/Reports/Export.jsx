@@ -1,16 +1,29 @@
 import React from "react";
-import { Card, Button } from "antd";
+import { Button, Card } from "antd";
 import AppLayout from "@/Layouts/AppLayout";
+import PageShell from "@/Components/App/PageShell";
+import PageHeader from "@/Components/App/PageHeader";
+import EmptyState from "@/Components/App/EmptyState";
+import { useI18n } from "@/Contexts/I18nContext";
 
 export default function ReportsExport() {
-  return (
-    <AppLayout title="Laporan — Export PDF">
-      <Card>
-        <Button type="primary">Export PDF</Button>
-        <div style={{ marginTop: 12 }}>
-          <em>Nanti tombol ini akan panggil endpoint generate PDF.</em>
-        </div>
-      </Card>
-    </AppLayout>
-  );
+    const { t } = useI18n();
+    return (
+        <AppLayout title={t("reports.export.title")}>
+            <PageShell>
+                <PageHeader
+                    eyebrow="Export Center"
+                    title={t("reports.export.title")}
+                    description={t("reports.export.description")}
+                    extra={<Button type="primary">{t("common.exportPdf")}</Button>}
+                />
+                <Card>
+                    <EmptyState
+                        title={t("reports.export.emptyTitle")}
+                        description={t("reports.export.emptyDesc")}
+                    />
+                </Card>
+            </PageShell>
+        </AppLayout>
+    );
 }

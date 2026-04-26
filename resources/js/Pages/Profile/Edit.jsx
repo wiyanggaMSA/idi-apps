@@ -1,39 +1,53 @@
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head } from '@inertiajs/react';
+import AppLayout from '@/Layouts/AppLayout';
+import PageShell from '@/Components/App/PageShell';
+import PageHeader from '@/Components/App/PageHeader';
+import FormSection from '@/Components/App/FormSection';
+import { useI18n } from '@/Contexts/I18nContext';
 import DeleteUserForm from './Partials/DeleteUserForm';
 import UpdatePasswordForm from './Partials/UpdatePasswordForm';
 import UpdateProfileInformationForm from './Partials/UpdateProfileInformationForm';
 
 export default function Edit({ mustVerifyEmail, status }) {
-    return (
-        <AuthenticatedLayout
-            header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800">
-                    Profile
-                </h2>
-            }
-        >
-            <Head title="Profile" />
+    const { t } = useI18n();
 
-            <div className="py-12">
-                <div className="mx-auto max-w-7xl space-y-6 sm:px-6 lg:px-8">
-                    <div className="bg-white p-4 shadow sm:rounded-lg sm:p-8">
+    return (
+        <AppLayout title={t('profile.pageTitle')}>
+            <Head title={t('profile.pageTitle')} />
+            <PageShell>
+                <PageHeader
+                    eyebrow={t('profile.eyebrow')}
+                    title={t('profile.title')}
+                    description={t('profile.description')}
+                />
+
+                <div className="grid gap-4 xl:grid-cols-[1.2fr_1fr]">
+                    <FormSection
+                        title={t('profile.infoSectionTitle')}
+                        description={t('profile.infoSectionDesc')}
+                    >
                         <UpdateProfileInformationForm
                             mustVerifyEmail={mustVerifyEmail}
                             status={status}
-                            className="max-w-xl"
+                            className="max-w-none"
                         />
-                    </div>
+                    </FormSection>
 
-                    <div className="bg-white p-4 shadow sm:rounded-lg sm:p-8">
-                        <UpdatePasswordForm className="max-w-xl" />
-                    </div>
-
-                    <div className="bg-white p-4 shadow sm:rounded-lg sm:p-8">
-                        <DeleteUserForm className="max-w-xl" />
-                    </div>
+                    <FormSection
+                        title={t('profile.securitySectionTitle')}
+                        description={t('profile.securitySectionDesc')}
+                    >
+                        <UpdatePasswordForm className="max-w-none" />
+                    </FormSection>
                 </div>
-            </div>
-        </AuthenticatedLayout>
+
+                <FormSection
+                    title={t('profile.dangerZoneTitle')}
+                    description={t('profile.dangerZoneDesc')}
+                >
+                    <DeleteUserForm className="max-w-none" />
+                </FormSection>
+            </PageShell>
+        </AppLayout>
     );
 }

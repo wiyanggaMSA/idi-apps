@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { router, usePage } from "@inertiajs/react";
 import axios from "axios";
-import { Button, Card, Divider, Input, Select, Space, Typography, message } from "antd";
+import { Button, Card, Divider, Form, Input, Modal, Select, Space, Typography, message } from "antd";
 import { DownloadOutlined, EyeOutlined } from "@ant-design/icons";
 
 import ReactGridLayout from "react-grid-layout";
@@ -9,6 +9,7 @@ import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
 
 import DocumentRenderer from "@/Components/DocumentRenderer";
+import SimpleRichTextEditor from "@/Components/SimpleRichTextEditor";
 
 const { TextArea } = Input;
 const { Text } = Typography;
@@ -37,14 +38,61 @@ const findCatalog = (type) => blockCatalog.find((item) => item.type === type);
 
 const createBlockId = (type) => `${type}_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
 
+const defaultBlocks = () => [
+  { id: "kop_surat", type: "kop_surat", label: "Kop Surat", content: "Kop Surat Otomatis" },
+  {
+    id: "nomor_tanggal",
+    type: "nomor_tanggal",
+    label: "Nomor & Tanggal",
+    content: "Nomor: {nomor_surat}\nLampiran: -\nPerihal: {perihal}",
+  },
+  {
+    id: "isi_surat",
+    type: "isi_surat",
+    label: "Isi Surat",
+    content: "<p>Dengan hormat,</p><p>{isi_surat}</p>",
+  },
+  { id: "tanda_tangan", type: "tanda_tangan", label: "Tanda Tangan", content: "Tanda Tangan dan QR Otomatis" },
+  { id: "tembusan", type: "tembusan", label: "Tembusan", content: "Tembusan:\n- Arsip" },
+];
+
+const defaultLayout = () => [
+  { i: "kop_surat", x: 0, y: 0, w: 12, h: 4, minW: 12, maxW: 12, minH: 4 },
+  { i: "nomor_tanggal", x: 0, y: 4, w: 12, h: 4, minW: 6, minH: 4 },
+  { i: "isi_surat", x: 0, y: 8, w: 12, h: 14, minW: 12, maxW: 12, minH: 10 },
+  { i: "tanda_tangan", x: 8, y: 22, w: 4, h: 6, minW: 4, minH: 5 },
+  { i: "tembusan", x: 0, y: 28, w: 6, h: 5, minW: 6, minH: 4 },
+];
+
+const BLOCK_CONSTRAINTS = {
+  kop_surat: { minW: 12, maxW: 12, minH: 4 },
+  nomor_tanggal: { minW: 6, minH: 4 },
+  isi_surat: { minW: 12, maxW: 12, minH: 10 },
+  tanda_tangan: { minW: 4, minH: 5 },
+  tembusan: { minW: 6, minH: 4 },
+};
+
+const REQUIRED_BLOCK_TYPES = new Set(["kop_surat", "nomor_tanggal", "isi_surat", "tanda_tangan"]);
+
+const SYSTEM_DRIVEN_TYPES = new Set(["nomor_tanggal", "tanda_tangan"]);
+
+const applyLayoutConstraints = (layoutItems, blockMap) =>
+  layoutItems.map((item) => {
+    const blockType = blockMap.get(item.i)?.type;
+    const constraints = blockType ? BLOCK_CONSTRAINTS[blockType] : null;
+    return constraints ? { ...item, ...constraints } : item;
+  });
+
 const createLayoutItem = (id, type) => {
   const template = findCatalog(type);
+  const constraints = BLOCK_CONSTRAINTS[type] ?? {};
   return {
     i: id,
     x: 0,
     y: Infinity,
     w: template?.w ?? 6,
     h: template?.h ?? 3,
+    ...constraints,
   };
 };
 
@@ -86,7 +134,16 @@ export default function LetterGridBuilder({
   entity,
   saveRouteName = "secretariat.letters.layout",
   showPdf = true,
+  enableFinalize = true,
+  pdfRouteName = "secretariat.letters.pdf",
+  saveSuccessMessage = "Layout surat berhasil disimpan.",
+  saveErrorMessage = "Gagal menyimpan layout surat.",
+  sidebarExtras = null,
+  buildSavePayload = null,
+  documentStyle = null,
+  enableRichText = false,
   signerMembers = [],
+  numberingProfiles = [],
 }) {
   const { props } = usePage();
   const activeEntity = entity ?? letter;
@@ -94,22 +151,30 @@ export default function LetterGridBuilder({
   const gridConfig = { cols: 12, rowHeight: 24 };
 
   const initialBlocks = useMemo(() => {
-    return Array.isArray(activeEntity?.blocks_json) ? activeEntity.blocks_json : [];
+    const storedBlocks = Array.isArray(activeEntity?.blocks_json) ? activeEntity.blocks_json : [];
+    return storedBlocks.length ? storedBlocks : defaultBlocks();
   }, [activeEntity]);
 
   const initialLayout = useMemo(() => {
+    const blockMap = new Map(initialBlocks.map((block) => [block.id, block]));
     if (Array.isArray(activeEntity?.layout_json) && activeEntity.layout_json.length) {
-      return activeEntity.layout_json;
+      return applyLayoutConstraints(activeEntity.layout_json, blockMap);
     }
     if (Array.isArray(activeEntity?.blocks_json) && activeEntity.blocks_json.length) {
-      return activeEntity.blocks_json.map((block) => createLayoutItem(block.id, block.type));
+      return applyLayoutConstraints(
+        activeEntity.blocks_json.map((block) => createLayoutItem(block.id, block.type)),
+        blockMap
+      );
     }
-    return [];
-  }, [activeEntity]);
+    return applyLayoutConstraints(defaultLayout(), blockMap);
+  }, [activeEntity, initialBlocks]);
 
   const [blocks, setBlocks] = useState(initialBlocks);
   const [layout, setLayout] = useState(initialLayout);
   const [previewMode, setPreviewMode] = useState(false);
+  const [finalizeOpen, setFinalizeOpen] = useState(false);
+  const [finalizing, setFinalizing] = useState(false);
+  const [finalizeForm] = Form.useForm();
 
   // signer
   const [selectedSignerId, setSelectedSignerId] = useState(null);
@@ -132,7 +197,7 @@ export default function LetterGridBuilder({
         email: orgProfile.email ?? null,
         website: orgProfile.website ?? null,
       },
-      header_variant: orgProfile.header_variant ?? "classic_center",
+      header_variant: orgProfile.header_variant ?? "logo_left",
     };
   }, [props?.orgProfile]);
 
@@ -149,6 +214,22 @@ export default function LetterGridBuilder({
     setSelectedSignerId(null);
     setSignatureData(null);
   }, [initialBlocks, initialLayout]);
+
+  useEffect(() => {
+    if (!finalizeOpen || !activeEntity?.id) return;
+
+    finalizeForm.setFieldsValue({
+      numbering_profile_id: undefined,
+      number: activeEntity?.number ?? "",
+      classification: activeEntity?.classification ?? "",
+      date: activeEntity?.date ?? "",
+      subject: activeEntity?.subject ?? "",
+      recipient_text: activeEntity?.recipient_text ?? "",
+      cc_text: activeEntity?.cc_text ?? "",
+      signer_name: selectedSigner?.full_name ?? activeEntity?.signer_name ?? "",
+      signer_title: selectedSigner?.position_name ?? activeEntity?.signer_title ?? "",
+    });
+  }, [activeEntity, finalizeForm, finalizeOpen, selectedSigner]);
 
   const handleAddBlock = (type) => {
     const template = findCatalog(type);
@@ -179,11 +260,16 @@ export default function LetterGridBuilder({
   };
 
   const handleSave = () => {
+    const savePayload =
+      typeof buildSavePayload === "function"
+        ? buildSavePayload({ layout, blocks, entity: activeEntity })
+        : { layout, blocks };
+
     // Anda memilih behavior: kalau belum ada id → buat draft dulu
     if (!activeEntity?.id) {
       router.post(
         route("secretariat.letters.store"),
-        { layout, blocks },
+        savePayload,
         {
           preserveScroll: true,
           onSuccess: () => message.success("Draft surat berhasil dibuat."),
@@ -195,11 +281,11 @@ export default function LetterGridBuilder({
 
     router.put(
       route(saveRouteName, activeEntity.id),
-      { layout, blocks },
+      savePayload,
       {
         preserveScroll: true,
-        onSuccess: () => message.success("Layout surat berhasil disimpan."),
-        onError: () => message.error("Gagal menyimpan layout surat."),
+        onSuccess: () => message.success(saveSuccessMessage),
+        onError: () => message.error(saveErrorMessage),
       }
     );
   };
@@ -218,11 +304,58 @@ export default function LetterGridBuilder({
       );
       setSignatureData(data);
     } catch (error) {
-      message.error("Gagal menyiapkan tanda tangan digital.");
+      const responseMessage =
+        error?.response?.data?.message ||
+        error?.response?.data?.errors?.signer_member_id?.[0] ||
+        "Gagal menyiapkan tanda tangan digital.";
+      message.error(responseMessage);
     }
   };
 
   const { ref: canvasWrapRef, width: canvasWidth } = useContainerWidth();
+  const blockTypeCounts = useMemo(() => {
+    return blocks.reduce((acc, block) => {
+      acc[block.type] = (acc[block.type] ?? 0) + 1;
+      return acc;
+    }, {});
+  }, [blocks]);
+
+  const openFinalize = () => {
+    if (!enableFinalize) {
+      return;
+    }
+    if (!activeEntity?.id) {
+      message.warning("Simpan draft surat terlebih dahulu sebelum finalisasi.");
+      return;
+    }
+    setFinalizeOpen(true);
+  };
+
+  const handleFinalize = (values) => {
+    if (!activeEntity?.id) return;
+    setFinalizing(true);
+    router.post(
+      route("secretariat.letters.finalize", activeEntity.id),
+      {
+        ...values,
+        layout,
+        blocks,
+        content_blocks_json: blocks,
+      },
+      {
+        preserveScroll: true,
+        onSuccess: () => {
+          message.success("Surat berhasil difinalisasi.");
+          setFinalizeOpen(false);
+        },
+      onError: (errors) => {
+        const firstError = Object.values(errors ?? {})[0];
+        message.error(firstError || "Finalisasi gagal. Periksa data wajib.");
+      },
+        onFinish: () => setFinalizing(false),
+      }
+    );
+  };
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 16 }}>
@@ -242,6 +375,8 @@ export default function LetterGridBuilder({
         style={{ borderRadius: 12 }}
         bodyStyle={{ display: "flex", flexDirection: "column", gap: 12 }}
       >
+        {sidebarExtras}
+
         {letter && (
           <>
             <div>
@@ -281,6 +416,10 @@ export default function LetterGridBuilder({
           {activeEntity?.id ? "Simpan Layout" : "Buat Draft Surat"}
         </Button>
 
+        {enableFinalize && activeEntity?.id && letter && (
+          <Button onClick={openFinalize}>Finalisasi Surat</Button>
+        )}
+
         {!activeEntity?.id && (
           <Text type="secondary" style={{ marginTop: 8 }}>
             Layout akan tersimpan setelah draft surat dibuat.
@@ -300,11 +439,17 @@ export default function LetterGridBuilder({
             {showPdf && (
               <Button
                 icon={<DownloadOutlined />}
-                href={activeEntity?.id ? route("secretariat.letters.pdf", activeEntity.id) : "#"}
+                href={activeEntity?.id ? route(pdfRouteName, activeEntity.id) : "#"}
                 target="_blank"
                 disabled={!activeEntity?.id}
               >
                 Unduh PDF
+              </Button>
+            )}
+
+            {enableFinalize && activeEntity?.id && letter && (
+              <Button type="primary" onClick={openFinalize}>
+                Finalisasi
               </Button>
             )}
           </Space>
@@ -331,6 +476,7 @@ export default function LetterGridBuilder({
                   date: letter?.date ?? "",
                   subject: letter?.subject ?? "",
                 },
+                style: documentStyle ?? activeEntity?.margin_json ?? null,
               }}
             />
           </div>
@@ -362,7 +508,10 @@ export default function LetterGridBuilder({
                 isDraggable={!previewMode}
                 isResizable={!previewMode}
                 draggableHandle=".drag-handle"
-                onLayoutChange={(nextLayout) => setLayout(nextLayout)}
+                onLayoutChange={(nextLayout) => {
+                  const blockMap = new Map(blocks.map((block) => [block.id, block]));
+                  setLayout(applyLayoutConstraints(nextLayout, blockMap));
+                }}
               >
                 {blocks.map((block) => (
                   <div key={block.id}>
@@ -395,18 +544,33 @@ export default function LetterGridBuilder({
                           size="small"
                           danger
                           onClick={() => handleDeleteBlock(block.id)}
-                          disabled={previewMode}
+                          disabled={
+                            previewMode ||
+                            (REQUIRED_BLOCK_TYPES.has(block.type) && (blockTypeCounts[block.type] ?? 0) <= 1)
+                          }
                         >
                           Hapus
                         </Button>
                       </div>
 
                       <div style={{ padding: 10, flex: 1 }}>
-                        <TextArea
-                          value={block.content}
-                          onChange={(e) => handleContentChange(block.id, e.target.value)}
-                          autoSize={{ minRows: 3 }}
-                        />
+                        {SYSTEM_DRIVEN_TYPES.has(block.type) ? (
+                          <Text type="secondary">
+                            Konten blok ini diambil otomatis dari profil organisasi, data surat, dan data penandatangan.
+                          </Text>
+                        ) : enableRichText ? (
+                          <SimpleRichTextEditor
+                            value={block.content}
+                            onChange={(next) => handleContentChange(block.id, next)}
+                            minHeight={160}
+                          />
+                        ) : (
+                          <TextArea
+                            value={block.content}
+                            onChange={(e) => handleContentChange(block.id, e.target.value)}
+                            autoSize={{ minRows: 3 }}
+                          />
+                        )}
                       </div>
                     </div>
                   </div>
@@ -416,6 +580,74 @@ export default function LetterGridBuilder({
           </div>
         )}
       </Card>
+
+      <Modal
+        title="Finalisasi Surat"
+        open={finalizeOpen}
+        onCancel={() => setFinalizeOpen(false)}
+        onOk={() => finalizeForm.submit()}
+        okText="Finalisasi"
+        cancelText="Batal"
+        confirmLoading={finalizing}
+        destroyOnClose
+      >
+        <Form form={finalizeForm} layout="vertical" onFinish={handleFinalize}>
+          <Form.Item name="numbering_profile_id" label="Profil Penomoran">
+            <Select
+              allowClear
+              options={numberingProfiles.map((profile) => ({
+                value: profile.id,
+                label: profile.name,
+              }))}
+              placeholder="Pilih profil jika nomor otomatis"
+            />
+          </Form.Item>
+          <Form.Item name="number" label="Nomor Surat">
+            <Input placeholder="Isi manual jika tidak pakai profil penomoran" />
+          </Form.Item>
+          <Form.Item name="classification" label="Klasifikasi">
+            <Input />
+          </Form.Item>
+          <Form.Item
+            name="date"
+            label="Tanggal Surat"
+            rules={[{ required: true, message: "Tanggal wajib diisi." }]}
+          >
+            <Input type="date" />
+          </Form.Item>
+          <Form.Item
+            name="subject"
+            label="Perihal"
+            rules={[{ required: true, message: "Perihal wajib diisi." }]}
+          >
+            <Input />
+          </Form.Item>
+          <Form.Item
+            name="recipient_text"
+            label="Kepada"
+            rules={[{ required: true, message: "Penerima wajib diisi." }]}
+          >
+            <Input.TextArea rows={2} />
+          </Form.Item>
+          <Form.Item name="cc_text" label="Tembusan">
+            <Input.TextArea rows={2} />
+          </Form.Item>
+          <Form.Item
+            name="signer_name"
+            label="Nama Penandatangan"
+            rules={[{ required: true, message: "Nama penandatangan wajib diisi." }]}
+          >
+            <Input />
+          </Form.Item>
+          <Form.Item
+            name="signer_title"
+            label="Jabatan Penandatangan"
+            rules={[{ required: true, message: "Jabatan penandatangan wajib diisi." }]}
+          >
+            <Input />
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   );
 }

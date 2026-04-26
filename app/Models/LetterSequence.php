@@ -9,6 +9,7 @@ class LetterSequence extends Model
 {
     protected $fillable = [
         'numbering_profile_id',
+        'letter_template_id',
         'year',
         'month',
         'last_seq',
@@ -17,5 +18,10 @@ class LetterSequence extends Model
     public function numberingProfile(): BelongsTo
     {
         return $this->belongsTo(LetterNumberingProfile::class, 'numbering_profile_id');
+    }
+
+    public function letterTemplate(): BelongsTo
+    {
+        return $this->belongsTo(LetterTemplate::class);
     }
 }

@@ -8,6 +8,7 @@ class AppSetting extends Model
 {
     protected $fillable = [
         'org_name',
+        'org_unit',
         'address',
         'phone',
         'email',
@@ -15,5 +16,6 @@ class AppSetting extends Model
         'timezone',
         'brand_color',
         'logo_path',
+        'header_variant',
     ];
 }

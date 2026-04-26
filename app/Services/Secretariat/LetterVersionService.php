@@ -19,6 +19,7 @@ class LetterVersionService
             'cc_text' => $letter->cc_text,
             'signer_name' => $letter->signer_name,
             'signer_title' => $letter->signer_title,
+            'signers_json' => $letter->signers_json,
             'content_blocks_json' => $letter->content_blocks_json,
             'content_plaintext' => $letter->content_plaintext,
             'pdf_path' => $letter->pdf_path,

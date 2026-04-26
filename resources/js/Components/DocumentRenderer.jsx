@@ -19,6 +19,12 @@ const blockRegistry = {
   tembusan: TembusanBlock,
 };
 
+const fontFamilyMap = {
+  "Times New Roman": '"Times New Roman", Times, serif',
+  Arial: "Arial, Helvetica, sans-serif",
+  Calibri: 'Calibri, Carlito, "Segoe UI", Arial, sans-serif',
+};
+
 export default function DocumentRenderer({
   blocks = [],
   layout = [],
@@ -27,7 +33,30 @@ export default function DocumentRenderer({
   paper = paperDefaults,
   layoutMode = "absolute",
 }) {
+  const rawStyle = data?.style ?? {};
+  const selectedFont = rawStyle?.font_family || "Times New Roman";
+  const documentStyle = {
+    fontFamily: fontFamilyMap[selectedFont] || fontFamilyMap["Times New Roman"],
+    fontSize: Number(rawStyle?.font_size ?? 12),
+    lineHeight: Number(rawStyle?.line_height ?? 1.5),
+    paragraphSpacing: Number(rawStyle?.paragraph_spacing ?? 8),
+  };
+
   const layoutMap = useMemo(() => new Map(layout.map((item) => [item.i, item])), [layout]);
+  const sortedBlocks = useMemo(() => {
+    if (layoutMode !== "flow") {
+      return blocks;
+    }
+    return [...blocks].sort((a, b) => {
+      const posA = layoutMap.get(a.id);
+      const posB = layoutMap.get(b.id);
+      if (!posA && !posB) return 0;
+      if (!posA) return 1;
+      if (!posB) return -1;
+      if (posA.y !== posB.y) return posA.y - posB.y;
+      return posA.x - posB.x;
+    });
+  }, [blocks, layoutMap, layoutMode]);
 
   const innerWidth = paper.width - paper.padding * 2;
   const marginX = gridConfig.margin?.[0] ?? 0;
@@ -43,9 +72,13 @@ export default function DocumentRenderer({
         width: paper.width,
         minHeight: paper.minHeight,
         padding: paper.padding,
+        fontFamily: documentStyle.fontFamily,
+        fontSize: `${documentStyle.fontSize}pt`,
+        lineHeight: documentStyle.lineHeight,
+        ["--letter-paragraph-spacing"]: `${documentStyle.paragraphSpacing}px`,
       }}
     >
-      {blocks.map((block) => {
+      {sortedBlocks.map((block) => {
         const BlockComponent = blockRegistry[block.type];
 
         if (!BlockComponent) {

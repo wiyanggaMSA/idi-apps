@@ -11,10 +11,15 @@ use App\Models\CashTransaction;
 use App\Models\Document;
 use App\Services\Cash\LedgerBalanceService;
 use App\Services\Cash\TransactionQueryService;
+use Illuminate\Http\File;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -41,11 +46,14 @@ class TransactionsController extends Controller
         $openingBalance = $balanceService->openingBalance($request, $queryService);
         $openingByMethod = $balanceService->openingBalanceByMethod($request, $queryService);
         $offsetBalance = $balanceService->offsetBalance($query, $page, $perPage);
-        $runningBalance = $openingBalance + $offsetBalance;
+        $summary = $balanceService->totals($request, $queryService);
+        $closingBalance = $openingBalance + ($summary['net'] ?? 0);
+        $runningBalance = $sortDir === 'desc'
+            ? $closingBalance - $offsetBalance
+            : $openingBalance + $offsetBalance;
 
-        $mapped = $transactions->getCollection()->map(function (CashTransaction $transaction) use (&$runningBalance) {
+        $mapped = $transactions->getCollection()->map(function (CashTransaction $transaction) use (&$runningBalance, $sortDir) {
             $delta = $transaction->type === 'in' ? $transaction->amount : -$transaction->amount;
-            $runningBalance += $delta;
             $description = $transaction->description;
 
             if ($transaction->dues_payment_id && $transaction->member) {
@@ -53,6 +61,12 @@ class TransactionsController extends Controller
                     ? sprintf('%s (%s)', $transaction->member->full_name, $transaction->member->npa)
                     : $transaction->member->full_name;
                 $description = sprintf('Pembayaran iuran anggota %s', $memberLabel);
+            }
+
+            $rowRunningBalance = $sortDir === 'desc' ? $runningBalance : ($runningBalance += $delta);
+
+            if ($sortDir === 'desc') {
+                $runningBalance -= $delta;
             }
 
             return [
@@ -73,17 +87,32 @@ class TransactionsController extends Controller
                 'attachment' => $transaction->attachmentDocument ? [
                     'id' => $transaction->attachmentDocument->id,
                     'title' => $transaction->attachmentDocument->title,
-                    'url' => Storage::url($transaction->attachmentDocument->file_path),
+                    'url' => URL::temporarySignedRoute(
+                        'transactions.attachments.show',
+                        now()->addMinutes(10),
+                        [
+                            'transaction' => $transaction->id,
+                            'document' => $transaction->attachmentDocument->id,
+                        ]
+                    ),
+                    'download_url' => URL::temporarySignedRoute(
+                        'transactions.attachments.show',
+                        now()->addMinutes(10),
+                        [
+                            'transaction' => $transaction->id,
+                            'document' => $transaction->attachmentDocument->id,
+                            'download' => 1,
+                        ]
+                    ),
+                    'mime_type' => $transaction->attachmentDocument->mime_type,
+                    'size' => $transaction->attachmentDocument->size,
                 ] : null,
-                'running_balance' => $runningBalance,
+                'running_balance' => $rowRunningBalance,
                 'is_locked' => (bool) $transaction->dues_payment_id,
             ];
         });
 
         $transactions->setCollection($mapped);
-
-        $summary = $balanceService->totals($request, $queryService);
-        $closingBalance = $openingBalance + ($summary['net'] ?? 0);
 
         $methodTotals = CashTransaction::query();
         $queryService->applyFilters($methodTotals, $request, true);
@@ -156,6 +185,7 @@ class TransactionsController extends Controller
 
         DB::transaction(function () use ($request, $data, $transaction) {
             $documentId = $transaction->attachment_document_id;
+            $previousDocumentId = $transaction->attachment_document_id;
 
             if ($request->boolean('remove_attachment')) {
                 $documentId = null;
@@ -176,6 +206,10 @@ class TransactionsController extends Controller
                 'attachment_document_id' => $documentId,
                 'updated_by' => $request->user()->id,
             ]);
+
+            if ($previousDocumentId && $previousDocumentId !== $documentId) {
+                $this->cleanupDocumentIfOrphan((int) $previousDocumentId);
+            }
         });
 
         return redirect()->back()->with('success', 'Transaksi berhasil diperbarui.');
@@ -195,13 +229,50 @@ class TransactionsController extends Controller
         return redirect()->back()->with('success', 'Transaksi berhasil dibatalkan.');
     }
 
-    private function storeAttachment(?\Illuminate\Http\UploadedFile $file, int $userId): ?int
+    public function attachment(Request $request, CashTransaction $transaction, Document $document): BinaryFileResponse
+    {
+        if ((int) $transaction->attachment_document_id !== (int) $document->id) {
+            abort(403);
+        }
+
+        [$disk, $path] = $this->resolveDocumentStorage($document);
+        if (! $disk || ! $path) {
+            abort(404);
+        }
+
+        $absolutePath = Storage::disk($disk)->path($path);
+        $headers = [
+            'Content-Type' => $document->mime_type ?: (new File($absolutePath))->getMimeType(),
+        ];
+
+        if ($request->boolean('download')) {
+            return response()->download(
+                $absolutePath,
+                $document->title ?: basename($path),
+                $headers
+            );
+        }
+
+        return response()->file($absolutePath, $headers);
+    }
+
+    private function storeAttachment(?UploadedFile $file, int $userId): ?int
     {
         if (! $file) {
             return null;
         }
 
-        $path = $file->store('documents', 'public');
+        $periodFolder = now()->format('Y-m');
+        $baseFolder = "transactions/{$periodFolder}";
+        $extension = strtolower($file->getClientOriginalExtension() ?: $file->extension() ?: 'bin');
+        $filename = sprintf(
+            '%s-%s.%s',
+            now()->format('Ymd-His'),
+            Str::lower(Str::random(8)),
+            $extension
+        );
+
+        $path = $file->storeAs($baseFolder, $filename, 'local');
 
         $document = Document::query()->create([
             'title' => $file->getClientOriginalName(),
@@ -213,5 +284,49 @@ class TransactionsController extends Controller
         ]);
 
         return $document->id;
+    }
+
+    private function cleanupDocumentIfOrphan(int $documentId): void
+    {
+        $isStillUsed = CashTransaction::query()
+            ->where('attachment_document_id', $documentId)
+            ->exists();
+
+        if ($isStillUsed) {
+            return;
+        }
+
+        $document = Document::query()->find($documentId);
+        if (! $document) {
+            return;
+        }
+
+        [$disk, $path] = $this->resolveDocumentStorage($document);
+        if ($disk && $path && Storage::disk($disk)->exists($path)) {
+            Storage::disk($disk)->delete($path);
+        }
+
+        $document->delete();
+    }
+
+    /**
+     * @return array{0:?string,1:?string}
+     */
+    private function resolveDocumentStorage(Document $document): array
+    {
+        $path = $document->file_path;
+        if (! $path) {
+            return [null, null];
+        }
+
+        if (Storage::disk('local')->exists($path)) {
+            return ['local', $path];
+        }
+
+        if (Storage::disk('public')->exists($path)) {
+            return ['public', $path];
+        }
+
+        return [null, null];
     }
 }

@@ -8,7 +8,9 @@ use App\Models\CashTransaction;
 use App\Models\DuesPayment;
 use App\Models\DuesPaymentAllocation;
 use App\Models\DuesSetting;
+use App\Models\DuesPeriod;
 use App\Models\Member;
+use App\Models\MemberStatus;
 use Carbon\Carbon;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
@@ -18,10 +20,27 @@ use Illuminate\Support\Str;
 
 class DuesLedgerService
 {
-    public const GO_LIVE_PERIOD = '2026-01';
-
     public function activePeriod(): string
     {
+        return max(now()->format('Y-m'), $this->duesStartPeriod());
+    }
+
+    public function duesStartPeriod(): string
+    {
+        $configured = (string) (DuesSetting::query()->value('dues_start_period') ?? '');
+        if (preg_match('/^\d{4}-\d{2}$/', $configured) === 1) {
+            return $configured;
+        }
+
+        $detectedStart = collect([
+            DuesPeriod::query()->min('period'),
+            DuesPaymentAllocation::query()->min('period_ym'),
+        ])->filter()->min();
+
+        if (is_string($detectedStart) && preg_match('/^\d{4}-\d{2}$/', $detectedStart) === 1) {
+            return $detectedStart;
+        }
+
         return now()->format('Y-m');
     }
 
@@ -33,17 +52,23 @@ class DuesLedgerService
     public function buildIndexPayload(array $filters, int $page, int $perPage): array
     {
         $activePeriod = $this->activePeriod();
-        $cacheKey = $this->cacheKey($activePeriod, $filters, $page, $perPage, $this->cacheVersion());
+        $duesStartPeriod = $this->duesStartPeriod();
+        $cacheKey = $this->cacheKey($activePeriod, $duesStartPeriod, $filters, $page, $perPage, $this->cacheVersion());
 
-        return Cache::remember($cacheKey, 300, function () use ($filters, $page, $perPage, $activePeriod) {
+        return Cache::remember($cacheKey, 300, function () use ($filters, $page, $perPage, $activePeriod, $duesStartPeriod) {
             $monthlyAmount = $this->monthlyAmount();
+            $billableStatusCodes = MemberStatus::query()
+                ->active()
+                ->billable()
+                ->pluck('code');
             $members = Member::query()
-                ->where('status', 'aktif')
+                ->with('memberStatus')
+                ->whereIn('status', $billableStatusCodes->isNotEmpty() ? $billableStatusCodes : collect(['aktif']))
                 ->orderBy('full_name')
                 ->get(['id', 'npa', 'full_name', 'status']);
 
             $latestPayments = $this->latestPaymentsByMember();
-            $metrics = $this->buildMemberMetrics($members, $latestPayments, $activePeriod, $monthlyAmount);
+            $metrics = $this->buildMemberMetrics($members, $latestPayments, $duesStartPeriod, $activePeriod, $monthlyAmount);
             $metricsByMember = $metrics->keyBy('member_id');
             $filtered = $this->applyFilters($metrics, $filters)
                 ->sortBy(fn (array $row) => Str::lower($row['full_name'] ?? ''))
@@ -54,6 +79,7 @@ class DuesLedgerService
             return [
                 'active_period' => $activePeriod,
                 'active_period_label' => Carbon::createFromFormat('Y-m', $activePeriod)->translatedFormat('F Y'),
+                'dues_start_period' => $duesStartPeriod,
                 'monthly_amount' => $monthlyAmount,
                 'summary' => $this->buildSummary($metrics, $activePeriod, $monthlyAmount),
                 'members' => $members->map(function (Member $member) use ($metricsByMember) {
@@ -75,30 +101,36 @@ class DuesLedgerService
      * @param Collection<int, Member> $members
      * @return Collection<int, array<string, mixed>>
      */
-    private function buildMemberMetrics(Collection $members, Collection $latestPayments, string $activePeriod, int $monthlyAmount): Collection
+    private function buildMemberMetrics(
+        Collection $members,
+        Collection $latestPayments,
+        string $duesStartPeriod,
+        string $activePeriod,
+        int $monthlyAmount
+    ): Collection
     {
         $allocationRows = DuesPaymentAllocation::query()
             ->select('dues_payment_allocations.member_id', 'dues_payment_allocations.period_ym')
             ->join('dues_payments', 'dues_payments.id', '=', 'dues_payment_allocations.dues_payment_id')
             ->whereNull('dues_payments.voided_at')
-            ->where('dues_payment_allocations.period_ym', '>=', self::GO_LIVE_PERIOD)
+            ->where('dues_payment_allocations.period_ym', '>=', $duesStartPeriod)
             ->orderBy('dues_payment_allocations.member_id')
             ->orderBy('dues_payment_allocations.period_ym')
             ->get()
             ->groupBy('member_id');
 
-        return $members->map(function (Member $member) use ($allocationRows, $latestPayments, $activePeriod, $monthlyAmount) {
+        return $members->map(function (Member $member) use ($allocationRows, $latestPayments, $duesStartPeriod, $activePeriod, $monthlyAmount) {
             $periods = $allocationRows->get($member->id, collect())
                 ->pluck('period_ym')
                 ->unique()
                 ->values();
 
             $lastPaidPeriod = $periods->max();
-            $paidThrough = $this->computePaidThrough($periods);
-            $dueNow = $this->computeDueNow($periods, $activePeriod);
-            $arrears = $this->computeArrearsMonths($periods, $activePeriod);
+            $paidThrough = $this->computePaidThrough($periods, $duesStartPeriod);
+            $dueNow = $this->computeDueNow($periods, $duesStartPeriod, $activePeriod);
+            $arrears = $this->computeArrearsMonths($periods, $duesStartPeriod, $activePeriod);
             $advance = $this->computeAdvanceMonths($periods, $activePeriod);
-            $status = $this->resolveStatus($arrears, $advance);
+            $status = $this->resolveStatus($arrears, $advance, $dueNow, $activePeriod);
             $latestPayment = $latestPayments->get($member->id);
 
             return [
@@ -106,6 +138,8 @@ class DuesLedgerService
                 'npa' => $member->npa,
                 'full_name' => $member->full_name,
                 'member_status' => $member->status,
+                'member_status_name' => $member->memberStatus?->name ?? $member->status,
+                'member_status_is_active' => $member->memberStatus?->is_active_member ?? ($member->status === 'aktif'),
                 'last_payment_method' => $latestPayment['method_name'] ?? $latestPayment['method'] ?? null,
                 'last_payment_method_raw' => $latestPayment['method'] ?? null,
                 'last_paid_period' => $lastPaidPeriod,
@@ -121,14 +155,14 @@ class DuesLedgerService
         });
     }
 
-    private function computePaidThrough(Collection $periods): ?string
+    private function computePaidThrough(Collection $periods, string $duesStartPeriod): ?string
     {
         if ($periods->isEmpty()) {
             return null;
         }
 
         $periodSet = array_fill_keys($periods->all(), true);
-        $cursor = Carbon::createFromFormat('Y-m', self::GO_LIVE_PERIOD)->startOfMonth();
+        $cursor = Carbon::createFromFormat('Y-m', $duesStartPeriod)->startOfMonth();
         $last = null;
 
         for ($i = 0; $i < 240; $i++) {
@@ -143,10 +177,10 @@ class DuesLedgerService
         return $last;
     }
 
-    private function computeDueNow(Collection $periods, string $activePeriod): ?string
+    private function computeDueNow(Collection $periods, string $duesStartPeriod, string $activePeriod): ?string
     {
         $periodSet = array_fill_keys($periods->all(), true);
-        $cursor = Carbon::createFromFormat('Y-m', self::GO_LIVE_PERIOD)->startOfMonth();
+        $cursor = Carbon::createFromFormat('Y-m', $duesStartPeriod)->startOfMonth();
         $end = Carbon::createFromFormat('Y-m', $activePeriod)->startOfMonth();
 
         while ($cursor <= $end) {
@@ -163,15 +197,19 @@ class DuesLedgerService
                 ->format('Y-m');
         }
 
-        return self::GO_LIVE_PERIOD;
+        return $duesStartPeriod;
     }
 
-    private function computeArrearsMonths(Collection $periods, string $activePeriod): int
+    private function computeArrearsMonths(Collection $periods, string $duesStartPeriod, string $activePeriod): int
     {
         $periodSet = array_fill_keys($periods->all(), true);
-        $cursor = Carbon::createFromFormat('Y-m', self::GO_LIVE_PERIOD)->startOfMonth();
-        $end = Carbon::createFromFormat('Y-m', $activePeriod)->startOfMonth();
+        $cursor = Carbon::createFromFormat('Y-m', $duesStartPeriod)->startOfMonth();
+        $end = Carbon::createFromFormat('Y-m', $activePeriod)->startOfMonth()->subMonth();
         $count = 0;
+
+        if ($end->lt($cursor)) {
+            return 0;
+        }
 
         while ($cursor <= $end) {
             $key = $cursor->format('Y-m');
@@ -189,10 +227,14 @@ class DuesLedgerService
         return $periods->filter(fn (string $period) => $period > $activePeriod)->count();
     }
 
-    private function resolveStatus(int $arrears, int $advance): string
+    private function resolveStatus(int $arrears, int $advance, ?string $dueNow, string $activePeriod): string
     {
         if ($arrears > 0) {
             return 'MENUNGGAK';
+        }
+
+        if ($dueNow === $activePeriod) {
+            return 'BELUM_BAYAR';
         }
 
         if ($advance > 0) {
@@ -270,7 +312,7 @@ class DuesLedgerService
     {
         $totalMembers = $metrics->count();
         $paidCount = $metrics->filter(function (array $row) {
-            return ($row['arrears_months'] ?? 0) === 0;
+            return in_array(($row['status'] ?? ''), ['LUNAS', 'ADVANCE'], true);
         })->count();
         $arrearsTotal = $metrics->sum(fn (array $row) => $row['arrears_months'] * $monthlyAmount);
 
@@ -282,9 +324,10 @@ class DuesLedgerService
         ];
     }
 
-    private function cacheKey(string $activePeriod, array $filters, int $page, int $perPage, string $version): string
+    private function cacheKey(string $activePeriod, string $duesStartPeriod, array $filters, int $page, int $perPage, string $version): string
     {
         $payload = array_merge($filters, [
+            'duesStartPeriod' => $duesStartPeriod,
             'page' => $page,
             'perPage' => $perPage,
             'version' => $version,
@@ -338,6 +381,7 @@ class DuesLedgerService
     {
         $memberId = (int) $payload['member_id'];
         $startPeriod = $payload['start_period'];
+        $duesStartPeriod = $this->duesStartPeriod();
         $duration = (int) $payload['duration'];
         $monthlyAmount = $this->monthlyAmount();
         $endPeriod = Carbon::createFromFormat('Y-m', $startPeriod)->addMonths($duration - 1)->format('Y-m');
@@ -352,7 +396,7 @@ class DuesLedgerService
             ->unique()
             ->values();
 
-        $dueNow = $this->computeDueNow($existingPeriods, $activePeriod);
+        $dueNow = $this->computeDueNow($existingPeriods, $duesStartPeriod, $activePeriod);
         if ($dueNow && $startPeriod !== $dueNow) {
             throw new \RuntimeException(sprintf(
                 'Periode mulai harus mengikuti bulan iuran saat ini (%s).',

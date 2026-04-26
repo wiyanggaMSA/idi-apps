@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class LetterTemplate extends Model
 {
     use SoftDeletes;
+
     protected $fillable = [
         'name',
         'code',
@@ -16,12 +17,23 @@ class LetterTemplate extends Model
         'content_text',
         'variables_schema',
         'classification',
+        'number_format',
+        'number_reset_policy',
+        'last_number',
         'numbering_profile_id',
         'paper',
+        'header_image_path',
+        'header_height_px',
+        'document_mode',
         'margin_json',
         'blocks_json',
         'layout_json',
         'placeholders_schema_json',
+        'signer_name',
+        'signer_title',
+        'signers_json',
+        'signature_enabled',
+        'qr_enabled',
         'is_active',
         'created_by',
     ];
@@ -31,6 +43,10 @@ class LetterTemplate extends Model
         'blocks_json' => 'array',
         'layout_json' => 'array',
         'placeholders_schema_json' => 'array',
+        'signers_json' => 'array',
+        'signature_enabled' => 'boolean',
+        'qr_enabled' => 'boolean',
+        'header_height_px' => 'integer',
         'is_active' => 'boolean',
     ];
 

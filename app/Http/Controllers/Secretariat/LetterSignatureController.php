@@ -12,6 +12,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\File;
 
 class LetterSignatureController extends Controller
 {
@@ -40,13 +41,17 @@ class LetterSignatureController extends Controller
         $orgProfile = AppSetting::query()->first();
         $logoUrl = $orgProfile?->logo_path ? Storage::url($orgProfile->logo_path) : null;
         $logoPath = $orgProfile?->logo_path ? Storage::disk('public')->path($orgProfile->logo_path) : null;
+        if (!$logoPath || !file_exists($logoPath)) {
+            $fallbackLogo = public_path('images/idi-logo.png');
+            $logoPath = File::exists($fallbackLogo) ? $fallbackLogo : null;
+        }
         $verificationUrl = route('letters.signature.verify', [
             'signature' => $signature->id,
             'k' => $signature->verification_code,
         ]);
         $qrDataUri = $qrCodeService->generateQrWithCenterLogo(
             $verificationUrl,
-            $logoPath && file_exists($logoPath) ? $logoPath : null
+            $logoPath
         );
 
         return response()->json([

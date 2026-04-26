@@ -7,6 +7,7 @@ use App\Models\Division;
 use App\Models\Member;
 use App\Models\MemberImportBatch;
 use App\Models\MemberImportRow;
+use App\Models\MemberStatus;
 use App\Models\Position;
 use Carbon\Carbon;
 use Illuminate\Http\UploadedFile;
@@ -17,6 +18,8 @@ use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 
 class MemberImportService
 {
+    private ?array $memberStatusMap = null;
+
     public function import(UploadedFile $file, int $userId): array
     {
         $batchId = (string) Str::uuid();
@@ -198,15 +201,62 @@ class MemberImportService
     {
         $raw = strtolower(trim((string) $value));
         if ($raw === '') {
-            return 'aktif';
+            return $this->defaultStatusCode();
         }
 
-        return match ($raw) {
+        $legacyMapped = match ($raw) {
             'active', 'aktif' => 'aktif',
             'inactive', 'nonaktif', 'mutasi', 'leave', 'cuti', 'alumni' => 'mutasi',
             'meninggal' => 'meninggal',
-            default => 'aktif',
+            default => null,
         };
+
+        if ($legacyMapped && $this->memberStatusExists($legacyMapped)) {
+            return $legacyMapped;
+        }
+
+        $statusMap = $this->memberStatusMap();
+        if (isset($statusMap[$raw])) {
+            return $statusMap[$raw];
+        }
+
+        return $this->defaultStatusCode();
+    }
+
+    private function defaultStatusCode(): string
+    {
+        $status = MemberStatus::query()
+            ->active()
+            ->activeMember()
+            ->orderBy('sort_order')
+            ->value('code');
+
+        return $status ?: 'aktif';
+    }
+
+    private function memberStatusExists(string $code): bool
+    {
+        return MemberStatus::query()
+            ->where('code', $code)
+            ->exists();
+    }
+
+    private function memberStatusMap(): array
+    {
+        if ($this->memberStatusMap !== null) {
+            return $this->memberStatusMap;
+        }
+
+        $this->memberStatusMap = MemberStatus::query()
+            ->active()
+            ->get(['code', 'name'])
+            ->flatMap(fn (MemberStatus $status) => [
+                strtolower($status->code) => $status->code,
+                strtolower($status->name) => $status->code,
+            ])
+            ->all();
+
+        return $this->memberStatusMap;
     }
 
     private function normalizeDate($value): ?string

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\CashCategory;
 use App\Models\Division;
 use App\Models\DuesSetting;
+use App\Models\MemberStatus;
 use App\Models\PaymentStatus;
 use App\Models\Position;
 use App\Models\CashMethod;
@@ -45,6 +46,11 @@ class SettingsController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'is_active']);
 
+        $memberStatuses = MemberStatus::query()
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get(['id', 'code', 'name', 'sort_order', 'is_active_member', 'is_billable', 'is_deceased', 'is_active']);
+
         $paymentStatuses = PaymentStatus::query()
             ->orderBy('name')
             ->get(['id', 'code', 'name', 'color', 'is_active']);
@@ -80,12 +86,14 @@ class SettingsController extends Controller
         return Inertia::render('Settings/Index', [
             'profile' => [
                 'org_name' => $orgProfile?->org_name ?? 'IDI Cabang Purwakarta',
+                'org_unit' => $orgProfile?->org_unit ?? 'Sekretariat IDI Purwakarta',
                 'address' => $orgProfile?->address ?? 'Sekretariat IDI Purwakarta',
                 'phone' => $orgProfile?->phone ?? '',
                 'email' => $orgProfile?->email ?? '',
                 'currency' => $orgProfile?->currency ?? 'IDR',
                 'timezone' => $orgProfile?->timezone ?? 'Asia/Jakarta',
                 'brand_color' => $orgProfile?->brand_color ?? '#1677ff',
+                'header_variant' => $orgProfile?->header_variant ?? 'logo_left',
                 'logo_url' => $orgProfile?->logo_path ? Storage::url($orgProfile->logo_path) : null,
             ],
             'counts' => [
@@ -93,6 +101,7 @@ class SettingsController extends Controller
                 'positions' => $positions->count(),
                 'cash_categories' => $cashCategories->count(),
                 'cash_methods' => $cashMethods->count(),
+                'member_statuses' => $memberStatuses->count(),
                 'payment_statuses' => $paymentStatuses->count(),
             ],
             'masterData' => [
@@ -100,10 +109,12 @@ class SettingsController extends Controller
                 'positions' => $positions,
                 'cash_categories' => $cashCategories,
                 'cash_methods' => $cashMethods,
+                'member_statuses' => $memberStatuses,
                 'payment_statuses' => $paymentStatuses,
             ],
             'duesSettings' => [
                 'dues_amount' => $duesSettings?->dues_amount ?? 100000,
+                'dues_start_period' => $duesSettings?->dues_start_period ?? now()->format('Y-m'),
                 'due_day' => $duesSettings?->due_day ?? 10,
                 'grace_days' => $duesSettings?->grace_days ?? 7,
                 'auto_mark_arrears' => $duesSettings?->auto_mark_arrears ?? true,

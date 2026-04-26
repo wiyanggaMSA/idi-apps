@@ -1,398 +1,413 @@
-import React, { useMemo, useState, useEffect } from "react";
-import { router, usePage } from "@inertiajs/react";
-import { Button, Card, Drawer, Form, Input, Popconfirm, Select, Space, Switch, Table, Typography } from "antd";
+import React, { useState } from "react";
+import { Link, router, useForm, usePage } from "@inertiajs/react";
+import { Button, Card, Drawer, Form, Image, Input, InputNumber, Select, Space, Switch, Table, Tag, Typography, Upload } from "antd";
+import { DeleteOutlined, InboxOutlined, PlusOutlined } from "@ant-design/icons";
 import AppLayout from "@/Layouts/AppLayout";
-import PageShell from "@/Components/App/PageShell";
 import PageHeader from "@/Components/App/PageHeader";
+import PageShell from "@/Components/App/PageShell";
+import SimpleRichTextEditor from "@/Components/SimpleRichTextEditor";
+
+const defaultContent = `<p>Dengan hormat,</p><p>{isi_surat}</p>`;
+const defaultSigner = { member_id: undefined, name: "", title: "", position: "right", qr_enabled: true };
+const signerPositionOptions = [
+  { label: "Kiri", value: "left" },
+  { label: "Tengah", value: "center" },
+  { label: "Kanan", value: "right" },
+];
+
+const normalizeSigners = (record = {}) => {
+  const source = Array.isArray(record.signers_json) && record.signers_json.length
+    ? record.signers_json
+    : [{ name: record.signer_name || "", title: record.signer_title || "", position: "right", qr_enabled: record.qr_enabled !== false }];
+
+  return source.slice(0, 3).map((signer, index) => ({
+    name: signer.name || "",
+    member_id: signer.member_id || undefined,
+    title: signer.title || signer.role || "",
+    position: ["left", "center", "right"].includes(signer.position) ? signer.position : (index === 0 ? "right" : "left"),
+    qr_enabled: signer.qr_enabled !== false,
+  }));
+};
 
 export default function TemplatesIndex() {
-    const { props, url } = usePage();
-    const { templates = [], numberingProfiles = [] } = props;
-    const [open, setOpen] = useState(false);
-    const [openNumbering, setOpenNumbering] = useState(false);
-    const [editingTemplate, setEditingTemplate] = useState(null);
-    const [editingNumbering, setEditingNumbering] = useState(null);
-    const [form] = Form.useForm();
-    const [numberingForm] = Form.useForm();
-    const createAction = useMemo(() => {
-        const queryString = url?.split("?")[1] || "";
-        return new URLSearchParams(queryString).get("create");
-    }, [url]);
+  const { templates = [], placeholders = [], signerMembers = [] } = usePage().props;
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const form = useForm({
+    name: "",
+    code: "",
+    classification: "",
+    number_format: "{number}/IDI-PWK/{roman_month}/{year}",
+    number_reset_policy: "yearly",
+    last_number: 0,
+    header_image: null,
+    header_image_path: "",
+    header_image_url: "",
+    header_height_px: 132,
+    document_mode: "flow",
+    content_text: defaultContent,
+    signer_name: "",
+    signer_title: "",
+    signers: [{ ...defaultSigner }],
+    signature_enabled: true,
+    qr_enabled: true,
+    is_active: true,
+  });
 
-    useEffect(() => {
-        if (createAction === "template") {
-            setOpen(true);
-        }
-    }, [createAction]);
+  const openCreate = () => {
+    setEditing(null);
+    form.setData({
+      name: "",
+      code: "",
+      classification: "",
+      number_format: "{number}/IDI-PWK/{roman_month}/{year}",
+      number_reset_policy: "yearly",
+      last_number: 0,
+      header_image: null,
+      header_image_path: "",
+      header_image_url: "",
+      header_height_px: 132,
+      document_mode: "flow",
+      content_text: defaultContent,
+      signer_name: "",
+      signer_title: "",
+      signers: [{ ...defaultSigner }],
+      signature_enabled: true,
+      qr_enabled: true,
+      is_active: true,
+    });
+    setOpen(true);
+  };
 
-    const onSubmit = (values) => {
-        if (editingTemplate) {
-            router.patch(route("secretariat.templates.update", editingTemplate.id), values);
-        } else {
-            router.post(route("secretariat.templates.store"), values);
-        }
-        setOpen(false);
-        setEditingTemplate(null);
-        form.resetFields();
+  const openEdit = (record) => {
+    setEditing(record);
+    form.setData({
+      name: record.name || "",
+      code: record.code || "",
+      classification: record.classification || "",
+      number_format: record.number_format || "{number}/IDI-PWK/{roman_month}/{year}",
+      number_reset_policy: record.number_reset_policy || "yearly",
+      last_number: record.last_number || 0,
+      header_image: null,
+      header_image_path: record.header_image_path || "",
+      header_image_url: record.header_image_url || "",
+      header_height_px: record.header_height_px || 132,
+      document_mode: record.document_mode || "flow",
+      content_text: record.content_text || defaultContent,
+      signer_name: record.signer_name || "",
+      signer_title: record.signer_title || "",
+      signers: normalizeSigners(record),
+      signature_enabled: record.signature_enabled !== false,
+      qr_enabled: record.qr_enabled !== false,
+      is_active: record.is_active !== false,
+    });
+    setOpen(true);
+  };
+
+  const submit = () => {
+    const signers = normalizeSigners({
+      signers_json: form.data.signers,
+      signer_name: form.data.signer_name,
+      signer_title: form.data.signer_title,
+      qr_enabled: form.data.qr_enabled,
+    });
+    const primarySigner = signers[0] || defaultSigner;
+    const payload = {
+      ...form.data,
+      signer_name: primarySigner.name,
+      signer_title: primarySigner.title,
+      signers,
+      header_image: form.data.header_image,
     };
 
-    const onSubmitNumbering = (values) => {
-        if (editingNumbering) {
-            router.patch(route("secretariat.numbering.update", editingNumbering.id), values);
-        } else {
-            router.post(route("secretariat.numbering.store"), values);
-        }
-        setOpenNumbering(false);
-        setEditingNumbering(null);
-        numberingForm.resetFields();
-    };
+    if (editing) {
+      router.post(route("secretariat.templates.update", editing.id), { ...payload, _method: "patch" }, {
+        forceFormData: Boolean(form.data.header_image),
+        preserveScroll: true,
+        onSuccess: () => setOpen(false),
+      });
+      return;
+    }
+    router.post(route("secretariat.templates.store"), payload, {
+      forceFormData: Boolean(form.data.header_image),
+      preserveScroll: true,
+      onSuccess: () => setOpen(false),
+    });
+  };
 
-    //EXAMPLE TEMPLATE DATA
-    const templateExample = {
-        name: "Surat Pengantar Melanjutkan Pendidikan/PPDS",
-        classification: "Rekomendasi",
-        code: "SURAT_PENGANTAR_PPDS",
-        content_text: `
-<div style="text-align:center;">
-  <strong>IKATAN DOKTER INDONESIA</strong><br/>
-  <span>(THE INDONESIAN MEDICAL ASSOCIATION)</span><br/>
-  <strong>PENGURUS CABANG {{org.city}}</strong><br/>
-  <span>Sekretariat: {{org.address}}</span><br/>
-  <span>Telp: {{org.phone}} | Email: {{org.email}}</span>
-</div>
-<hr/>
-<table style="width:100%; margin-top:8px;">
-  <tr><td style="width:20%;">Nomor</td><td>: {{letter.number}}</td></tr>
-  <tr><td>Lampiran</td><td>: {{letter.attachment}}</td></tr>
-  <tr><td>Perihal</td><td>: {{letter.subject}}</td></tr>
-</table>
-<br/>
-<p>Kepada Yth.<br/>Ketua PPDS I ({{ppds.program}})<br/>{{ppds.university}}</p>
-<p>Bersama ini kami sampaikan Surat Rekomendasi Melanjutkan Pendidikan Spesialisasi atas nama:</p>
-<table style="width:100%;">
-  <tr><td style="width:25%;">Nama</td><td>: {{doctor.name}}</td></tr>
-  <tr><td>Status</td><td>: {{doctor.status}}</td></tr>
-  <tr><td>Alamat rumah</td><td>: {{doctor.address}}</td></tr>
-  <tr><td>Alamat bekerja</td><td>: {{doctor.work_address}}</td></tr>
-  <tr><td>Anggota IDI Cabang</td><td>: {{doctor.branch}}</td></tr>
-  <tr><td>NPA IDI</td><td>: {{doctor.npa}}</td></tr>
-</table>
-<p>Yang bersangkutan akan melanjutkan Program Pendidikan Spesialis {{ppds.program}} di {{ppds.faculty}}, dengan alamat perkuliahan:</p>
-<table style="width:100%;">
-  <tr><td style="width:25%;">Instansi Pendidikan</td><td>: {{ppds.university}}</td></tr>
-  <tr><td>Alamat perkuliahan</td><td>: {{ppds.campus_address}}</td></tr>
-</table>
-<p>Demikian surat ini kami sampaikan. Atas perhatiannya kami ucapkan terima kasih.</p>
-<br/>
-<table style="width:100%;">
-  <tr>
-    <td style="width:50%;">{{letter.city}}, {{letter.date}}<br/>Ketua IDI Cabang,<br/><br/><br/>{{signer.chairman}}</td>
-    <td style="width:50%;">Sekretaris,<br/><br/><br/>{{signer.secretary}}</td>
-  </tr>
-</table>
-<p><strong>Tembusan:</strong><br/>{{letter.cc_list}}</p>
-        `.trim(),
-        placeholders_schema_json: [
-            "org.city",
-            "org.address",
-            "org.phone",
-            "org.email",
-            "letter.number",
-            "letter.attachment",
-            "letter.subject",
-            "letter.city",
-            "letter.date",
-            "letter.cc_list",
-            "ppds.program",
-            "ppds.university",
-            "ppds.faculty",
-            "ppds.campus_address",
-            "doctor.name",
-            "doctor.status",
-            "doctor.address",
-            "doctor.work_address",
-            "doctor.branch",
-            "doctor.npa",
-            "signer.chairman",
-            "signer.secretary",
-        ],
-        paper: "A4",
-        is_active: true,
-    };
+  return (
+    <AppLayout title="Sekretariat - Template Surat">
+      <PageShell>
+        <PageHeader
+          eyebrow="Template"
+          title="Template Surat"
+          description="Atur isi template, placeholder, format nomor otomatis, penandatangan, QR, dan status aktif."
+          extra={
+            <Space>
+              <Link href={route("secretariat.letters.index")}><Button>Daftar Surat</Button></Link>
+              <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>Tambah Template</Button>
+            </Space>
+          }
+        />
 
-    const applyTemplateExample = () => {
-        form.setFieldsValue(templateExample);
-        setEditingTemplate(null);
-        setOpen(true);
-    };
+        <Card className="border-white/80 shadow-sm">
+          <Table
+            rowKey="id"
+            dataSource={templates}
+            pagination={false}
+            columns={[
+              {
+                title: "Template",
+                dataIndex: "name",
+                render: (value, record) => (
+                  <div>
+                    <div className="font-medium text-zinc-950">{value}</div>
+                    <div className="text-xs text-zinc-500">{record.code || "-"}</div>
+                  </div>
+                ),
+              },
+              { title: "Jenis", dataIndex: "classification", render: (value) => value || "-" },
+              { title: "Format Nomor", dataIndex: "number_format" },
+              {
+                title: "Kop",
+                dataIndex: "header_image_url",
+                render: (value) => value ? <Tag color="blue">Gambar resmi</Tag> : <Tag>Otomatis</Tag>,
+              },
+              { title: "Counter", dataIndex: "last_number", align: "center" },
+              {
+                title: "Status",
+                dataIndex: "is_active",
+                render: (value) => <Tag color={value ? "green" : "default"}>{value ? "Aktif" : "Nonaktif"}</Tag>,
+              },
+              {
+                title: "Aksi",
+                render: (_, record) => (
+                  <Space>
+                    <Button size="small" onClick={() => openEdit(record)}>Edit</Button>
+                    <Link href={route("secretariat.templates.builder", record.id)}>Layout</Link>
+                    <Button size="small" danger onClick={() => router.delete(route("secretariat.templates.destroy", record.id))}>Hapus</Button>
+                  </Space>
+                ),
+              },
+            ]}
+          />
+        </Card>
 
-    const columns = [
-        { title: "Nama", dataIndex: "name", key: "name" },
-        { title: "Klasifikasi", dataIndex: "classification", key: "classification" },
-        {
-            title: "Aktif",
-            dataIndex: "is_active",
-            key: "is_active",
-            render: (value) => (value ? "Ya" : "Tidak"),
-        },
-        {
-            title: "Aksi",
-            key: "actions",
-            render: (_, record) => (
-                <Space>
-                    <Button
-                        size="small"
-                        onClick={() => {
-                            setEditingTemplate(record);
-                            form.setFieldsValue({
-                                name: record.name,
-                                code: record.code,
-                                classification: record.classification,
-                                numbering_profile_id: record.numbering_profile_id,
-                                content_text: record.content_text,
-                                placeholders_schema_json: record.placeholders_schema_json,
-                                paper: record.paper,
-                                is_active: record.is_active,
-                            });
-                            setOpen(true);
-                        }}
-                    >
-                        Edit
-                    </Button>
-                    <Popconfirm
-                        title="Hapus template ini?"
-                        okText="Hapus"
-                        cancelText="Batal"
-                        onConfirm={() => router.delete(route("secretariat.templates.destroy", record.id))}
-                    >
-                        <Button size="small" danger>
-                            Hapus
-                        </Button>
-                    </Popconfirm>
-                </Space>
-            ),
-        },
-    ];
+        <style>{`
+          .secretariat-template-drawer .ant-drawer-content-wrapper {
+            width: min(1180px, 94vw) !important;
+          }
+          .secretariat-template-drawer .ant-drawer-body {
+            padding: 20px 24px 28px;
+          }
+          .secretariat-template-drawer .ql-container {
+            min-height: 220px;
+          }
+        `}</style>
 
-    const numberingColumns = [
-        { title: "Nama", dataIndex: "name", key: "name" },
-        { title: "Pattern", dataIndex: "pattern", key: "pattern" },
-        { title: "Reset", dataIndex: "reset_policy", key: "reset_policy" },
-        {
-            title: "Aktif",
-            dataIndex: "is_active",
-            key: "is_active",
-            render: (value) => (value ? "Ya" : "Tidak"),
-        },
-        {
-            title: "Aksi",
-            key: "actions",
-            render: (_, record) => (
-                <Space>
-                    <Button
-                        size="small"
-                        onClick={() => {
-                            setEditingNumbering(record);
-                            numberingForm.setFieldsValue({
-                                name: record.name,
-                                pattern: record.pattern,
-                                reset_policy: record.reset_policy,
-                                prefix: record.prefix,
-                                suffix: record.suffix,
-                                is_active: record.is_active,
-                            });
-                            setOpenNumbering(true);
-                        }}
-                    >
-                        Edit
-                    </Button>
-                    <Popconfirm
-                        title="Hapus profil penomoran ini?"
-                        okText="Hapus"
-                        cancelText="Batal"
-                        onConfirm={() => router.delete(route("secretariat.numbering.destroy", record.id))}
-                    >
-                        <Button size="small" danger>
-                            Hapus
-                        </Button>
-                    </Popconfirm>
-                </Space>
-            ),
-        },
-    ];
+        <Drawer
+          title={editing ? "Edit Template" : "Tambah Template"}
+          open={open}
+          onClose={() => setOpen(false)}
+          rootClassName="secretariat-template-drawer"
+          size="large"
+          destroyOnClose
+        >
+          <Form layout="vertical" onFinish={submit}>
+            <div className="grid grid-cols-2 gap-3">
+              <Form.Item label="Nama template" required>
+                <Input value={form.data.name} onChange={(event) => form.setData("name", event.target.value)} />
+              </Form.Item>
+              <Form.Item label="Kode">
+                <Input value={form.data.code} onChange={(event) => form.setData("code", event.target.value)} />
+              </Form.Item>
+              <Form.Item label="Jenis surat">
+                <Input value={form.data.classification} onChange={(event) => form.setData("classification", event.target.value)} placeholder="SEK, UND, REK..." />
+              </Form.Item>
+              <Form.Item label="Counter terakhir">
+                <InputNumber className="w-full" min={0} value={form.data.last_number} onChange={(value) => form.setData("last_number", value || 0)} />
+              </Form.Item>
+            </div>
 
-    return (
-        <AppLayout title="Sekretariat - Template Surat">
-            <PageShell>
-                <PageHeader
-                    title="Template Surat"
-                    extra={
-                        <Space>
-                            <Button
-                                onClick={() => {
-                                    setEditingNumbering(null);
-                                    numberingForm.resetFields();
-                                    setOpenNumbering(true);
-                                }}
-                            >
-                                Tambah Penomoran
-                            </Button>
-                            <Button
-                                type="primary"
-                                onClick={() => {
-                                    setEditingTemplate(null);
-                                    form.resetFields();
-                                    setOpen(true);
-                                }}
-                            >
-                                Tambah Template
-                            </Button>
-                        </Space>
-                    }
-                />
-                <Card style={{ borderRadius: 12, marginBottom: 16 }}>
-                    <Space direction="vertical" style={{ width: "100%" }} size={4}>
-                        <Typography.Title level={5} style={{ margin: 0 }}>
-                            Contoh Template Surat Rekomendasi
-                        </Typography.Title>
-                        <Typography.Text type="secondary">
-                            Gunakan contoh ini untuk membuat template surat rekomendasi seperti pada dokumen
-                            yang Anda lampirkan. Anda tetap bisa menyesuaikan placeholder dan format HTML.
-                        </Typography.Text>
-                        <Button onClick={applyTemplateExample}>Gunakan Contoh Template</Button>
-                    </Space>
-                </Card>
-                <Card style={{ borderRadius: 12 }}>
-                    <Table rowKey="id" columns={columns} dataSource={templates} pagination={false} />
-                </Card>
-                <Card style={{ borderRadius: 12, marginTop: 16 }}>
-                    <Space style={{ marginBottom: 12, width: "100%", justifyContent: "space-between" }}>
-                        <Typography.Title level={5} style={{ margin: 0 }}>
-                            Penomoran Surat
-                        </Typography.Title>
-                        <Typography.Text type="secondary">
-                            Kelola profil penomoran tanpa keluar dari halaman ini.
-                        </Typography.Text>
-                    </Space>
-                    <Table
-                        rowKey="id"
-                        columns={numberingColumns}
-                        dataSource={numberingProfiles}
-                        pagination={false}
-                    />
-                </Card>
+            <Form.Item label="Format nomor surat" required>
+              <Input value={form.data.number_format} onChange={(event) => form.setData("number_format", event.target.value)} />
+            </Form.Item>
+            <Form.Item label="Reset counter">
+              <Select
+                value={form.data.number_reset_policy}
+                onChange={(value) => form.setData("number_reset_policy", value)}
+                options={[
+                  { label: "Tahunan", value: "yearly" },
+                  { label: "Bulanan", value: "monthly" },
+                  { label: "Tidak pernah", value: "never" },
+                ]}
+              />
+            </Form.Item>
 
-                <Drawer
-                    title={editingTemplate ? "Edit Template" : "Tambah Template"}
-                    open={open}
-                    onClose={() => {
-                        setOpen(false);
-                        setEditingTemplate(null);
-                        form.resetFields();
-                    }}
-                    width={520}
-                    destroyOnClose
+            <Card size="small" className="mb-6 bg-zinc-50" title="Kop Surat Resmi">
+              <div className="grid grid-cols-[minmax(0,1fr)_190px] gap-5">
+                <Upload.Dragger
+                  accept="image/png,image/jpeg,image/webp"
+                  maxCount={1}
+                  beforeUpload={(file) => {
+                    form.setData("header_image", file);
+                    return false;
+                  }}
+                  onRemove={() => form.setData("header_image", null)}
+                  fileList={form.data.header_image ? [form.data.header_image] : []}
+                  className="min-h-[156px]"
                 >
-                    <Form layout="vertical" form={form} onFinish={onSubmit}>
-                        <Form.Item name="name" label="Nama" rules={[{ required: true }]}>
-                            <Input />
-                        </Form.Item>
-                        <Form.Item name="code" label="Kode Template">
-                            <Input placeholder="AUTO: jika kosong akan dibuat otomatis" />
-                        </Form.Item>
-                        <Form.Item name="classification" label="Klasifikasi">
-                            <Input />
-                        </Form.Item>
-                        <Form.Item name="numbering_profile_id" label="Profil Penomoran">
-                            <Select
-                                allowClear
-                                options={numberingProfiles.map((profile) => ({
-                                    label: profile.name,
-                                    value: profile.id,
-                                }))}
-                            />
-                        </Form.Item>
-                        <Form.Item
-                            name="content_text"
-                            label="Format Surat (HTML)"
-                            extra="Gunakan placeholder seperti {{letter.subject}} atau {{qr}} untuk QR code."
-                        >
-                            <Input.TextArea rows={5} placeholder="Contoh: <p>{{letter.subject}}</p>" />
-                        </Form.Item>
-                        <Form.Item
-                            name="placeholders_schema_json"
-                            label="Otorisasi QR (daftar pihak)"
-                            extra="Masukkan daftar pihak yang berhak memverifikasi QR code."
-                        >
-                            <Select mode="tags" placeholder="Contoh: Ketua, Sekretaris" />
-                        </Form.Item>
-                        <Form.Item name="paper" label="Kertas" initialValue="A4">
-                            <Select options={[{ label: "A4", value: "A4" }]} />
-                        </Form.Item>
-                        <Form.Item name="is_active" label="Aktif" valuePropName="checked" initialValue={true}>
-                            <Switch />
-                        </Form.Item>
-                        <Typography.Text type="secondary">
-                            Template ini menjadi dasar format surat, termasuk penomoran dan QR otorisasi.
-                        </Typography.Text>
-                        <Space style={{ width: "100%", justifyContent: "flex-end" }}>
-                            <Button onClick={() => setOpen(false)}>Batal</Button>
-                            <Button type="primary" htmlType="submit">
-                                {editingTemplate ? "Perbarui" : "Simpan"}
-                            </Button>
-                        </Space>
-                    </Form>
-                </Drawer>
-                <Drawer
-                    title={editingNumbering ? "Edit Profil Penomoran" : "Tambah Profil Penomoran"}
-                    open={openNumbering}
-                    onClose={() => {
-                        setOpenNumbering(false);
-                        setEditingNumbering(null);
-                        numberingForm.resetFields();
-                    }}
-                    width={520}
-                    destroyOnClose
+                  <p className="ant-upload-drag-icon"><InboxOutlined /></p>
+                  <p className="ant-upload-text">Upload gambar kop surat</p>
+                  <p className="ant-upload-hint">PNG/JPG/WEBP, disarankan rasio lebar A4 dan tinggi 120-160px.</p>
+                </Upload.Dragger>
+                <div className="rounded-xl border border-zinc-200 bg-white p-3">
+                  {form.data.header_image_url ? (
+                    <Image src={form.data.header_image_url} alt="Preview kop surat" height={132} className="object-contain" />
+                  ) : (
+                    <div className="flex h-[132px] items-center justify-center text-center text-xs text-zinc-400">
+                      Belum ada gambar kop resmi
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-5 grid grid-cols-2 gap-4 border-t border-zinc-200 pt-4">
+                <Form.Item label="Tinggi kop di PDF" className="mb-0">
+                  <InputNumber className="w-full" min={80} max={260} value={form.data.header_height_px} onChange={(value) => form.setData("header_height_px", value || 132)} />
+                </Form.Item>
+                <Form.Item label="Mode dokumen" className="mb-0">
+                  <Select
+                    value={form.data.document_mode}
+                    onChange={(value) => form.setData("document_mode", value)}
+                    options={[
+                      { label: "Flow seperti Word", value: "flow" },
+                      { label: "Grid lanjutan", value: "grid" },
+                    ]}
+                  />
+                </Form.Item>
+              </div>
+            </Card>
+
+            <Card size="small" className="mb-6 bg-white" title="Isi template surat">
+              <SimpleRichTextEditor value={form.data.content_text} onChange={(value) => form.setData("content_text", value)} />
+            </Card>
+
+            <Card size="small" className="mb-4 bg-zinc-50" title="Placeholder">
+              <Space wrap>
+                {placeholders.map((placeholder) => (
+                  <Typography.Text code copyable key={placeholder}>{placeholder}</Typography.Text>
+                ))}
+              </Space>
+            </Card>
+
+            <Card
+              size="small"
+              className="mb-4 bg-zinc-50"
+              title="Penandatangan & QR"
+              extra={
+                <Button
+                  size="small"
+                  icon={<PlusOutlined />}
+                  disabled={(form.data.signers || []).length >= 3}
+                  onClick={() => form.setData("signers", [...(form.data.signers || []), { ...defaultSigner, position: "left" }])}
                 >
-                    <Form layout="vertical" form={numberingForm} onFinish={onSubmitNumbering}>
-                        <Form.Item name="name" label="Nama" rules={[{ required: true }]}>
-                            <Input />
-                        </Form.Item>
-                        <Form.Item
-                            name="pattern"
-                            label="Pattern"
-                            rules={[{ required: true }]}
-                            extra="Contoh: {seq}/{type}/{org}/{roman_month}/{year}"
-                        >
-                            <Input />
-                        </Form.Item>
-                        <Form.Item name="reset_policy" label="Reset Policy" initialValue="yearly">
-                            <Select
-                                options={[
-                                    { label: "Tahunan", value: "yearly" },
-                                    { label: "Bulanan", value: "monthly" },
-                                    { label: "Tanpa Reset", value: "never" },
-                                ]}
-                            />
-                        </Form.Item>
-                        <Form.Item name="prefix" label="Prefix">
-                            <Input />
-                        </Form.Item>
-                        <Form.Item name="suffix" label="Suffix">
-                            <Input />
-                        </Form.Item>
-                        <Form.Item name="is_active" label="Aktif" valuePropName="checked" initialValue={true}>
-                            <Switch />
-                        </Form.Item>
-                        <Space style={{ width: "100%", justifyContent: "flex-end" }}>
-                            <Button onClick={() => setOpenNumbering(false)}>Batal</Button>
-                            <Button type="primary" htmlType="submit">
-                                {editingNumbering ? "Perbarui" : "Simpan"}
-                            </Button>
-                        </Space>
-                    </Form>
-                </Drawer>
-            </PageShell>
-        </AppLayout>
-    );
+                  Tambah
+                </Button>
+              }
+            >
+              <div className="space-y-3">
+                {(form.data.signers || []).map((signer, index) => (
+                  <div key={index} className="rounded-xl border border-zinc-200 bg-white p-3">
+                    <Form.Item label={`Anggota database ${index + 1}`} className="mb-3">
+                      <Select
+                        allowClear
+                        showSearch
+                        value={signer.member_id}
+                        optionFilterProp="label"
+                        onChange={(memberId) => {
+                          const member = signerMembers.find((item) => item.id === memberId);
+                          const next = [...form.data.signers];
+                          next[index] = {
+                            ...next[index],
+                            member_id: memberId || undefined,
+                            name: member?.full_name || next[index].name || "",
+                            title: member?.position_name || next[index].title || "",
+                          };
+                          form.setData("signers", next);
+                        }}
+                        options={signerMembers.map((member) => ({
+                          value: member.id,
+                          label: `${member.full_name}${member.position_name ? ` · ${member.position_name}` : ""}`,
+                        }))}
+                      />
+                    </Form.Item>
+                    <div className="grid grid-cols-[1fr_1fr_140px_100px_40px] items-end gap-3">
+                      <Form.Item label={`Nama ${index + 1}`} className="mb-0">
+                        <Input
+                          value={signer.name}
+                          onChange={(event) => {
+                            const next = [...form.data.signers];
+                            next[index] = { ...next[index], name: event.target.value };
+                            form.setData("signers", next);
+                          }}
+                        />
+                      </Form.Item>
+                      <Form.Item label="Jabatan" className="mb-0">
+                        <Input
+                          value={signer.title}
+                          onChange={(event) => {
+                            const next = [...form.data.signers];
+                            next[index] = { ...next[index], title: event.target.value };
+                            form.setData("signers", next);
+                          }}
+                        />
+                      </Form.Item>
+                      <Form.Item label="Posisi" className="mb-0">
+                        <Select
+                          value={signer.position}
+                          onChange={(value) => {
+                            const next = [...form.data.signers];
+                            next[index] = { ...next[index], position: value };
+                            form.setData("signers", next);
+                          }}
+                          options={signerPositionOptions}
+                        />
+                      </Form.Item>
+                      <Form.Item label="QR pribadi" className="mb-0">
+                        <Switch
+                          checked={signer.qr_enabled !== false}
+                          onChange={(value) => {
+                            const next = [...form.data.signers];
+                            next[index] = { ...next[index], qr_enabled: value };
+                            form.setData("signers", next);
+                          }}
+                        />
+                      </Form.Item>
+                      <Button
+                        icon={<DeleteOutlined />}
+                        disabled={(form.data.signers || []).length <= 1}
+                        onClick={() => form.setData("signers", form.data.signers.filter((_, itemIndex) => itemIndex !== index))}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            <Space size="large" className="mb-6">
+              <span>Tanda tangan <Switch checked={form.data.signature_enabled} onChange={(value) => form.setData("signature_enabled", value)} /></span>
+              <span>QR Code <Switch checked={form.data.qr_enabled} onChange={(value) => form.setData("qr_enabled", value)} /></span>
+              <span>Aktif <Switch checked={form.data.is_active} onChange={(value) => form.setData("is_active", value)} /></span>
+            </Space>
+
+            <div className="flex justify-end gap-2">
+              <Button onClick={() => setOpen(false)}>Batal</Button>
+              <Button type="primary" htmlType="submit" loading={form.processing}>Simpan</Button>
+            </div>
+          </Form>
+        </Drawer>
+      </PageShell>
+    </AppLayout>
+  );
 }

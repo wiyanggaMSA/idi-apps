@@ -3,13 +3,12 @@
 namespace App\Http\Controllers\Cash;
 
 use App\Http\Controllers\Controller;
-use Inertia\Inertia;
-use Inertia\Response;
+use Illuminate\Http\RedirectResponse;
 
 class CashExportController extends Controller
 {
-    public function __invoke(): Response
+    public function __invoke(): RedirectResponse
     {
-        return Inertia::render('Cash/Export');
+        return redirect()->route('reports.export');
     }
 }

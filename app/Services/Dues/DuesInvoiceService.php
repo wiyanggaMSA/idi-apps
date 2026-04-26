@@ -6,6 +6,7 @@ use App\Models\DuesInvoice;
 use App\Models\DuesPeriod;
 use App\Models\DuesSetting;
 use App\Models\Member;
+use App\Models\MemberStatus;
 use App\Models\PaymentStatus;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
@@ -38,8 +39,13 @@ class DuesInvoiceService
 
             $unpaidStatusId = $this->statusIdByCode('UNPAID');
 
+            $billableStatusCodes = MemberStatus::query()
+                ->active()
+                ->billable()
+                ->pluck('code');
+
             $memberIds = Member::query()
-                ->whereIn('status', ['aktif', 'active'])
+                ->whereIn('status', $billableStatusCodes->isNotEmpty() ? $billableStatusCodes : collect(['aktif', 'active']))
                 ->selectRaw('MIN(id) as id')
                 ->groupBy('npa')
                 ->pluck('id');
@@ -107,12 +113,33 @@ class DuesInvoiceService
     {
         $normalized = strtolower($code);
 
-        $status = PaymentStatus::query()
+        $status = PaymentStatus::withTrashed()
             ->whereRaw('LOWER(code) = ?', [$normalized])
             ->first();
 
         if (! $status) {
-            throw new \RuntimeException('Status pembayaran tidak ditemukan.');
+            $defaults = [
+                'paid' => ['code' => 'PAID', 'name' => 'Lunas', 'color' => 'green'],
+                'unpaid' => ['code' => 'UNPAID', 'name' => 'Belum Bayar', 'color' => 'gold'],
+                'overdue' => ['code' => 'OVERDUE', 'name' => 'Menunggak', 'color' => 'red'],
+                'partial' => ['code' => 'PARTIAL', 'name' => 'Parsial', 'color' => 'orange'],
+                'waived' => ['code' => 'WAIVED', 'name' => 'Dibebaskan', 'color' => 'cyan'],
+            ];
+
+            $fallback = $defaults[$normalized] ?? [
+                'code' => strtoupper($code),
+                'name' => strtoupper($code),
+                'color' => 'default',
+            ];
+
+            $status = PaymentStatus::query()->create([
+                'code' => $fallback['code'],
+                'name' => $fallback['name'],
+                'color' => $fallback['color'],
+                'is_active' => true,
+            ]);
+        } elseif (method_exists($status, 'trashed') && $status->trashed()) {
+            $status->restore();
         }
 
         return $status->id;

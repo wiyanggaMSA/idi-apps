@@ -56,6 +56,27 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Internal Login Path
+    |--------------------------------------------------------------------------
+    |
+    | Public landing page can keep login entry discreet by moving the login
+    | endpoint path. Route name remains "login" for application compatibility.
+    |
+    */
+    'login_path' => env('APP_LOGIN_PATH', 'portal/akses-internal'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Allow Public Registration
+    |--------------------------------------------------------------------------
+    |
+    | For internal systems, this should generally remain false.
+    |
+    */
+    'allow_register' => (bool) env('APP_ALLOW_REGISTER', false),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |

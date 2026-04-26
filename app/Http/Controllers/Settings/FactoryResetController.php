@@ -26,7 +26,7 @@ class FactoryResetController extends Controller
 
         Artisan::call('db:seed', ['--class' => RolePermissionSeeder::class, '--force' => true]);
 
-        return redirect()->back()->with('success', 'Hard reset selesai. Admin dibuat dengan email admin@local.test dan password admin123.');
+        return redirect()->back()->with('success', 'Hard reset selesai. Admin dibuat dengan email admin@idipwk.org dan password 12345678.');
     }
 
     public function financeReset(Request $request): RedirectResponse
@@ -94,6 +94,7 @@ class FactoryResetController extends Controller
             'backups',
             'activity_log',
             'members',
+            'member_statuses',
             'positions',
             'divisions',
             'payment_statuses',

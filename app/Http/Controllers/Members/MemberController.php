@@ -7,6 +7,7 @@ use App\Http\Requests\Members\StoreMemberRequest;
 use App\Http\Requests\Members\UpdateMemberRequest;
 use App\Models\Division;
 use App\Models\Member;
+use App\Models\MemberStatus;
 use App\Models\Position;
 use App\Services\Members\MemberQueryService;
 use Illuminate\Http\RedirectResponse;
@@ -19,10 +20,15 @@ class MemberController extends Controller
     public function index(Request $request, MemberQueryService $queryService): Response
     {
         $perPage = 15;
+        $memberStatuses = MemberStatus::query()
+            ->active()
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get(['code', 'name', 'is_active_member', 'is_billable', 'is_deceased']);
 
         $members = $queryService
             ->query($request)
-            ->with(['division', 'position'])
+            ->with(['division', 'position', 'memberStatus'])
             ->paginate($perPage)
             ->withQueryString()
             ->through(fn (Member $member) => [
@@ -41,6 +47,7 @@ class MemberController extends Controller
                 'position_id' => $member->position_id,
                 'join_date' => optional($member->join_date)->format('Y-m-d'),
                 'status' => $member->status,
+                'status_name' => $member->memberStatus?->name ?? $member->status,
                 'sip_1' => $member->sip_1,
                 'sip_2' => $member->sip_2,
                 'sip_3' => $member->sip_3,
@@ -51,20 +58,19 @@ class MemberController extends Controller
 
         $stats = [
             'total' => Member::query()->count(),
-            'active' => Member::query()->where('status', 'aktif')->count(),
+            'active' => Member::query()->whereIn('status', $memberStatuses->where('is_active_member', true)->pluck('code'))->count(),
             'mutasi' => Member::query()->where('status', 'mutasi')->count(),
-            'meninggal' => Member::query()->where('status', 'meninggal')->count(),
+            'meninggal' => Member::query()->whereIn('status', $memberStatuses->where('is_deceased', true)->pluck('code'))->count(),
         ];
         return Inertia::render('Members/Index', [
             'members' => $members,
             'stats' => $stats,
             'divisions' => Division::query()->active()->orderBy('name')->get(['id', 'name']),
             'positions' => Position::query()->active()->orderBy('name')->get(['id', 'name']),
-            'statuses' => [
-                ['value' => 'aktif', 'label' => 'Aktif'],
-                ['value' => 'mutasi', 'label' => 'Mutasi'],
-                ['value' => 'meninggal', 'label' => 'Meninggal'],
-            ],
+            'statuses' => $memberStatuses->map(fn (MemberStatus $status) => [
+                'value' => $status->code,
+                'label' => $status->name,
+            ])->values(),
             'genders' => [
                 ['value' => 'M', 'label' => 'Laki-laki'],
                 ['value' => 'F', 'label' => 'Perempuan'],
@@ -85,7 +91,9 @@ class MemberController extends Controller
     public function store(StoreMemberRequest $request): RedirectResponse
     {
         $data = $request->validated();
-        $data['status'] = $data['status'] ?? 'aktif';
+        $data['status'] = $data['status']
+            ?? MemberStatus::query()->active()->activeMember()->orderBy('sort_order')->value('code')
+            ?? 'aktif';
 
         Member::create($data);
 

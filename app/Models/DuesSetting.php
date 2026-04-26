@@ -11,6 +11,7 @@ class DuesSetting extends Model
 
     protected $fillable = [
         'dues_amount',
+        'dues_start_period',
         'due_day',
         'grace_days',
         'auto_mark_arrears',

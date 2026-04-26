@@ -1,231 +1,171 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useTransition } from "react";
 import { Link, router, usePage } from "@inertiajs/react";
-import { Button, Card, DatePicker, Empty, Input, Modal, Select, Space, Table, Tag, Typography } from "antd";
+import { Button, Card, Col, DatePicker, Empty, Input, Row, Select, Space, Table, Tag } from "antd";
+import { PlusOutlined, SearchOutlined } from "@ant-design/icons";
 import AppLayout from "@/Layouts/AppLayout";
-import PageShell from "@/Components/App/PageShell";
 import PageHeader from "@/Components/App/PageHeader";
+import PageShell from "@/Components/App/PageShell";
 
-const { RangePicker } = DatePicker;
-const { Text } = Typography;
+const statusColor = {
+  draft: "gold",
+  finalized: "blue",
+  archived: "green",
+};
+
+const statusOptions = [
+  { label: "Draft", value: "draft" },
+  { label: "Final", value: "finalized" },
+  { label: "Arsip", value: "archived" },
+];
 
 export default function LettersIndex() {
-    const { letters, filters = {}, templates = [] } = usePage().props;
-    const data = letters?.data || [];
-    const [createOpen, setCreateOpen] = useState(false);
-    const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const { letters, filters = {}, templates = [], summary = {} } = usePage().props;
+  const [isPending, startTransition] = useTransition();
+  const [search, setSearch] = useState(filters.search || "");
+  const templateOptions = useMemo(
+    () => templates.map((template) => ({ label: template.name, value: template.classification || template.name })),
+    [templates]
+  );
 
-    const onSearch = (value) => {
-        router.get(route("secretariat.letters.index"), { ...filters, search: value }, { preserveState: true });
-    };
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      if (search !== (filters.search || "")) {
+        startTransition(() => {
+          router.get(route("secretariat.letters.index"), { ...filters, search, page: 1 }, { preserveState: true, replace: true });
+        });
+      }
+    }, 350);
 
-    const onFilterChange = (updates) => {
-        router.get(route("secretariat.letters.index"), { ...filters, ...updates }, { preserveState: true });
-    };
+    return () => window.clearTimeout(timeout);
+  }, [search]);
 
-    const columns = useMemo(
-        () => [
-            {
-                title: "Nomor",
-                dataIndex: "number",
-                key: "number",
-                render: (value) => (value ? <Text strong>{value}</Text> : <Tag>DRAFT</Tag>),
-            },
-            {
-                title: "Tanggal",
-                dataIndex: "date",
-                key: "date",
-                width: 140,
-                render: (value) => value || "-",
-            },
-            {
+  const applyFilter = (next) => {
+    router.get(route("secretariat.letters.index"), { ...filters, ...next, page: 1 }, { preserveState: true, replace: true });
+  };
+
+  const data = letters?.data || [];
+
+  return (
+    <AppLayout title="Sekretariat - Surat">
+      <PageShell>
+        <PageHeader
+          eyebrow="Surat"
+          title="Daftar Surat"
+          description="Kelola draft, finalisasi, preview PDF, dan arsip surat dari satu tempat."
+          extra={
+            <Space>
+              <Link href={route("secretariat.templates.index")}>
+                <Button>Template Surat</Button>
+              </Link>
+              <Link href={route("secretariat.letters.create")}>
+                <Button type="primary" icon={<PlusOutlined />}>Buat Surat</Button>
+              </Link>
+            </Space>
+          }
+        />
+
+        <Row gutter={[16, 16]}>
+          {[
+            ["Draft", summary.draft ?? 0, "bg-amber-50 border-amber-100"],
+            ["Final", summary.finalized ?? 0, "bg-blue-50 border-blue-100"],
+            ["Arsip", summary.archived ?? 0, "bg-emerald-50 border-emerald-100"],
+          ].map(([label, value, tone]) => (
+            <Col span={8} key={label}>
+              <div className={`rounded-lg border ${tone} px-5 py-4`}>
+                <div className="text-sm font-medium text-zinc-500">{label}</div>
+                <div className="mt-1 text-2xl font-semibold text-zinc-950">{value}</div>
+              </div>
+            </Col>
+          ))}
+        </Row>
+
+        <Card className="border-white/80 shadow-sm">
+          <div className="mb-4 grid grid-cols-12 gap-3">
+            <Input
+              className="col-span-4"
+              allowClear
+              prefix={<SearchOutlined />}
+              placeholder="Cari nomor, perihal, penerima..."
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+            <Select
+              className="col-span-2"
+              allowClear
+              placeholder="Status"
+              value={filters.status || undefined}
+              options={statusOptions}
+              onChange={(value) => applyFilter({ status: value || "" })}
+            />
+            <Select
+              className="col-span-3"
+              allowClear
+              placeholder="Template/Jenis"
+              value={filters.classification || undefined}
+              options={templateOptions}
+              onChange={(value) => applyFilter({ classification: value || "" })}
+            />
+            <DatePicker.RangePicker
+              className="col-span-3"
+              onChange={(_, values) => applyFilter({ date_from: values?.[0] || "", date_to: values?.[1] || "" })}
+            />
+          </div>
+
+          <Table
+            rowKey="id"
+            loading={isPending}
+            dataSource={data}
+            locale={{
+              emptyText: (
+                <Empty description="Belum ada surat sesuai filter.">
+                  <Link href={route("secretariat.letters.create")}>
+                    <Button type="primary">Buat Surat</Button>
+                  </Link>
+                </Empty>
+              ),
+            }}
+            pagination={{
+              current: letters?.current_page,
+              pageSize: letters?.per_page,
+              total: letters?.total,
+              showSizeChanger: false,
+              onChange: (page) => router.get(route("secretariat.letters.index"), { ...filters, page }, { preserveState: true }),
+            }}
+            columns={[
+              {
                 title: "Perihal",
                 dataIndex: "subject",
-                key: "subject",
-            },
-            {
-                title: "Kepada",
-                dataIndex: "recipient_text",
-                key: "recipient_text",
-                render: (value) => value || "-",
-            },
-            {
-                title: "Penandatangan",
-                dataIndex: "signer_name",
-                key: "signer_name",
-                render: (value) => value || "-",
-            },
-            {
-                title: "Versi",
-                dataIndex: "versions_count",
-                key: "versions_count",
-                width: 80,
-                render: (value) => value || 1,
-            },
-            {
+                render: (value, record) => (
+                  <div>
+                    <Link className="font-medium text-zinc-950" href={route("secretariat.letters.show", record.id)}>
+                      {value || "-"}
+                    </Link>
+                    <div className="text-xs text-zinc-500">{record.template?.name || "Tanpa template"}</div>
+                  </div>
+                ),
+              },
+              { title: "Nomor", dataIndex: "number", render: (value) => value || <span className="text-zinc-400">Belum final</span> },
+              { title: "Tanggal", dataIndex: "date", render: (value) => value || "-" },
+              { title: "Lampiran", dataIndex: "documents_count", align: "center" },
+              {
                 title: "Status",
                 dataIndex: "status",
-                key: "status",
-                width: 120,
-                render: (value) => {
-                    const colorMap = {
-                        DRAFT: "default",
-                        ARCHIVED: "green",
-                        REVOKED: "red",
-                    };
-                    return <Tag color={colorMap[value] || "default"}>{value}</Tag>;
-                },
-            },
-            {
+                render: (value) => <Tag color={statusColor[value] || "default"}>{value || "-"}</Tag>,
+              },
+              {
                 title: "Aksi",
-                key: "actions",
-                width: 220,
                 render: (_, record) => (
-                    <Space>
-                        <Link href={route("secretariat.letters.edit", record.id)}>Edit</Link>
-                        <Link href={route("secretariat.letters.versions", record.id)}>Versi</Link>
-                        <Link href={route("secretariat.letters.pdf", { letter: record.id })}>PDF</Link>
-                        {record.status === "ARCHIVED" && (
-                            <Link
-                                href={route("secretariat.letters.revoke", record.id)}
-                                method="patch"
-                                as="button"
-                            >
-                                Cabut
-                            </Link>
-                        )}
-                    </Space>
+                  <Space>
+                    <Link href={route("secretariat.letters.show", record.id)}>Detail</Link>
+                    {record.status === "draft" ? <Link href={route("secretariat.letters.edit", record.id)}>Edit</Link> : null}
+                    <a href={route("secretariat.letters.pdf.preview", record.id)} target="_blank" rel="noreferrer">PDF</a>
+                  </Space>
                 ),
-            },
-        ],
-        []
-    );
-
-    const onCreateLetter = () => {
-        if (selectedTemplate) {
-            router.get(route("secretariat.letters.create"), { template_id: selectedTemplate });
-            return;
-        }
-        router.get(route("secretariat.letters.create"));
-    };
-
-    return (
-        <AppLayout title="Sekretariat - Surat">
-            <PageShell>
-                <PageHeader
-                    title="Sekretariat — Surat"
-                    right={
-                        <Space>
-                            <Link href={route("secretariat.templates.index")}>Template</Link>
-                            <Link href={route("secretariat.numbering.index")}>Penomoran</Link>
-                            <Button type="primary" onClick={() => setCreateOpen(true)}>
-                                Buat Surat
-                            </Button>
-                        </Space>
-                    }
-                />
-
-                <Card style={{ borderRadius: 12 }}>
-                    <Space style={{ marginBottom: 16, width: "100%", justifyContent: "space-between" }}>
-                        <Space>
-                            <Select
-                                placeholder="Status"
-                                value={filters?.status || undefined}
-                                allowClear
-                                style={{ width: 160 }}
-                                options={[
-                                    { label: "Draft", value: "DRAFT" },
-                                    { label: "Archived", value: "ARCHIVED" },
-                                    { label: "Revoked", value: "REVOKED" },
-                                ]}
-                                onChange={(value) => onFilterChange({ status: value || "" })}
-                            />
-                            <RangePicker
-                                onChange={(dates) =>
-                                    onFilterChange({
-                                        date_from: dates?.[0]?.format("YYYY-MM-DD") || "",
-                                        date_to: dates?.[1]?.format("YYYY-MM-DD") || "",
-                                    })
-                                }
-                            />
-                        </Space>
-                        <Input.Search
-                            placeholder="Cari nomor/perihal/penerima"
-                            defaultValue={filters?.search}
-                            onSearch={onSearch}
-                            style={{ maxWidth: 320 }}
-                        />
-                    </Space>
-
-                    <Table
-                        rowKey="id"
-                        columns={columns}
-                        dataSource={data}
-                        pagination={{
-                            current: letters?.current_page,
-                            pageSize: letters?.per_page,
-                            total: letters?.total,
-                            onChange: (page) => onFilterChange({ page }),
-                        }}
-                        locale={{
-                            emptyText: (
-                                <Empty
-                                    description={
-                                        <Space direction="vertical">
-                                            <Text strong>Belum ada surat yang tersimpan.</Text>
-                                            <Text type="secondary">
-                                                Mulai dari membuat template, atur penomoran, lalu buat surat baru.
-                                            </Text>
-                                        </Space>
-                                    }
-                                >
-                                    <Space>
-                                        <Button onClick={() => router.get(route("secretariat.templates.index"))}>
-                                            Kelola Template
-                                        </Button>
-                                        <Button onClick={() => router.get(route("secretariat.numbering.index"))}>
-                                            Atur Penomoran
-                                        </Button>
-                                        <Button type="primary" onClick={() => setCreateOpen(true)}>
-                                            Buat Surat
-                                        </Button>
-                                    </Space>
-                                </Empty>
-                            ),
-                        }}
-                    />
-                </Card>
-                <Modal
-                    title="Buat Surat"
-                    open={createOpen}
-                    onCancel={() => {
-                        setCreateOpen(false);
-                        setSelectedTemplate(null);
-                    }}
-                    onOk={() => {
-                        setCreateOpen(false);
-                        onCreateLetter();
-                        setSelectedTemplate(null);
-                    }}
-                    okText="Lanjutkan"
-                    cancelText="Batal"
-                >
-                    <Space direction="vertical" style={{ width: "100%" }}>
-                        <Typography.Text>
-                            Pilih format surat agar form mengikuti template yang tersedia.
-                        </Typography.Text>
-                        <Select
-                            placeholder="Pilih template (opsional)"
-                            value={selectedTemplate}
-                            onChange={(value) => setSelectedTemplate(value)}
-                            allowClear
-                            options={templates.map((template) => ({
-                                label: template.name,
-                                value: template.id,
-                            }))}
-                        />
-                    </Space>
-                </Modal>
-            </PageShell>
-        </AppLayout>
-    );
+              },
+            ]}
+          />
+        </Card>
+      </PageShell>
+    </AppLayout>
+  );
 }

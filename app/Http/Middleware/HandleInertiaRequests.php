@@ -33,6 +33,9 @@ class HandleInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         $orgProfile = null;
+        $fallbackLogoUrl = file_exists(public_path('images/idi-logo.png'))
+            ? asset('images/idi-logo.png')
+            : null;
 
         if (Schema::hasTable('app_settings')) {
             $orgProfile = AppSetting::query()->first();
@@ -48,7 +51,9 @@ class HandleInertiaRequests extends Middleware
             'orgProfile' => [
                 'org_name' => $orgProfile?->org_name ?? 'Aplikasi Keuangan Organisasi',
                 'brand_color' => $orgProfile?->brand_color ?? '#1677ff',
-                'logo_url' => $orgProfile?->logo_path ? Storage::url($orgProfile->logo_path) : null,
+                'logo_url' => $orgProfile?->logo_path
+                    ? Storage::url($orgProfile->logo_path)
+                    : $fallbackLogoUrl,
                 'address' => $orgProfile?->address ?? null,
                 'phone' => $orgProfile?->phone ?? null,
                 'email' => $orgProfile?->email ?? null,

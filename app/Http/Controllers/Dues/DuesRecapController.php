@@ -17,14 +17,16 @@ class DuesRecapController extends Controller
 {
     public function index(Request $request, DuesRecapService $recapService): Response
     {
-        [$startPeriod, $endPeriod] = $this->resolvePeriods($request);
+        [$startPeriod, $endPeriod] = $this->resolvePeriods($request, $recapService);
 
         $divisionId = $request->input('division_id');
-        $memberId = $request->input('member_id');
 
-        $invoices = $recapService->filterInvoices($startPeriod, $endPeriod, $divisionId, $memberId);
+        $invoices = $recapService->filterInvoices($startPeriod, $endPeriod, $divisionId);
         $monthlyRecap = collect($recapService->buildMonthlyRecap($invoices));
         $memberRecap = collect($recapService->buildMemberRecap($invoices));
+        [$analyticsStartPeriod, $analyticsEndPeriod] = $recapService->resolveAnalyticsWindow(60);
+        $analyticsInvoices = $recapService->filterInvoices($analyticsStartPeriod, $analyticsEndPeriod, $divisionId);
+        $analyticsMemberRecap = collect($recapService->buildMemberRecap($analyticsInvoices));
 
         return Inertia::render('Dues/Recap', [
             'kpis' => $recapService->buildKpis($invoices),
@@ -32,24 +34,28 @@ class DuesRecapController extends Controller
             'memberRecap' => $memberRecap,
             'trend' => $recapService->buildTrend($monthlyRecap),
             'topArrears' => $recapService->buildTopArrears($memberRecap),
+            'topArrearsLongTerm' => $recapService->buildTopArrears($analyticsMemberRecap),
+            'topPayersLongTerm' => $recapService->buildTopPayers($analyticsMemberRecap),
+            'analyticsRange' => [
+                'start_period' => $analyticsStartPeriod,
+                'end_period' => $analyticsEndPeriod,
+            ],
             'divisions' => Division::query()->active()->orderBy('name')->get(['id', 'name']),
             'members' => Member::query()->orderBy('full_name')->get(['id', 'npa', 'full_name']),
             'filters' => [
                 'start_period' => $startPeriod,
                 'end_period' => $endPeriod,
                 'division_id' => $divisionId,
-                'member_id' => $memberId,
             ],
         ]);
     }
 
     public function exportXlsx(Request $request, DuesRecapService $recapService)
     {
-        [$startPeriod, $endPeriod] = $this->resolvePeriods($request);
+        [$startPeriod, $endPeriod] = $this->resolvePeriods($request, $recapService);
         $divisionId = $request->input('division_id');
-        $memberId = $request->input('member_id');
 
-        $invoices = $recapService->filterInvoices($startPeriod, $endPeriod, $divisionId, $memberId);
+        $invoices = $recapService->filterInvoices($startPeriod, $endPeriod, $divisionId);
         $monthlyRecap = $recapService->buildMonthlyRecap($invoices);
         $memberRecap = $recapService->buildMemberRecap($invoices);
 
@@ -58,10 +64,11 @@ class DuesRecapController extends Controller
         return Excel::download(new DuesRecapExport($monthlyRecap, $memberRecap), $filename, \Maatwebsite\Excel\Excel::XLSX);
     }
 
-    private function resolvePeriods(Request $request): array
+    private function resolvePeriods(Request $request, DuesRecapService $recapService): array
     {
         $startPeriod = $request->input('start_period');
         $endPeriod = $request->input('end_period');
+        $duesStartPeriod = $recapService->duesStartPeriod();
 
         if (! $startPeriod || ! $endPeriod) {
             $firstPeriod = DuesPeriod::query()->orderBy('period')->value('period');
@@ -71,10 +78,12 @@ class DuesRecapController extends Controller
                 $startPeriod = $startPeriod ?: $firstPeriod;
                 $endPeriod = $endPeriod ?: $lastPeriod;
             } else {
-                $startPeriod = $startPeriod ?: now()->startOfYear()->format('Y-m');
+                $startPeriod = $startPeriod ?: $duesStartPeriod;
                 $endPeriod = $endPeriod ?: now()->format('Y-m');
             }
         }
+
+        $startPeriod = max($startPeriod, $duesStartPeriod);
 
         if ($startPeriod && $endPeriod && $startPeriod > $endPeriod) {
             [$startPeriod, $endPeriod] = [$endPeriod, $startPeriod];

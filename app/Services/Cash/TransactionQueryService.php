@@ -89,6 +89,20 @@ class TransactionQueryService
                     ->whereColumn('cash_methods.id', 'cash_transactions.method_id'),
                 $sortDir
             );
+        } elseif ($sortBy === 'tx_date') {
+            $query->orderBy('tx_date', $sortDir);
+
+            if ($sortDir === 'asc') {
+                $query->orderByRaw(
+                    "CASE WHEN category_id IN (
+                        SELECT id FROM cash_categories
+                        WHERE LOWER(name) IN ('pre-saldo', 'presaldo', 'saldo awal')
+                    ) THEN 0 ELSE 1 END ASC"
+                );
+            }
+
+            $query
+                ->orderBy('created_at', $sortDir);
         } else {
             $query->orderBy($sortBy, $sortDir);
         }

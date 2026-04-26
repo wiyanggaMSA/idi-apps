@@ -11,16 +11,21 @@ use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\VerifyEmailController;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware('guest')->group(function () {
-    Route::get('register', [RegisteredUserController::class, 'create'])
-        ->name('register');
+$loginPath = trim((string) config('app.login_path', 'portal/akses-internal'), '/');
+$loginPath = $loginPath !== '' ? $loginPath : 'login';
 
-    Route::post('register', [RegisteredUserController::class, 'store']);
+Route::middleware('guest')->group(function () use ($loginPath) {
+    if (config('app.allow_register', false)) {
+        Route::get('register', [RegisteredUserController::class, 'create'])
+            ->name('register');
 
-    Route::get('login', [AuthenticatedSessionController::class, 'create'])
+        Route::post('register', [RegisteredUserController::class, 'store']);
+    }
+
+    Route::get($loginPath, [AuthenticatedSessionController::class, 'create'])
         ->name('login');
 
-    Route::post('login', [AuthenticatedSessionController::class, 'store']);
+    Route::post($loginPath, [AuthenticatedSessionController::class, 'store']);
 
     Route::get('forgot-password', [PasswordResetLinkController::class, 'create'])
         ->name('password.request');

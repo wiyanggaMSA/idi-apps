@@ -17,6 +17,7 @@ class LetterVersion extends Model
         'cc_text',
         'signer_name',
         'signer_title',
+        'signers_json',
         'content_blocks_json',
         'content_plaintext',
         'pdf_path',
@@ -25,6 +26,7 @@ class LetterVersion extends Model
 
     protected $casts = [
         'date' => 'date',
+        'signers_json' => 'array',
         'content_blocks_json' => 'array',
     ];
 

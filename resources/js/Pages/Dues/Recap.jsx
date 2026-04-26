@@ -17,17 +17,33 @@ import {
   Typography,
 } from "antd";
 import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  ComposedChart,
+  Legend,
+  Line,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip as RechartsTooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import {
   createColumnHelper,
   flexRender,
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
+import { useI18n } from "@/Contexts/I18nContext";
 
 const { Text } = Typography;
 
-function formatIDR(value) {
+function formatIDR(value, language = "id") {
   try {
-    return new Intl.NumberFormat("id-ID", {
+    return new Intl.NumberFormat(language === "en" ? "en-US" : "id-ID", {
       style: "currency",
       currency: "IDR",
       maximumFractionDigits: 0,
@@ -38,16 +54,53 @@ function formatIDR(value) {
 }
 
 export default function DuesRecap() {
+  const { language } = useI18n();
+  const isEn = language === "en";
   const { props } = usePage();
   const filters = props.filters || {};
   const kpis = props.kpis || {};
   const monthlyRecap = props.monthlyRecap || [];
   const memberRecap = props.memberRecap || [];
-  const trend = props.trend || [];
-  const topArrears = props.topArrears || [];
+  const topArrearsLongTerm = props.topArrearsLongTerm || [];
+  const topPayersLongTerm = props.topPayersLongTerm || [];
+  const analyticsRange = props.analyticsRange || {};
   const divisions = props.divisions || [];
-  const members = props.members || [];
   const canExport = props?.auth?.permissions?.includes("dues.export");
+  const copy = {
+    pageTitle: isEn ? "Dues Recap" : "Rekap Iuran",
+    export: "Export XLSX",
+    startPeriod: isEn ? "Start period" : "Periode awal",
+    endPeriod: isEn ? "End period" : "Periode akhir",
+    division: isEn ? "Division" : "Divisi",
+    totalDue: isEn ? "Total Billed" : "Total Tagihan",
+    totalPaid: isEn ? "Total Paid" : "Total Dibayar",
+    totalReceived: isEn ? "Total Received" : "Total Diterima",
+    outstanding: isEn ? "Outstanding" : "Sisa Tagihan",
+    collectionRate: isEn ? "Collection Rate" : "Rasio Penagihan",
+    memberCount: isEn ? "Member Count" : "Jumlah Member",
+    paid: isEn ? "Paid" : "Lunas",
+    unpaid: isEn ? "Unpaid" : "Belum Bayar",
+    overdue: isEn ? "Overdue" : "Menunggak",
+    monthlyRecap: isEn ? "Monthly Recap" : "Rekap Per Bulan",
+    monthlyTrend: isEn ? "Monthly Trend" : "Tren Bulanan",
+    collectionComposition: isEn ? "Collection Composition" : "Komposisi Penagihan",
+    arrearsChart: isEn ? "Top Arrears (Long-term)" : "Top Penunggak (Jangka Panjang)",
+    memberRecap: isEn ? "Member Recap" : "Rekap Per Member",
+    topPayersChart: isEn ? "Top Payers (Long-term)" : "Top Pembayar (Jangka Panjang)",
+    analyticsWindow: isEn ? "Long-term analytics range" : "Rentang analitik jangka panjang",
+    asOfActivePeriod: isEn
+      ? "Long-term horizon: unpaid months without payment are treated as outstanding dues."
+      : "Horizon jangka panjang: bulan tanpa pembayaran dihitung sebagai sisa tagihan.",
+    monthsData: isEn ? "{count} months of data" : "{count} bulan data",
+    yearsData: isEn ? "{count} years of data" : "{count} tahun data",
+    period: isEn ? "Period" : "Periode",
+    billed: isEn ? "Billed" : "Tagihan",
+    received: isEn ? "Received" : "Diterima",
+    name: isEn ? "Name" : "Nama",
+    status: isEn ? "Status" : "Status",
+    collectionRateShort: isEn ? "Collection" : "Kolektibilitas",
+    noChartData: isEn ? "No chart data for this filter." : "Belum ada data grafik untuk filter ini.",
+  };
 
   const [startPeriod, setStartPeriod] = useState(filters.start_period);
   const [endPeriod, setEndPeriod] = useState(filters.end_period);
@@ -66,7 +119,6 @@ export default function DuesRecap() {
       start_period: filters.start_period,
       end_period: filters.end_period,
       division_id: filters.division_id,
-      member_id: filters.member_id,
     };
     window.location.href = route("dues.recap.export", params);
   };
@@ -75,31 +127,31 @@ export default function DuesRecap() {
     const helper = createColumnHelper();
     return [
       helper.accessor("period_label", {
-        header: "Periode",
+        header: copy.period,
         cell: (info) => info.getValue(),
       }),
       helper.accessor("total_due", {
-        header: "Total Tagihan",
-        cell: (info) => formatIDR(info.getValue()),
+        header: copy.totalDue,
+        cell: (info) => formatIDR(info.getValue(), language),
       }),
       helper.accessor("total_paid", {
-        header: "Total Dibayar",
-        cell: (info) => formatIDR(info.getValue()),
+        header: copy.totalPaid,
+        cell: (info) => formatIDR(info.getValue(), language),
       }),
       helper.accessor("outstanding", {
-       header: "Sisa Tagihan",
-        cell: (info) => formatIDR(info.getValue()),
+       header: copy.outstanding,
+        cell: (info) => formatIDR(info.getValue(), language),
       }),
       helper.accessor("collection_rate", {
-        header: "Rasio Penagihan",
+        header: copy.collectionRate,
         cell: (info) => `${info.getValue()}%`,
       }),
       helper.accessor("overdue_count", {
-        header: "Menunggak",
+        header: copy.overdue,
         cell: (info) => info.getValue(),
       }),
     ];
-  }, []);
+  }, [copy, language]);
 
   const memberColumns = useMemo(() => {
     const helper = createColumnHelper();
@@ -109,29 +161,29 @@ export default function DuesRecap() {
         cell: (info) => info.getValue(),
       }),
       helper.accessor("name", {
-        header: "Nama",
+        header: copy.name,
         cell: (info) => info.getValue(),
       }),
       helper.accessor("total_due", {
-        header: "Total Tagihan",
-        cell: (info) => formatIDR(info.getValue()),
+        header: copy.totalDue,
+        cell: (info) => formatIDR(info.getValue(), language),
       }),
       helper.accessor("total_paid", {
-        header: "Total Dibayar",
-        cell: (info) => formatIDR(info.getValue()),
+        header: copy.totalPaid,
+        cell: (info) => formatIDR(info.getValue(), language),
       }),
       helper.accessor("outstanding", {
-        header: "Sisa Tagihan",
-        cell: (info) => formatIDR(info.getValue()),
+        header: copy.outstanding,
+        cell: (info) => formatIDR(info.getValue(), language),
       }),
       helper.accessor("status", {
-        header: "Status",
+        header: copy.status,
         cell: (info) => {
           const value = info.getValue();
           const statusMap = {
-            PAID: { label: "Lunas", color: "green" },
-            UNPAID: { label: "Belum Bayar", color: "gold" },
-            OVERDUE: { label: "Menunggak", color: "red" },
+            PAID: { label: copy.paid, color: "green" },
+            UNPAID: { label: copy.unpaid, color: "gold" },
+            OVERDUE: { label: copy.overdue, color: "red" },
           };
           const { label, color } = statusMap[value] || {
             label: value,
@@ -141,7 +193,7 @@ export default function DuesRecap() {
         },
       }),
     ];
-  }, []);
+  }, [copy, language]);
 
   const monthlyTable = useReactTable({
     data: monthlyRecap,
@@ -154,6 +206,66 @@ export default function DuesRecap() {
     columns: memberColumns,
     getCoreRowModel: getCoreRowModel(),
   });
+
+  const trendChartData = useMemo(
+    () =>
+      monthlyRecap.map((row) => ({
+        ...row,
+        short_label: row.period?.slice(2) || row.period_label,
+      })),
+    [monthlyRecap],
+  );
+
+  const statusChartData = useMemo(
+    () => [
+      { name: copy.paid, value: kpis.counts?.paid || 0, color: "#16a34a" },
+      { name: copy.unpaid, value: kpis.counts?.unpaid || 0, color: "#d97706" },
+      { name: copy.overdue, value: kpis.counts?.overdue || 0, color: "#dc2626" },
+    ].filter((item) => item.value > 0),
+    [copy, kpis.counts],
+  );
+
+  const topArrearsChartData = useMemo(
+    () =>
+      topArrearsLongTerm
+        .slice(0, 8)
+        .map((row) => ({
+          ...row,
+          short_name:
+            row.name?.length > 18 ? `${row.name.slice(0, 18).trim()}...` : row.name,
+        }))
+        .reverse(),
+    [topArrearsLongTerm],
+  );
+
+  const topPayersChartData = useMemo(
+    () =>
+      topPayersLongTerm
+        .slice(0, 8)
+        .map((row) => ({
+          ...row,
+          short_name:
+            row.name?.length > 18 ? `${row.name.slice(0, 18).trim()}...` : row.name,
+        }))
+        .reverse(),
+    [topPayersLongTerm],
+  );
+
+  const analyticsMonths = useMemo(() => {
+    if (!analyticsRange.start_period || !analyticsRange.end_period) return 0;
+    const start = dayjs(`${analyticsRange.start_period}-01`);
+    const end = dayjs(`${analyticsRange.end_period}-01`);
+    if (!start.isValid() || !end.isValid()) return 0;
+    return Math.max(end.diff(start, "month") + 1, 0);
+  }, [analyticsRange.end_period, analyticsRange.start_period]);
+
+  const analyticsWindowLabel = useMemo(() => {
+    if (!analyticsMonths) return "—";
+    if (analyticsMonths >= 12 && analyticsMonths % 12 === 0) {
+      return copy.yearsData.replace("{count}", String(analyticsMonths / 12));
+    }
+    return copy.monthsData.replace("{count}", String(analyticsMonths));
+  }, [analyticsMonths, copy.monthsData, copy.yearsData]);
 
   const buildAntdColumns = (table) =>
     table.getVisibleLeafColumns().map((column) => ({
@@ -170,13 +282,13 @@ export default function DuesRecap() {
     }));
 
   return (
-    <AppLayout title="Rekap Iuran">
+    <AppLayout title={copy.pageTitle}>
       <PageShell>
         <PageHeader
-          title="Rekap Iuran"
+          title={copy.pageTitle}
           extra={
             <Button type="primary" onClick={exportRecap} disabled={!canExport}>
-              Export XLSX
+              {copy.export}
             </Button>
           }
         />
@@ -186,7 +298,7 @@ export default function DuesRecap() {
             <DatePicker
               picker="month"
               value={startPeriod ? dayjs(startPeriod + "-01") : null}
-              placeholder="Periode awal"
+              placeholder={copy.startPeriod}
               onChange={(value) => {
                 const next = value ? value.format("YYYY-MM") : null;
                 setStartPeriod(next);
@@ -196,7 +308,7 @@ export default function DuesRecap() {
             <DatePicker
               picker="month"
               value={endPeriod ? dayjs(endPeriod + "-01") : null}
-              placeholder="Periode akhir"
+              placeholder={copy.endPeriod}
               onChange={(value) => {
                 const next = value ? value.format("YYYY-MM") : null;
                 setEndPeriod(next);
@@ -205,7 +317,7 @@ export default function DuesRecap() {
             />
             <Select
               allowClear
-              placeholder="Divisi"
+              placeholder={copy.division}
               value={filters.division_id || undefined}
               onChange={(value) => applyFilters({ division_id: value })}
               options={divisions.map((division) => ({
@@ -214,39 +326,26 @@ export default function DuesRecap() {
               }))}
               style={{ minWidth: 180 }}
             />
-            <Select
-              allowClear
-              placeholder="Anggota"
-              value={filters.member_id || undefined}
-              onChange={(value) => applyFilters({ member_id: value })}
-              options={members.map((member) => ({
-                value: member.id,
-                label: `${member.npa} - ${member.full_name}`,
-              }))}
-              style={{ minWidth: 240 }}
-              showSearch
-              optionFilterProp="label"
-            />
           </Space>
         </Card>
 
         <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
           <Col xs={24} md={8}>
             <Card style={{ borderRadius: 12 }} bodyStyle={{ padding: 16 }}>
-              <Text type="secondary">Total Tagihan</Text>
-              <div style={{ fontSize: 20, fontWeight: 600 }}>{formatIDR(kpis.total_due)}</div>
+              <Text type="secondary">{copy.totalDue}</Text>
+              <div style={{ fontSize: 20, fontWeight: 600 }}>{formatIDR(kpis.total_due, language)}</div>
             </Card>
           </Col>
           <Col xs={24} md={8}>
             <Card style={{ borderRadius: 12 }} bodyStyle={{ padding: 16 }}>
-              <Text type="secondary">Total Diterima</Text>
-              <div style={{ fontSize: 20, fontWeight: 600 }}>{formatIDR(kpis.total_paid)}</div>
+              <Text type="secondary">{copy.totalReceived}</Text>
+              <div style={{ fontSize: 20, fontWeight: 600 }}>{formatIDR(kpis.total_paid, language)}</div>
             </Card>
           </Col>
           <Col xs={24} md={8}>
             <Card style={{ borderRadius: 12 }} bodyStyle={{ padding: 16 }}>
-              <Text type="secondary">Sisa Tagihan</Text>
-              <div style={{ fontSize: 20, fontWeight: 600 }}>{formatIDR(kpis.outstanding)}</div>
+              <Text type="secondary">{copy.outstanding}</Text>
+              <div style={{ fontSize: 20, fontWeight: 600 }}>{formatIDR(kpis.outstanding, language)}</div>
             </Card>
           </Col>
         </Row>
@@ -254,24 +353,24 @@ export default function DuesRecap() {
         <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
           <Col xs={24} md={8}>
             <Card style={{ borderRadius: 12 }} bodyStyle={{ padding: 16 }}>
-              <Text type="secondary">Rasio Penagihan</Text>
+              <Text type="secondary">{copy.collectionRate}</Text>
               <div style={{ fontSize: 20, fontWeight: 600 }}>{kpis.collection_rate}%</div>
             </Card>
           </Col>
           <Col xs={24} md={16}>
             <Card style={{ borderRadius: 12 }} bodyStyle={{ padding: 16 }}>
-              <Text type="secondary">Jumlah Member</Text>
+              <Text type="secondary">{copy.memberCount}</Text>
               <Row style={{ marginTop: 12 }}>
                 <Col span={8}>
-                  <Text>Lunas</Text>
+                  <Text>{copy.paid}</Text>
                   <div style={{ fontSize: 18, fontWeight: 600 }}>{kpis.counts?.paid || 0}</div>
                 </Col>
                 <Col span={8}>
-                  <Text>Belum Bayar</Text>
+                  <Text>{copy.unpaid}</Text>
                   <div style={{ fontSize: 18, fontWeight: 600 }}>{kpis.counts?.unpaid || 0}</div>
                 </Col>
                 <Col span={8}>
-                  <Text>Menunggak</Text>
+                  <Text>{copy.overdue}</Text>
                   <div style={{ fontSize: 18, fontWeight: 600 }}>{kpis.counts?.overdue || 0}</div>
                 </Col>
               </Row>
@@ -280,8 +379,108 @@ export default function DuesRecap() {
         </Row>
 
         <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
+          <Col xs={24} lg={16}>
+            <Card title={copy.monthlyTrend} style={{ borderRadius: 12 }}>
+              {trendChartData.length ? (
+                <div className="min-w-0" style={{ height: 320 }}>
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={320}>
+                    <ComposedChart data={trendChartData} margin={{ top: 16, right: 8, left: 8, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" vertical={false} />
+                      <XAxis dataKey="period_label" tick={{ fill: "#71717a", fontSize: 12 }} axisLine={false} tickLine={false} />
+                      <YAxis
+                        tick={{ fill: "#71717a", fontSize: 12 }}
+                        axisLine={false}
+                        tickLine={false}
+                        width={84}
+                        tickFormatter={(value) => formatIDR(value, language).replace("Rp", "").replace("IDR", "").trim()}
+                      />
+                      <RechartsTooltip
+                        formatter={(value, name) => [
+                          formatIDR(value, language),
+                          name === "total_due"
+                            ? copy.billed
+                            : name === "total_paid"
+                              ? copy.received
+                              : copy.outstanding,
+                        ]}
+                        labelFormatter={(label) => `${copy.period}: ${label}`}
+                        contentStyle={{
+                          borderRadius: 16,
+                          border: "1px solid rgba(228,228,231,0.9)",
+                          boxShadow: "0 18px 44px -34px rgba(15,23,42,0.28)",
+                        }}
+                      />
+                      <Legend
+                        formatter={(value) =>
+                          value === "total_due"
+                            ? copy.billed
+                            : value === "total_paid"
+                              ? copy.received
+                              : copy.outstanding
+                        }
+                      />
+                      <Bar dataKey="total_due" fill="#fecaca" radius={[10, 10, 0, 0]} maxBarSize={32} />
+                      <Bar dataKey="total_paid" fill="#16a34a" radius={[10, 10, 0, 0]} maxBarSize={32} />
+                      <Line
+                        type="monotone"
+                        dataKey="outstanding"
+                        stroke="#b91c1c"
+                        strokeWidth={3}
+                        dot={{ r: 4, fill: "#b91c1c" }}
+                        activeDot={{ r: 5 }}
+                      />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="flex h-[320px] items-center justify-center text-sm text-zinc-500">
+                  {copy.noChartData}
+                </div>
+              )}
+            </Card>
+          </Col>
+          <Col xs={24} lg={8}>
+            <Card title={copy.collectionComposition} style={{ borderRadius: 12 }}>
+              {statusChartData.length ? (
+                <div className="min-w-0" style={{ height: 320 }}>
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={320}>
+                    <PieChart>
+                      <Pie
+                        data={statusChartData}
+                        dataKey="value"
+                        nameKey="name"
+                        innerRadius={72}
+                        outerRadius={102}
+                        paddingAngle={3}
+                      >
+                        {statusChartData.map((entry) => (
+                          <Cell key={entry.name} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <RechartsTooltip
+                        formatter={(value, name) => [value, name]}
+                        contentStyle={{
+                          borderRadius: 16,
+                          border: "1px solid rgba(228,228,231,0.9)",
+                          boxShadow: "0 18px 44px -34px rgba(15,23,42,0.28)",
+                        }}
+                      />
+                      <Legend verticalAlign="bottom" height={36} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="flex h-[320px] items-center justify-center text-sm text-zinc-500">
+                  {copy.noChartData}
+                </div>
+              )}
+            </Card>
+          </Col>
+        </Row>
+
+        <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
           <Col xs={24} lg={14}>
-            <Card title="Rekap Per Bulan" style={{ borderRadius: 12 }}>
+            <Card title={copy.monthlyRecap} style={{ borderRadius: 12 }}>
               <Table
                 columns={buildAntdColumns(monthlyTable)}
                 dataSource={monthlyRecap}
@@ -291,33 +490,67 @@ export default function DuesRecap() {
             </Card>
           </Col>
           <Col xs={24} lg={10}>
-            <Card title="Tren Bulanan (tanpa chart library)" style={{ borderRadius: 12 }}>
-              <Table
-                columns={[
-                  { title: "Periode", dataIndex: "period" },
-                  {
-                    title: "Tagihan",
-                    dataIndex: "total_due",
-                    render: (value) => formatIDR(value),
-                  },
-                  {
-                    title: "Diterima",
-                    dataIndex: "total_paid",
-                    render: (value) => formatIDR(value),
-                  },
-                ]}
-                dataSource={trend}
-                rowKey="period"
-                pagination={false}
-                size="small"
-              />
+            <Card
+              title={copy.arrearsChart}
+              extra={
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  {analyticsRange.start_period} - {analyticsRange.end_period} ({analyticsWindowLabel})
+                </Text>
+              }
+              style={{ borderRadius: 12 }}
+            >
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {copy.asOfActivePeriod}
+              </Text>
+              {topArrearsChartData.length ? (
+                <div className="min-w-0" style={{ height: 356 }}>
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={356}>
+                    <BarChart
+                      data={topArrearsChartData}
+                      layout="vertical"
+                      margin={{ top: 8, right: 8, left: 8, bottom: 8 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" horizontal={false} />
+                      <XAxis
+                        type="number"
+                        tick={{ fill: "#71717a", fontSize: 12 }}
+                        axisLine={false}
+                        tickLine={false}
+                        tickFormatter={(value) => formatIDR(value, language).replace("Rp", "").replace("IDR", "").trim()}
+                      />
+                      <YAxis
+                        type="category"
+                        dataKey="short_name"
+                        width={110}
+                        tick={{ fill: "#52525b", fontSize: 12 }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <RechartsTooltip
+                        formatter={(value) => [formatIDR(value, language), copy.outstanding]}
+                        labelFormatter={(_, payload) => payload?.[0]?.payload?.name || "—"}
+                        contentStyle={{
+                          borderRadius: 16,
+                          border: "1px solid rgba(228,228,231,0.9)",
+                          boxShadow: "0 18px 44px -34px rgba(15,23,42,0.28)",
+                        }}
+                      />
+                      <Bar dataKey="outstanding" radius={[0, 10, 10, 0]} fill="#b91c1c" maxBarSize={22} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="flex h-[356px] items-center justify-center text-sm text-zinc-500">
+                  {copy.noChartData}
+                </div>
+              )}
             </Card>
           </Col>
         </Row>
 
         <Row gutter={[12, 12]}>
           <Col xs={24} lg={14}>
-            <Card title="Rekap Per Member" style={{ borderRadius: 12 }}>
+            <Card title={copy.memberRecap} style={{ borderRadius: 12 }}>
               <Table
                 columns={buildAntdColumns(memberTable)}
                 dataSource={memberRecap}
@@ -327,21 +560,60 @@ export default function DuesRecap() {
             </Card>
           </Col>
           <Col xs={24} lg={10}>
-            <Card title="Top 10 Penunggak" style={{ borderRadius: 12 }}>
-              <Table
-                dataSource={topArrears}
-                rowKey="member_id"
-                pagination={false}
-                columns={[
-                  { title: "NPA", dataIndex: "npa" },
-                  { title: "Nama", dataIndex: "name" },
-                  {
-                    title: "Sisa Tagihan",
-                    dataIndex: "outstanding",
-                    render: (value) => formatIDR(value),
-                  },
-                ]}
-              />
+            <Card
+              title={copy.topPayersChart}
+              extra={
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  {analyticsRange.start_period} - {analyticsRange.end_period} ({analyticsWindowLabel})
+                </Text>
+              }
+              style={{ borderRadius: 12 }}
+            >
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {copy.asOfActivePeriod}
+              </Text>
+              {topPayersChartData.length ? (
+                <div className="min-w-0" style={{ height: 356 }}>
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={356}>
+                    <BarChart
+                      data={topPayersChartData}
+                      layout="vertical"
+                      margin={{ top: 8, right: 8, left: 8, bottom: 8 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" horizontal={false} />
+                      <XAxis
+                        type="number"
+                        tick={{ fill: "#71717a", fontSize: 12 }}
+                        axisLine={false}
+                        tickLine={false}
+                        tickFormatter={(value) => formatIDR(value, language).replace("Rp", "").replace("IDR", "").trim()}
+                      />
+                      <YAxis
+                        type="category"
+                        dataKey="short_name"
+                        width={110}
+                        tick={{ fill: "#52525b", fontSize: 12 }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <RechartsTooltip
+                        formatter={(value) => [formatIDR(value, language), copy.totalReceived]}
+                        labelFormatter={(_, payload) => payload?.[0]?.payload?.name || "—"}
+                        contentStyle={{
+                          borderRadius: 16,
+                          border: "1px solid rgba(228,228,231,0.9)",
+                          boxShadow: "0 18px 44px -34px rgba(15,23,42,0.28)",
+                        }}
+                      />
+                      <Bar dataKey="total_paid" radius={[0, 10, 10, 0]} fill="#166534" maxBarSize={22} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="flex h-[356px] items-center justify-center text-sm text-zinc-500">
+                  {copy.noChartData}
+                </div>
+              )}
             </Card>
           </Col>
         </Row>

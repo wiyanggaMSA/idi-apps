@@ -28,7 +28,7 @@ class UpdateMemberRequest extends FormRequest
             'division_id' => ['nullable', 'exists:divisions,id'],
             'position_id' => ['nullable', 'exists:positions,id'],
             'join_date' => ['nullable', 'date'],
-            'status' => ['nullable', 'in:aktif,mutasi,meninggal'],
+            'status' => ['nullable', 'exists:member_statuses,code'],
             'sip_1' => ['nullable', 'string', 'max:255'],
             'sip_2' => ['nullable', 'string', 'max:255'],
             'sip_3' => ['nullable', 'string', 'max:255'],

@@ -27,7 +27,7 @@ class TransactionStoreRequest extends FormRequest
             'amount' => ['required', 'integer', 'min:1'],
             'description' => ['nullable', 'string'],
             'reference_no' => ['nullable', 'string', 'max:100'],
-            'attachment' => ['nullable', 'file', 'max:5120'],
+            'attachment' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:500'],
         ];
     }
 
