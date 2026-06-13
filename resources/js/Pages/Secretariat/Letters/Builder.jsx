@@ -405,7 +405,7 @@ export default function LetterComposer() {
                       <div className="shrink-0 text-right">Purwakarta, {form.data.date || "-"}</div>
                     </div>
                     <div className="prose prose-sm mt-6 max-w-none" dangerouslySetInnerHTML={{ __html: sanitizeHtml(form.data.recipient_text || "<p>Yth. ...</p>") }} />
-                    <div className="prose prose-sm mt-5 max-w-none" dangerouslySetInnerHTML={{ __html: form.data.body_text || "<p>Isi surat...</p>" }} />
+                    <div className="prose prose-sm mt-5 max-w-none" dangerouslySetInnerHTML={{ __html: sanitizeHtml(form.data.body_text || "<p>Isi surat...</p>") }} />
                     <div className="mt-10 grid grid-cols-3 gap-4 text-center text-sm">
                       {signatureSlots(form.data.signers || []).map((slot) => (
                         <div key={slot.position} className="min-h-[120px]">

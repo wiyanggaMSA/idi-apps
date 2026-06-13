@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useCallback, useMemo, useRef } from "react";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 
@@ -71,16 +71,52 @@ const toHtml = (value) => {
     .join("");
 };
 
+const cleanClipboardText = (value) => String(value ?? "")
+  .replace(/\r\n?/g, "\n")
+  .replace(/\u00a0/g, " ")
+  .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "");
+
 export default function SimpleRichTextEditor({ value, onChange, minHeight = 180, documentMode = false }) {
+  const quillRef = useRef(null);
   const normalizedValue = useMemo(() => toHtml(value), [value]);
+  const selectedModules = useMemo(() => (documentMode ? documentModules : modules), [documentMode]);
+
+  const handlePaste = useCallback((event) => {
+    const text = cleanClipboardText(event.clipboardData?.getData("text/plain"));
+
+    if (!text) {
+      return;
+    }
+
+    const editor = quillRef.current?.getEditor?.();
+
+    if (!editor) {
+      return;
+    }
+
+    event.preventDefault();
+
+    const range = editor.getSelection(true) ?? { index: editor.getLength(), length: 0 };
+
+    if (range.length) {
+      editor.deleteText(range.index, range.length, "user");
+    }
+
+    editor.insertText(range.index, text, "user");
+    editor.setSelection(range.index + text.length, 0, "silent");
+  }, []);
 
   return (
-    <div className={`richtext-editor ${documentMode ? "richtext-editor-document" : ""}`}>
+    <div
+      className={`richtext-editor ${documentMode ? "richtext-editor-document" : ""}`}
+      onPasteCapture={handlePaste}
+    >
       <ReactQuill
+        ref={quillRef}
         theme="snow"
         value={normalizedValue}
         onChange={(html) => onChange?.(documentMode ? normalizeColonRows(html) : html)}
-        modules={documentMode ? documentModules : modules}
+        modules={selectedModules}
         formats={formats}
       />
       <style>{`

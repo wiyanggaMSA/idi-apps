@@ -24,7 +24,7 @@ export default function TandaTanganBlock({ block, data }) {
               <img src={qrDataUri} alt="QR verifikasi surat" />
               {orgLogo && <img className="signature-qr__logo" src={orgLogo} alt="Logo organisasi" />}
             </div>
-            <div className="tanda-tangan__qr-caption">Scan untuk verifikasi keaslian surat</div>
+            <div className="tanda-tangan__qr-caption"></div>
           </div>
         )}
 
