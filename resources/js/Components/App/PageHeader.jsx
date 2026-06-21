@@ -15,7 +15,7 @@ export default function PageHeader({
                     </p>
                 ) : null}
                 <div>
-                    <h1 className="text-2xl font-semibold tracking-tight text-zinc-950">
+                    <h1 className="text-xl font-semibold tracking-tight text-zinc-950">
                         {title}
                     </h1>
                     {description ? (

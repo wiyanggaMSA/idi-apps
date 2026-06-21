@@ -13,7 +13,6 @@ return new class extends Migration {
             $table->unsignedTinyInteger('due_day')->default(10);
             $table->unsignedTinyInteger('grace_days')->default(7);
             $table->boolean('auto_mark_arrears')->default(true);
-            $table->boolean('allow_partial')->default(false);
             $table->timestamps();
         });
     }

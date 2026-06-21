@@ -19,10 +19,13 @@
 
   html {
     background: var(--idi-bg);
+    font-size: 14px;
   }
 
   body {
     @apply bg-slate-50 text-zinc-900 antialiased;
+    font-size: 1rem;
+    line-height: 1.45;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 
@@ -43,6 +46,7 @@
 
 .ant-btn {
   border-radius: 16px;
+  font-size: 13px;
   font-weight: 600;
   box-shadow: none;
 }
@@ -88,7 +92,7 @@
 .ant-picker,
 .ant-input-number,
 .ant-input-number-affix-wrapper {
-  min-height: 44px;
+  min-height: 40px;
   border-color: var(--idi-border) !important;
   box-shadow: none !important;
   outline: none !important;
@@ -270,25 +274,25 @@
   letter-spacing: 0.12em;
   text-transform: uppercase;
   border-bottom: 1px solid rgba(228, 228, 231, 0.75) !important;
-  padding: 18px 14px !important;
+  padding: 14px 12px !important;
 }
 
 .ant-table-wrapper .ant-table-tbody > tr > td {
   border-bottom: 1px solid rgba(228, 228, 231, 0.6) !important;
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.5;
   color: #27272a;
-  padding: 16px 14px !important;
+  padding: 13px 12px !important;
 }
 
 .ant-table-wrapper .ant-table-thead > tr > th:first-child,
 .ant-table-wrapper .ant-table-tbody > tr > td:first-child {
-  padding-left: 24px !important;
+  padding-left: 18px !important;
 }
 
 .ant-table-wrapper .ant-table-thead > tr > th:last-child,
 .ant-table-wrapper .ant-table-tbody > tr > td:last-child {
-  padding-right: 24px !important;
+  padding-right: 18px !important;
 }
 
 .ant-table-wrapper .ant-table-tbody > tr:hover > td {
@@ -380,7 +384,7 @@
 }
 
 .ant-form-item-label > label {
-  font-size: 14px !important;
+  font-size: 13px !important;
   font-weight: 600 !important;
   color: #27272a !important;
 }
@@ -397,22 +401,79 @@
 }
 
 .ant-descriptions .ant-descriptions-item-content {
-  font-size: 14px !important;
+  font-size: 13px !important;
   color: #18181b !important;
 }
 
 .members-table .ant-table-thead > tr > th {
-  font-size: 12px !important;
+  font-size: 11px !important;
 }
 
 .members-table .ant-table-tbody > tr > td {
-  font-size: 15px !important;
+  font-size: 12px !important;
 }
 
 .members-table .ant-typography,
 .members-table a,
 .members-table span {
-  font-size: 15px;
+  font-size: 12px;
+}
+
+.finance-compact-table .ant-table-thead > tr > th {
+  font-size: 11px !important;
+  padding: 12px 10px !important;
+}
+
+.finance-compact-table .ant-table-tbody > tr > td {
+  font-size: 12px !important;
+  padding: 11px 10px !important;
+}
+
+.finance-compact-table .ant-typography,
+.finance-compact-table a,
+.finance-compact-table span {
+  font-size: 12px;
+}
+
+.finance-settings {
+  font-size: 13px;
+}
+
+.finance-settings .ant-tabs-tab,
+.finance-settings .ant-card-head-title,
+.finance-settings .ant-form-item-label > label,
+.finance-settings .ant-typography,
+.finance-settings .ant-table,
+.finance-settings .ant-table-wrapper,
+.finance-settings .ant-input,
+.finance-settings .ant-select-selection-item,
+.finance-settings .ant-select-selection-placeholder,
+.finance-settings .ant-picker,
+.finance-settings .ant-checkbox-wrapper,
+.finance-settings .ant-upload,
+.finance-settings li {
+  font-size: 12px !important;
+}
+
+.finance-settings .ant-card-head {
+  min-height: 44px;
+}
+
+.finance-settings .ant-card-body {
+  padding: 14px !important;
+}
+
+.finance-settings .ant-form-item {
+  margin-bottom: 12px;
+}
+
+.finance-settings .ant-tabs-tab {
+  padding: 8px 12px;
+}
+
+.finance-settings .ant-table-thead > tr > th,
+.finance-settings .ant-table-tbody > tr > td {
+  padding: 10px 10px !important;
 }
 
 .ant-tabs .ant-tabs-tab {

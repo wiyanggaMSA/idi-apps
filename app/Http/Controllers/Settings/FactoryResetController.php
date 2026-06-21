@@ -58,11 +58,12 @@ class FactoryResetController extends Controller
     private function financeTables(): array
     {
         return [
+            'financial_action_requests',
+            'cash_transactions',
             'dues_payment_allocations',
             'dues_payments',
             'dues_invoices',
             'dues_periods',
-            'cash_transactions',
         ];
     }
 
@@ -85,11 +86,12 @@ class FactoryResetController extends Controller
             'events',
             'member_import_rows',
             'member_import_batches',
+            'financial_action_requests',
+            'cash_transactions',
             'dues_payment_allocations',
             'dues_payments',
             'dues_invoices',
             'dues_periods',
-            'cash_transactions',
             'documents',
             'backups',
             'activity_log',

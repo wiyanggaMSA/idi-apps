@@ -12,6 +12,7 @@ use App\Models\Position;
 use App\Models\CashMethod;
 use App\Models\User;
 use App\Models\AppSetting;
+use App\Models\Backup;
 use Inertia\Inertia;
 use Inertia\Response;
 use Illuminate\Support\Facades\Schema;
@@ -83,6 +84,20 @@ class SettingsController extends Controller
             ->orderBy('name')
             ->get(['id', 'name']);
 
+        $backups = Backup::query()
+            ->with('creator:id,name')
+            ->latest('created_at')
+            ->limit(10)
+            ->get()
+            ->map(fn (Backup $backup) => [
+                'id' => $backup->id,
+                'scope' => $backup->scope,
+                'created_at' => $backup->created_at?->format('Y-m-d H:i'),
+                'file' => $backup->file_path,
+                'created_by' => $backup->creator?->name,
+                'download_url' => route('settings.backups.download', $backup),
+            ]);
+
         return Inertia::render('Settings/Index', [
             'profile' => [
                 'org_name' => $orgProfile?->org_name ?? 'IDI Cabang Purwakarta',
@@ -118,12 +133,8 @@ class SettingsController extends Controller
                 'due_day' => $duesSettings?->due_day ?? 10,
                 'grace_days' => $duesSettings?->grace_days ?? 7,
                 'auto_mark_arrears' => $duesSettings?->auto_mark_arrears ?? true,
-                'allow_partial' => $duesSettings?->allow_partial ?? false,
             ],
-            'backups' => [
-                ['id' => 1, 'scope' => 'members', 'created_at' => '2026-01-12 10:11', 'file' => 'backups/members_20260112.sql'],
-                ['id' => 2, 'scope' => 'finance', 'created_at' => '2026-01-12 10:15', 'file' => 'backups/finance_20260112.sql'],
-            ],
+            'backups' => $backups,
             'access' => [
                 'users' => $users,
                 'roles' => $roles,

@@ -9,6 +9,7 @@ use App\Models\Division;
 use App\Models\Member;
 use App\Models\MemberStatus;
 use App\Models\Position;
+use App\Models\User;
 use App\Services\Members\MemberQueryService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -28,11 +29,12 @@ class MemberController extends Controller
 
         $members = $queryService
             ->query($request)
-            ->with(['division', 'position', 'memberStatus'])
+            ->with(['division', 'position', 'memberStatus', 'user:id,name,email'])
             ->paginate($perPage)
             ->withQueryString()
             ->through(fn (Member $member) => [
                 'id' => $member->id,
+                'user_id' => $member->user_id,
                 'npa' => $member->npa,
                 'full_name' => $member->full_name,
                 'education' => $member->education,
@@ -54,6 +56,11 @@ class MemberController extends Controller
                 'address' => $member->address,
                 'notes' => $member->notes,
                 'created_at' => optional($member->created_at)->format('Y-m-d'),
+                'linked_user' => $member->user_id ? [
+                    'id' => $member->user_id,
+                    'name' => $member->user?->name,
+                    'email' => $member->user?->email,
+                ] : null,
             ]);
 
         $stats = [
@@ -67,6 +74,16 @@ class MemberController extends Controller
             'stats' => $stats,
             'divisions' => Division::query()->active()->orderBy('name')->get(['id', 'name']),
             'positions' => Position::query()->active()->orderBy('name')->get(['id', 'name']),
+            'users' => User::query()
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get(['id', 'name', 'email'])
+                ->map(fn (User $user) => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                ])
+                ->values(),
             'statuses' => $memberStatuses->map(fn (MemberStatus $status) => [
                 'value' => $status->code,
                 'label' => $status->name,

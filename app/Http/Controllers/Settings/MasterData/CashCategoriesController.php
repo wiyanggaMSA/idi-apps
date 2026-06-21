@@ -35,4 +35,28 @@ class CashCategoriesController extends Controller
 
         return back()->with('success', 'Kategori cashflow berhasil dihapus.');
     }
+
+    public function update(Request $request, CashCategory $cashCategory): RedirectResponse
+    {
+        $data = $request->validate([
+            'type' => ['required', 'string', Rule::in(['in', 'out'])],
+            'name' => ['required', 'string', 'max:255'],
+            'code' => [
+                'nullable',
+                'string',
+                'max:50',
+                Rule::unique('cash_categories', 'code')->ignore($cashCategory->id)->whereNull('deleted_at'),
+            ],
+            'is_active' => ['sometimes', 'boolean'],
+        ]);
+
+        $cashCategory->update([
+            'type' => $data['type'],
+            'name' => $data['name'],
+            'code' => $data['code'] ?? null,
+            'is_active' => $data['is_active'] ?? false,
+        ]);
+
+        return back()->with('success', 'Kategori cashflow berhasil diperbarui.');
+    }
 }

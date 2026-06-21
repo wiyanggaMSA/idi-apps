@@ -30,6 +30,7 @@ class DuesRecapController extends Controller
 
         return Inertia::render('Dues/Recap', [
             'kpis' => $recapService->buildKpis($invoices),
+            'realtimeReceived' => $recapService->buildRealtimeReceived($startPeriod, $endPeriod, $divisionId),
             'monthlyRecap' => $monthlyRecap,
             'memberRecap' => $memberRecap,
             'trend' => $recapService->buildTrend($monthlyRecap),

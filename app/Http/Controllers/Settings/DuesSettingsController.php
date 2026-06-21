@@ -17,7 +17,6 @@ class DuesSettingsController extends Controller
             'due_day' => ['required', 'integer', 'min:1', 'max:28'],
             'grace_days' => ['required', 'integer', 'min:0', 'max:60'],
             'auto_mark_arrears' => ['required', 'boolean'],
-            'allow_partial' => ['required', 'boolean'],
         ]);
 
         $settings = DuesSetting::query()->first();

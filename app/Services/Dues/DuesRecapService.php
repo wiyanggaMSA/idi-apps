@@ -3,6 +3,7 @@
 namespace App\Services\Dues;
 
 use App\Models\DuesInvoice;
+use App\Models\DuesPayment;
 use App\Models\DuesPaymentAllocation;
 use App\Models\DuesPeriod;
 use App\Models\DuesSetting;
@@ -53,7 +54,7 @@ class DuesRecapService
 
     public function buildMonthlyRecap(Collection $invoices): array
     {
-         $grouped = $invoices->groupBy('period');
+        $grouped = $invoices->groupBy('period');
         $periodKeys = $grouped->keys()->filter()->sort()->values();
         $periodMap = $periodKeys->isEmpty()
             ? collect()
@@ -117,6 +118,17 @@ class DuesRecapService
             'total_due' => $row['total_due'],
             'total_paid' => $row['total_paid'],
         ])->values()->all();
+    }
+
+    public function buildRealtimeReceived(?string $startPeriod, ?string $endPeriod, ?int $divisionId = null): int
+    {
+        return (int) DuesPayment::query()
+            ->whereNull('voided_at')
+            ->whereNotNull('paid_at')
+            ->when($divisionId, fn ($query) => $query->whereHas('member', fn ($member) => $member->where('division_id', $divisionId)))
+            ->when($startPeriod, fn ($query) => $query->where('paid_at', '>=', Carbon::createFromFormat('Y-m', $startPeriod)->startOfMonth()))
+            ->when($endPeriod, fn ($query) => $query->where('paid_at', '<=', Carbon::createFromFormat('Y-m', $endPeriod)->endOfMonth()))
+            ->sum('amount');
     }
 
     public function filterInvoices(?string $startPeriod, ?string $endPeriod, ?int $divisionId = null): Collection

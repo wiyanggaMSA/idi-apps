@@ -30,4 +30,19 @@ class CashMethodsController extends Controller
 
         return back()->with('success', 'Metode bayar berhasil dihapus.');
     }
+
+    public function update(Request $request, CashMethod $cashMethod): RedirectResponse
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'is_active' => ['sometimes', 'boolean'],
+        ]);
+
+        $cashMethod->update([
+            'name' => $data['name'],
+            'is_active' => $data['is_active'] ?? false,
+        ]);
+
+        return back()->with('success', 'Metode bayar berhasil diperbarui.');
+    }
 }

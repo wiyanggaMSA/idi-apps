@@ -5,6 +5,7 @@ import { DownloadOutlined, EditOutlined, FilePdfOutlined, InboxOutlined, Printer
 import AppLayout from "@/Layouts/AppLayout";
 import PageHeader from "@/Components/App/PageHeader";
 import PageShell from "@/Components/App/PageShell";
+import { formatDate } from "@/lib/format";
 
 const statusColor = {
   draft: "gold",
@@ -101,7 +102,7 @@ export default function LetterShow() {
             <Card title="Metadata" className="border-white/80 shadow-sm">
               <Descriptions column={1} size="small">
                 <Descriptions.Item label="Nomor">{letter.number || "Belum dibuat"}</Descriptions.Item>
-                <Descriptions.Item label="Tanggal">{letter.date || "-"}</Descriptions.Item>
+                <Descriptions.Item label="Tanggal">{formatDate(letter.date)}</Descriptions.Item>
                 <Descriptions.Item label="Template">{letter.template?.name || "-"}</Descriptions.Item>
                 <Descriptions.Item label="Jenis">{letter.classification || "-"}</Descriptions.Item>
                 <Descriptions.Item label="Penerima">{letter.recipient_text || "-"}</Descriptions.Item>

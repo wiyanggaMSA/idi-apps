@@ -15,11 +15,9 @@ class DuesSetting extends Model
         'due_day',
         'grace_days',
         'auto_mark_arrears',
-        'allow_partial',
     ];
 
     protected $casts = [
         'auto_mark_arrears' => 'boolean',
-        'allow_partial' => 'boolean',
     ];
 }

@@ -18,6 +18,7 @@ class UpdateMemberRequest extends FormRequest
 
         return [
             'npa' => ['required', 'string', 'max:255', Rule::unique('members', 'npa')->ignore($memberId)],
+            'user_id' => ['nullable', 'integer', 'exists:users,id', Rule::unique('members', 'user_id')->whereNull('deleted_at')->ignore($memberId)],
             'full_name' => ['required', 'string', 'max:255'],
             'education' => ['nullable', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:50'],

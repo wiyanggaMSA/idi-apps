@@ -16,6 +16,13 @@ const TONES = {
         hint: "text-white/82",
         icon: "bg-white/14 text-white shadow-inner shadow-white/10",
     },
+    info: {
+        container:
+            "border-sky-300 bg-gradient-to-br from-sky-700 via-blue-800 to-zinc-950 text-white shadow-[0_18px_40px_-24px_rgba(29,78,216,0.42)]",
+        title: "text-white/90",
+        hint: "text-white/82",
+        icon: "bg-white/14 text-white shadow-inner shadow-white/10",
+    },
     success: {
         container:
             "border-emerald-200 bg-emerald-50 text-emerald-950 shadow-[0_16px_40px_-28px_rgba(5,150,105,0.36)]",
@@ -68,7 +75,7 @@ export default function StatCard({
                     <p className={cn("text-xs font-semibold uppercase tracking-[0.24em]", toneStyle.title)}>
                         {title}
                     </p>
-                    <div className="text-2xl font-semibold leading-none tracking-tight">
+                    <div className="text-lg font-semibold leading-none tracking-tight">
                         {value}
                     </div>
                     {hint ? (
@@ -76,7 +83,7 @@ export default function StatCard({
                     ) : null}
                 </div>
                 {icon ? (
-                    <div className={cn("flex h-11 w-11 items-center justify-center rounded-2xl text-lg", toneStyle.icon)}>
+                    <div className={cn("flex h-10 w-10 items-center justify-center rounded-2xl text-base", toneStyle.icon)}>
                         {icon}
                     </div>
                 ) : null}

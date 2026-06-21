@@ -45,6 +45,7 @@ export const messages = {
             endDate: "Tanggal Akhir",
             language: "Bahasa",
             noData: "Belum ada data",
+            chooseFile: "Pilih File",
         },
         menu: {
             dashboard: "Dashboard",
@@ -65,6 +66,7 @@ export const messages = {
             cashReport: "Laporan Kas",
             financialSummary: "Resume Keuangan",
             settings: "Pengaturan",
+            audit: "Audit & Approval",
         },
         dashboard: {
             eyebrow: "Financial Overview",
@@ -72,7 +74,7 @@ export const messages = {
             description:
                 "Ringkasan kas, iuran, aktivitas transaksi, dan agenda penting dalam satu tampilan kerja yang lebih rapi dan terpercaya.",
             addTransaction: "Tambah Transaksi",
-            cashBalance: "Saldo Kas",
+            cashBalance: "Saldo Keuangan",
             duesBalance: "Saldo Iuran",
             totalIncome: "Total Pemasukan",
             totalExpense: "Total Pengeluaran",
@@ -83,7 +85,7 @@ export const messages = {
             netCashMonth: "Net Kas Bulan Ini",
             netDuesMonth: "Net Iuran Bulan Ini",
             upcomingAgenda: "Agenda Mendatang",
-            allPaymentMethods: "Saldo total seluruh metode pembayaran",
+            allPaymentMethods: "Running balance seluruh transaksi kas",
             duesBalanceHint: "Akumulasi total iuran yang sudah dibayarkan",
             incomeMonthly: "Akumulasi kas masuk bulan berjalan",
             expenseMonthly: "Akumulasi kas keluar bulan berjalan",
@@ -131,7 +133,7 @@ export const messages = {
         dues: {
             title: "Manajemen Iuran Anggota",
             description:
-                "Pantau kepatuhan iuran, input pembayaran, dan tindak lanjuti tunggakan tanpa mengubah alur backend yang sudah berjalan.",
+                "Pantau kepatuhan iuran, input pembayaran, dan tindak lanjuti tunggakan.",
             pay: "Bayar",
             inputPayment: "Input Pembayaran",
             totalMembers: "Wajib Bayar",
@@ -140,7 +142,7 @@ export const messages = {
             totalArrears: "Total Tunggakan",
             activePeriod: "Periode aktif sistem: {period}",
             activePeriodDesc:
-                "Periode aktif mengikuti tanggal server. Filter pada halaman ini hanya memanfaatkan parameter yang memang sudah didukung route saat ini.",
+                "Periode aktif mengikuti tanggal aktif server.",
             searchMembers: "Cari Anggota",
             searchPlaceholder: "NPA atau nama anggota",
             duesStatus: "Status Iuran",
@@ -196,7 +198,7 @@ export const messages = {
             },
         },
         transactions: {
-            title: "Kas Masuk dan Keluar",
+            title: "Transaksi Masuk dan Keluar",
             description:
                 "Tampilan transaksi dibuat lebih ringkas untuk audit, pencarian, dan pemantauan saldo tanpa mengubah proses simpan, edit, atau void yang sudah ada.",
             addTransaction: "Tambah Transaksi",
@@ -208,7 +210,6 @@ export const messages = {
             incomeAccumulated: "Akumulasi transaksi masuk",
             expenseAccumulated: "Akumulasi transaksi keluar",
             balanceClosing: "Posisi saldo penutup",
-            balanceByMethod: "Saldo per Metode",
             transactionList: "Daftar Transaksi",
             noTransactions: "Belum ada transaksi",
             noTransactionsDesc:
@@ -219,14 +220,31 @@ export const messages = {
             transactionInfoDesc:
                 "Semua field dan aksi tetap memakai endpoint yang sudah ada.",
             cancelTransaction: "Batalkan transaksi?",
-            cancelTransactionDesc: "Transaksi akan ditandai sebagai void.",
-            confirmCancel: "Ya, batalkan",
+            cancelTransactionDesc: "Transaksi akan diajukan untuk approval void.",
+            confirmCancel: "Ajukan void",
+            requestVoidTitle: "Ajukan Void Transaksi",
+            requestVoid: "Ajukan Void",
+            voidReason: "Alasan Void",
+            voidReasonRequired: "Alasan void wajib diisi.",
+            editReason: "Alasan Edit",
+            pendingApproval: "Menunggu Approval",
             addModal: "Tambah Transaksi",
             editModal: "Edit Transaksi",
             attachmentOpen: "Buka",
             attachmentDownload: "Unduh",
             attachmentPreview: "Preview Bukti Transaksi",
             attachmentPreviewUnsupported: "Jenis file ini belum mendukung preview langsung. Gunakan buka atau unduh.",
+            requiredField: "{field} wajib diisi",
+            attachmentProof: "Lampiran Bukti",
+            attachmentFormatHint:
+                "Format: JPG/PNG/PDF • Maks {max}KB • Folder: /public/transactions/YYYY-MM",
+            attachmentFormatError: "Format lampiran harus JPG, PNG, atau PDF.",
+            attachmentSizeError: "Ukuran lampiran maksimal {max}KB.",
+            currentAttachment: "Lampiran Saat Ini",
+            transactionProof: "Bukti transaksi",
+            view: "Lihat",
+            download: "Unduh",
+            removeAttachmentOnSave: "Hapus lampiran saat simpan",
             canceled: "Batalkan",
         },
         reports: {
@@ -240,7 +258,7 @@ export const messages = {
                 openingBalance: "Saldo Awal",
                 closingBalance: "Saldo Akhir",
                 includeDues: "Include Iuran",
-                lineTitle: "Net Cashflow per Bulan",
+                lineTitle: "Tren Net dan Saldo per Bulan",
                 compareTitle: "Pemasukan vs Pengeluaran",
                 periodRecap: "Rekap Per Periode",
                 categoryRecap: "Rekap per Kategori",
@@ -398,6 +416,7 @@ export const messages = {
             endDate: "End Date",
             language: "Language",
             noData: "No data yet",
+            chooseFile: "Choose File",
         },
         menu: {
             dashboard: "Dashboard",
@@ -418,6 +437,7 @@ export const messages = {
             cashReport: "Cash Report",
             financialSummary: "Financial Summary",
             settings: "Settings",
+            audit: "Audit & Approval",
         },
         dashboard: {
             eyebrow: "Financial Overview",
@@ -425,7 +445,7 @@ export const messages = {
             description:
                 "Cash, dues, transaction activity, and key agenda items in a cleaner and more trustworthy workspace.",
             addTransaction: "Add Transaction",
-            cashBalance: "Cash Balance",
+            cashBalance: "Financial Balance",
             duesBalance: "Dues Balance",
             totalIncome: "Total Income",
             totalExpense: "Total Expense",
@@ -436,7 +456,7 @@ export const messages = {
             netCashMonth: "Net Cash This Month",
             netDuesMonth: "Net Dues This Month",
             upcomingAgenda: "Upcoming Agenda",
-            allPaymentMethods: "Total balance across all payment methods",
+            allPaymentMethods: "Running balance across all cash transactions",
             duesBalanceHint: "Accumulated total of dues payments received",
             incomeMonthly: "Accumulated cash inflow this month",
             expenseMonthly: "Accumulated cash outflow this month",
@@ -484,7 +504,7 @@ export const messages = {
         dues: {
             title: "Member Dues Management",
             description:
-                "Track dues compliance, record payments, and follow up arrears without changing the existing backend flow.",
+                "Track dues compliance, record payments, and follow up arrears.",
             pay: "Pay",
             inputPayment: "Record Payment",
             totalMembers: "Required to Pay",
@@ -493,7 +513,7 @@ export const messages = {
             totalArrears: "Total Arrears",
             activePeriod: "System active period: {period}",
             activePeriodDesc:
-                "The active period follows the server date. This page only uses filters already supported by the current route.",
+                "The active period follows the server date.",
             searchMembers: "Search Members",
             searchPlaceholder: "NPA or member name",
             duesStatus: "Dues Status",
@@ -549,7 +569,7 @@ export const messages = {
             },
         },
         transactions: {
-            title: "Cash In and Out",
+            title: "Transaction In and Out",
             description:
                 "A more compact transaction view for audit, search, and balance monitoring without changing existing save, edit, or void flows.",
             addTransaction: "Add Transaction",
@@ -561,7 +581,6 @@ export const messages = {
             incomeAccumulated: "Accumulated incoming transactions",
             expenseAccumulated: "Accumulated outgoing transactions",
             balanceClosing: "Closing balance position",
-            balanceByMethod: "Balance by Method",
             transactionList: "Transaction List",
             noTransactions: "No transactions yet",
             noTransactionsDesc:
@@ -572,14 +591,31 @@ export const messages = {
             transactionInfoDesc:
                 "All fields and actions still use the existing endpoints.",
             cancelTransaction: "Cancel transaction?",
-            cancelTransactionDesc: "The transaction will be marked as void.",
-            confirmCancel: "Yes, cancel it",
+            cancelTransactionDesc: "The transaction will be submitted for void approval.",
+            confirmCancel: "Request void",
+            requestVoidTitle: "Request Transaction Void",
+            requestVoid: "Request Void",
+            voidReason: "Void Reason",
+            voidReasonRequired: "Void reason is required.",
+            editReason: "Edit Reason",
+            pendingApproval: "Pending Approval",
             addModal: "Add Transaction",
             editModal: "Edit Transaction",
             attachmentOpen: "Open",
             attachmentDownload: "Download",
             attachmentPreview: "Transaction Proof Preview",
             attachmentPreviewUnsupported: "This file type cannot be previewed directly. Please open or download it.",
+            requiredField: "{field} is required",
+            attachmentProof: "Proof Attachment",
+            attachmentFormatHint:
+                "Format: JPG/PNG/PDF • Max {max}KB • Folder: /public/transactions/YYYY-MM",
+            attachmentFormatError: "Attachment format must be JPG, PNG, or PDF.",
+            attachmentSizeError: "Attachment size must be at most {max}KB.",
+            currentAttachment: "Current Attachment",
+            transactionProof: "Transaction proof",
+            view: "View",
+            download: "Download",
+            removeAttachmentOnSave: "Remove attachment when saving",
             canceled: "Cancel",
         },
         reports: {
@@ -593,7 +629,7 @@ export const messages = {
                 openingBalance: "Opening Balance",
                 closingBalance: "Closing Balance",
                 includeDues: "Include Dues",
-                lineTitle: "Monthly Net Cashflow",
+                lineTitle: "Monthly Net and Balance Trend",
                 compareTitle: "Income vs Expense",
                 periodRecap: "Period Summary",
                 categoryRecap: "Category Summary",

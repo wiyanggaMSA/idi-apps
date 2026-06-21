@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AppSetting;
 use App\Models\LetterSignature;
+use App\Services\Secretariat\LetterSignatureStatusService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -11,7 +12,7 @@ use Inertia\Response;
 
 class PublicLetterSignatureController extends Controller
 {
-    public function show(Request $request, LetterSignature $signature): Response
+    public function show(Request $request, LetterSignature $signature, LetterSignatureStatusService $signatureStatusService): Response
     {
         $org = AppSetting::query()->first();
         $logoUrl = null;
@@ -30,10 +31,15 @@ class PublicLetterSignatureController extends Controller
 
         $status = 'INVALID';
         if ($isCodeValid) {
-            $status = $signature->revoked_at ? 'REVOKED' : 'VALID';
+            $status = match (true) {
+                (bool) $signature->revoked_at => 'REVOKED',
+                ! $signature->signed_at => 'PENDING_SIGNATURE',
+                default => 'VALID',
+            };
         }
 
-        $letter = $signature->letter;
+        $letter = $signature->letter?->loadMissing('signatures');
+        $signatureSummary = $letter ? $signatureStatusService->summary($letter) : null;
 
         return Inertia::render('Public/VerifySignature', [
             'payload' => [
@@ -44,6 +50,7 @@ class PublicLetterSignatureController extends Controller
                 'date' => optional($letter?->date)->toDateString(),
                 'subject' => $letter?->subject,
                 'signed_at' => optional($signature->signed_at)->toDateTimeString(),
+                'signature_verification' => $signatureSummary,
                 'organization' => [
                     'name' => $org?->org_name ?? config('app.name'),
                     'unit' => $org?->org_unit,

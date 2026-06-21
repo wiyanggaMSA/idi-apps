@@ -26,7 +26,9 @@ class DashboardController extends Controller
         $startDate = $month->copy()->startOfMonth();
         $endDate = $month->copy()->endOfMonth();
 
-        $payload = Cache::remember("dashboard:{$monthKey}", 300, function () use ($service, $startDate, $endDate, $monthKey) {
+        $cacheKey = sprintf('dashboard:%s:%s', $monthKey, md5($service->cacheVersion()));
+
+        $payload = Cache::remember($cacheKey, 300, function () use ($service, $startDate, $endDate, $monthKey) {
             return $service->build($startDate, $endDate, $monthKey);
         });
 

@@ -11,12 +11,17 @@ function hasPermission(userPermissions, required) {
 function filterMenu(menu, userPermissions) {
     return menu
         .filter((item) => hasPermission(userPermissions, item.permission))
-        .map((item) => ({
-            ...item,
-            children: item.children?.filter((child) =>
+        .map((item) => {
+            const children = item.children?.filter((child) =>
                 hasPermission(userPermissions, child.permission),
-            ),
-        }));
+            );
+
+            return {
+                ...item,
+                children,
+            };
+        })
+        .filter((item) => item.routeName || (item.children?.length ?? 0) > 0);
 }
 
 export default function AppSidebar({ collapsed, onCollapse, orgName }) {
@@ -42,6 +47,8 @@ export default function AppSidebar({ collapsed, onCollapse, orgName }) {
             return "secretariat.board";
         if (route().current("secretariat.letters.index"))
             return "secretariat.letters";
+        if (route().current("secretariat.signatures.*"))
+            return "secretariat.signatures";
         if (route().current("secretariat.agenda.index"))
             return "secretariat.agenda";
         if (route().current("secretariat.templates.*"))
@@ -104,36 +111,41 @@ export default function AppSidebar({ collapsed, onCollapse, orgName }) {
     return (
         <aside
             className={`fixed inset-y-0 left-0 z-40 hidden border-r border-white/60 bg-gradient-to-b from-zinc-950 via-zinc-900 to-red-950 text-white shadow-[24px_0_60px_-36px_rgba(15,23,42,0.9)] xl:block ${
-                collapsed ? "w-[104px]" : "w-[308px]"
+                collapsed ? "w-[88px]" : "w-[268px]"
             }`}
         >
-            <div className="flex h-full flex-col overflow-y-auto px-4 py-5">
-                <div className="mb-8 flex items-center justify-between gap-3 px-2">
-                    <div
-                        className={`rounded-3xl border border-white/10 bg-white/5 px-4 py-3 transition-all ${
-                            collapsed ? "w-full text-center" : "flex-1"
-                        }`}
-                    >
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-white/45">
-                            IDI Finance
-                        </p>
-                        <p className="mt-2 text-[15px] font-semibold leading-snug text-white">
-                            {collapsed ? collapsedLabel || "IDI" : resolvedOrgName}
-                        </p>
-                    </div>
+            <div className="flex h-full flex-col overflow-y-auto overflow-x-hidden px-3 py-4">
+                <div className="mb-5 flex items-center justify-between gap-2 px-1">
+                    {collapsed ? (
+                        <div
+                            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-sm font-bold tracking-wide text-white"
+                            title={resolvedOrgName}
+                        >
+                            {collapsedLabel || "IDI"}
+                        </div>
+                    ) : (
+                        <div className="flex-1 rounded-2xl border border-white/10 bg-white/5 px-3 py-2.5 transition-all">
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-white/45">
+                                IDI Finance
+                            </p>
+                            <p className="mt-1.5 text-[13px] font-semibold leading-snug text-white">
+                                {resolvedOrgName}
+                            </p>
+                        </div>
+                    )}
 
                     {!collapsed ? (
                         <button
                             type="button"
                             onClick={() => onCollapse(true)}
-                            className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-white/70 transition hover:bg-white/10 hover:text-white"
+                            className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-xs text-white/70 transition hover:bg-white/10 hover:text-white"
                         >
                             {collapsedLabel || "AK"}
                         </button>
                     ) : null}
                 </div>
 
-                <nav className="space-y-3">
+                <nav className="space-y-2">
                     {items.map((item) => {
                         const hasChildren = item.children?.length > 0;
                         const isOpen = openKeys.includes(item.key);
@@ -144,13 +156,13 @@ export default function AppSidebar({ collapsed, onCollapse, orgName }) {
                                 <Link
                                     key={item.key}
                                     href={route(item.routeName, item.routeParams || {})}
-                                    className={`group flex items-center gap-3 rounded-2xl px-4 py-3 text-[16px] font-medium transition ${
+                                    className={`group flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-[13px] font-medium leading-5 transition ${
                                         isActive
                                             ? "bg-white text-zinc-950 shadow-lg shadow-black/20"
                                             : "text-white/72 hover:bg-white/10 hover:text-white"
                                     }`}
                                 >
-                                    <span className="text-lg">{item.icon}</span>
+                                    <span className="text-[15px] leading-none">{item.icon}</span>
                                     {!collapsed ? <span>{t(item.labelKey, {}, item.label)}</span> : null}
                                 </Link>
                             );
@@ -159,7 +171,7 @@ export default function AppSidebar({ collapsed, onCollapse, orgName }) {
                         return (
                             <div
                                 key={item.key}
-                                className="rounded-[28px] border border-white/10 bg-white/5 p-2"
+                                className="rounded-2xl border border-white/10 bg-white/5 p-1.5"
                             >
                                 <button
                                     type="button"
@@ -170,21 +182,21 @@ export default function AppSidebar({ collapsed, onCollapse, orgName }) {
                                                 : [...prev, item.key],
                                         )
                                     }
-                                    className="flex w-full items-center justify-between gap-3 rounded-2xl px-3 py-3 text-left text-[16px] font-semibold text-white transition hover:bg-white/8"
+                                    className="flex w-full items-center justify-between gap-2.5 rounded-xl px-3 py-2.5 text-left text-[13px] font-semibold leading-5 text-white transition hover:bg-white/8"
                                 >
-                                    <span className="flex items-center gap-3">
-                                        <span className="text-lg">{item.icon}</span>
+                                    <span className="flex items-center gap-2.5">
+                                        <span className="text-[15px] leading-none">{item.icon}</span>
                                         {!collapsed ? <span>{t(item.labelKey, {}, item.label)}</span> : null}
                                     </span>
                                     {!collapsed ? (
-                                        <span className="min-w-[20px] text-center text-[20px] font-medium leading-none text-white/55">
+                                        <span className="min-w-4 text-center text-base font-medium leading-none text-white/55">
                                             {isOpen ? "−" : "+"}
                                         </span>
                                     ) : null}
                                 </button>
 
                                 {!collapsed && isOpen ? (
-                                    <div className="mt-1 space-y-1">
+                                    <div className="mt-1 space-y-0.5">
                                         {item.children.map((child) => {
                                             const childActive = selectedKey === child.key;
 
@@ -195,13 +207,13 @@ export default function AppSidebar({ collapsed, onCollapse, orgName }) {
                                                         child.routeName,
                                                         child.routeParams || {},
                                                     )}
-                                                    className={`flex items-center gap-3 rounded-2xl px-3 py-3 text-[15px] transition ${
+                                                    className={`flex items-center gap-2.5 rounded-xl px-3 py-2 text-[13px] leading-5 transition ${
                                                         childActive
                                                             ? "bg-white text-zinc-950 shadow-lg shadow-black/20"
                                                             : "text-white/68 hover:bg-white/10 hover:text-white"
                                                     }`}
                                                 >
-                                                    <span className="text-lg">{child.icon}</span>
+                                                    <span className="text-[15px] leading-none">{child.icon}</span>
                                                     <span>{t(child.labelKey, {}, child.label)}</span>
                                                 </Link>
                                             );
@@ -213,14 +225,23 @@ export default function AppSidebar({ collapsed, onCollapse, orgName }) {
                     })}
                 </nav>
 
-                <div className="mt-auto rounded-[28px] border border-white/10 bg-white/5 p-4">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-white/45">
-                        {t("common.workspace")}
-                    </p>
-                    <p className="mt-2 text-[15px] font-medium text-white/90">
-                        {t("common.roleBasedAccess")}
-                    </p>
-                </div>
+                {collapsed ? (
+                    <div
+                        className="mt-auto flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-[11px] font-bold uppercase tracking-wide text-white/80"
+                        title={`${t("common.workspace")} - ${t("common.roleBasedAccess")}`}
+                    >
+                        WS
+                    </div>
+                ) : (
+                    <div className="mt-auto rounded-2xl border border-white/10 bg-white/5 p-3">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-white/45">
+                            {t("common.workspace")}
+                        </p>
+                        <p className="mt-1.5 text-[13px] font-medium leading-snug text-white/90">
+                            {t("common.roleBasedAccess")}
+                        </p>
+                    </div>
+                )}
             </div>
         </aside>
     );

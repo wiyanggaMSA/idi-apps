@@ -163,9 +163,10 @@ class DuesLedgerService
 
         $periodSet = array_fill_keys($periods->all(), true);
         $cursor = Carbon::createFromFormat('Y-m', $duesStartPeriod)->startOfMonth();
+        $end = Carbon::createFromFormat('Y-m', $periods->max())->startOfMonth();
         $last = null;
 
-        for ($i = 0; $i < 240; $i++) {
+        while ($cursor <= $end) {
             $key = $cursor->format('Y-m');
             if (! isset($periodSet[$key])) {
                 break;
@@ -444,6 +445,15 @@ class DuesLedgerService
             DuesPaymentAllocation::query()->insert($allocations);
             $this->syncCashTransaction($payment, $userId);
 
+            activity('finance')
+                ->causedBy($userId)
+                ->performedOn($payment)
+                ->withProperties([
+                    'attributes' => $this->paymentSnapshot($payment->fresh(['member', 'allocations'])),
+                    'periods' => collect($allocations)->pluck('period_ym')->values(),
+                ])
+                ->log('dues_payment.created');
+
             return $payment;
         });
     }
@@ -453,6 +463,8 @@ class DuesLedgerService
         if ($payment->voided_at) {
             throw new \RuntimeException('Pembayaran sudah dibatalkan.');
         }
+
+        $before = $this->paymentSnapshot($payment->fresh(['member', 'allocations']));
 
         $payment->update([
             'paid_at' => $payload['paid_at'],
@@ -472,6 +484,16 @@ class DuesLedgerService
                 'updated_by' => $userId,
             ]);
         }
+
+        activity('finance')
+            ->causedBy($userId)
+            ->performedOn($payment)
+            ->withProperties([
+                'reason' => $payload['reason'],
+                'before' => $before,
+                'after' => $this->paymentSnapshot($payment->fresh(['member', 'allocations'])),
+            ])
+            ->log('dues_payment.updated');
 
         return $payment;
     }
@@ -559,5 +581,32 @@ class DuesLedgerService
             ->first();
 
         return $cashMethod?->id;
+    }
+
+    private function paymentSnapshot(?DuesPayment $payment): array
+    {
+        if (! $payment) {
+            return [];
+        }
+
+        $cashTransaction = CashTransaction::query()
+            ->where('dues_payment_id', $payment->id)
+            ->first(['id', 'voided_at']);
+
+        return [
+            'id' => $payment->id,
+            'member_id' => $payment->member_id,
+            'member_name' => $payment->member?->full_name,
+            'paid_at' => optional($payment->paid_at)->format('Y-m-d H:i:s'),
+            'amount' => $payment->amount,
+            'method' => $payment->method,
+            'reference_no' => $payment->reference_no,
+            'notes' => $payment->notes,
+            'periods' => $payment->allocations?->pluck('period_ym')->values(),
+            'voided_at' => optional($payment->voided_at)->format('Y-m-d H:i:s'),
+            'void_reason' => $payment->void_reason,
+            'cash_transaction_id' => $cashTransaction?->id,
+            'cash_transaction_voided_at' => optional($cashTransaction?->voided_at)->format('Y-m-d H:i:s'),
+        ];
     }
 }

@@ -30,12 +30,17 @@ import {
     SaveOutlined,
     PlusOutlined,
     DeleteOutlined,
+    EditOutlined,
     ApartmentOutlined,
     DatabaseOutlined,
     SafetyCertificateOutlined,
     CloudDownloadOutlined,
+    CloudUploadOutlined,
     ReloadOutlined,
     WarningOutlined,
+    FileExcelOutlined,
+    HistoryOutlined,
+    LockOutlined,
 } from "@ant-design/icons";
 import { useI18n } from "@/Contexts/I18nContext";
 
@@ -50,6 +55,7 @@ export default function SettingsIndex() {
     const users = access.users || [];
     const roles = access.roles || [];
     const permissions = access.permissions || [];
+    const backups = props.backups || [];
 
     const [orgForm] = Form.useForm();
     const [duesForm] = Form.useForm();
@@ -61,7 +67,6 @@ export default function SettingsIndex() {
     const [cashMethodForm] = Form.useForm();
     const [memberStatusForm] = Form.useForm();
     const [paymentStatusForm] = Form.useForm();
-    const [logoFile, setLogoFile] = useState(null);
     const [logoFileList, setLogoFileList] = useState([]);
 
     const [assignRoleForm] = Form.useForm();
@@ -70,6 +75,7 @@ export default function SettingsIndex() {
     const [editRoleForm] = Form.useForm();
     const [editPermissionForm] = Form.useForm();
     const [editUserForm] = Form.useForm();
+    const [editMasterForm] = Form.useForm();
 
     const masterData = props.masterData || {};
     const divisions = masterData.divisions || [];
@@ -84,7 +90,6 @@ export default function SettingsIndex() {
         due_day: 10,
         grace_days: 7,
         auto_mark_arrears: true,
-        allow_partial: false,
     };
 
     // Dummy Users (untuk tab User & Permission)
@@ -120,7 +125,17 @@ export default function SettingsIndex() {
     const [cashMethodModalOpen, setCashMethodModalOpen] = useState(false);
     const [memberStatusModalOpen, setMemberStatusModalOpen] = useState(false);
     const [paymentStatusModalOpen, setPaymentStatusModalOpen] = useState(false);
+    const [editMasterModal, setEditMasterModal] = useState({
+        open: false,
+        type: null,
+        record: null,
+    });
     const [selectedResetTables, setSelectedResetTables] = useState([]);
+    const [restoreModalOpen, setRestoreModalOpen] = useState(false);
+    const [restoreFileList, setRestoreFileList] = useState([]);
+    const [restoreConfirmation, setRestoreConfirmation] = useState("");
+    const [backupProcessing, setBackupProcessing] = useState(false);
+    const [restoreProcessing, setRestoreProcessing] = useState(false);
 
     // --- helpers CRUD dummy ---
     useEffect(() => {
@@ -134,14 +149,11 @@ export default function SettingsIndex() {
 
     const defaultOrgProfile = {
         org_name: "IDI Cabang Purwakarta",
-        org_unit: "Sekretariat IDI Purwakarta",
         address: "Alamat sekretariat...",
         phone: "",
         email: "",
         currency: "IDR",
         timezone: "Asia/Jakarta",
-        brand_color: "#1677ff",
-        header_variant: "logo_left",
     };
 
     useEffect(() => {
@@ -326,6 +338,68 @@ export default function SettingsIndex() {
             );
         } catch {}
     };
+
+    const masterUpdateRoutes = {
+        divisions: "settings.master-data.divisions.update",
+        positions: "settings.master-data.positions.update",
+        cash_categories: "settings.master-data.cash-categories.update",
+        cash_methods: "settings.master-data.cash-methods.update",
+        member_statuses: "settings.master-data.member-statuses.update",
+        payment_statuses: "settings.master-data.payment-statuses.update",
+    };
+
+    const masterLabels = {
+        divisions: "Divisi",
+        positions: "Jabatan",
+        cash_categories: "Kategori Cashflow",
+        cash_methods: "Metode Bayar",
+        member_statuses: "Status Anggota",
+        payment_statuses: "Status Bayar",
+    };
+
+    const openEditMaster = (type, record) => {
+        editMasterForm.setFieldsValue({
+            ...record,
+            is_active: record.is_active ?? true,
+        });
+        setEditMasterModal({ open: true, type, record });
+    };
+
+    const closeEditMaster = () => {
+        setEditMasterModal({ open: false, type: null, record: null });
+        editMasterForm.resetFields();
+    };
+
+    const submitEditMaster = async () => {
+        try {
+            const values = await editMasterForm.validateFields();
+            const { type, record } = editMasterModal;
+
+            router.patch(route(masterUpdateRoutes[type], record.id), values, {
+                preserveScroll: true,
+                onSuccess: () => {
+                    message.success(`${masterLabels[type]} berhasil diperbarui.`);
+                    closeEditMaster();
+                },
+            });
+        } catch {}
+    };
+
+    const renderMasterActions = (type, record, onDelete) => (
+        <Space size={4}>
+            <Button
+                size="small"
+                icon={<EditOutlined />}
+                onClick={() => openEditMaster(type, record)}
+            />
+            <Button
+                size="small"
+                danger
+                icon={<DeleteOutlined />}
+                onClick={() => onDelete(record)}
+            />
+        </Space>
+    );
 
     const confirmDeleteDivision = (division) => {
         Modal.confirm({
@@ -650,11 +724,12 @@ export default function SettingsIndex() {
             { key: "events", label: "events", note: "Kegiatan" },
             { key: "member_import_rows", label: "member_import_rows", note: "Baris import anggota" },
             { key: "member_import_batches", label: "member_import_batches", note: "Batch import anggota" },
+            { key: "financial_action_requests", label: "financial_action_requests", note: "Request approval keuangan" },
+            { key: "cash_transactions", label: "cash_transactions", note: "Transaksi kas" },
             { key: "dues_payment_allocations", label: "dues_payment_allocations", note: "Alokasi pembayaran iuran" },
             { key: "dues_payments", label: "dues_payments", note: "Pembayaran iuran" },
             { key: "dues_invoices", label: "dues_invoices", note: "Tagihan iuran" },
             { key: "dues_periods", label: "dues_periods", note: "Periode iuran" },
-            { key: "cash_transactions", label: "cash_transactions", note: "Transaksi kas" },
             { key: "documents", label: "documents", note: "Lampiran dokumen" },
             { key: "backups", label: "backups", note: "Log backup" },
             { key: "activity_log", label: "activity_log", note: "Log aktivitas" },
@@ -720,6 +795,68 @@ export default function SettingsIndex() {
         });
     };
 
+    const createFullBackup = () => {
+        Modal.confirm({
+            title: "Backup Full Database",
+            content:
+                "Sistem akan membuat file ZIP berisi database.sql untuk seluruh tabel database. File ini bisa digunakan untuk restore database nanti.",
+            okText: "Buat Backup",
+            cancelText: "Batal",
+            onOk: () =>
+                router.post(
+                    route("settings.backups.store"),
+                    {},
+                    {
+                        preserveScroll: true,
+                        onStart: () => setBackupProcessing(true),
+                        onSuccess: () =>
+                            message.success("Backup full database dibuat."),
+                        onError: (errors) =>
+                            message.error(
+                                errors.backup ||
+                                    "Backup database gagal dibuat.",
+                            ),
+                        onFinish: () => setBackupProcessing(false),
+                    },
+                ),
+        });
+    };
+
+    const submitRestoreBackup = () => {
+        const file = restoreFileList[0]?.originFileObj || restoreFileList[0];
+
+        if (!file) {
+            message.warning("Pilih file backup ZIP terlebih dahulu.");
+            return;
+        }
+
+        if (restoreConfirmation !== "RESTORE DATABASE") {
+            message.warning('Ketik "RESTORE DATABASE" untuk konfirmasi.');
+            return;
+        }
+
+        const fd = new FormData();
+        fd.append("backup_file", file);
+        fd.append("confirmation", restoreConfirmation);
+
+        router.post(route("settings.backups.restore"), fd, {
+            forceFormData: true,
+            preserveScroll: true,
+            onStart: () => setRestoreProcessing(true),
+            onSuccess: () => {
+                setRestoreModalOpen(false);
+                setRestoreFileList([]);
+                setRestoreConfirmation("");
+                message.success("Restore database berhasil.");
+            },
+            onError: (errors) =>
+                message.error(
+                    errors.backup_file || "Restore database gagal diproses.",
+                ),
+            onFinish: () => setRestoreProcessing(false),
+        });
+    };
+
     // --- tabs ---
     const tabs = useMemo(() => {
         return [
@@ -759,15 +896,6 @@ export default function SettingsIndex() {
                                                 ]}
                                             >
                                                 <Input />
-                                            </Form.Item>
-                                        </Col>
-
-                                        <Col xs={24} md={12}>
-                                            <Form.Item
-                                                label="Unit/Judul Kop"
-                                                name="org_unit"
-                                            >
-                                                <Input placeholder="Sekretariat IDI Purwakarta" />
                                             </Form.Item>
                                         </Col>
 
@@ -839,35 +967,6 @@ export default function SettingsIndex() {
                                         </Col>
 
                                         <Col xs={24} md={12}>
-                                            <Form.Item
-                                                label="Brand Color"
-                                                name="brand_color"
-                                            >
-                                                <Input placeholder="#1677ff" />
-                                            </Form.Item>
-                                        </Col>
-
-                                        <Col xs={24} md={12}>
-                                            <Form.Item
-                                                label="Layout Kop Surat"
-                                                name="header_variant"
-                                            >
-                                                <Select
-                                                    options={[
-                                                        {
-                                                            value: "logo_left",
-                                                            label: "Logo kiri + teks kanan",
-                                                        },
-                                                        {
-                                                            value: "classic_center",
-                                                            label: "Logo dan teks di tengah",
-                                                        },
-                                                    ]}
-                                                />
-                                            </Form.Item>
-                                        </Col>
-
-                                        <Col xs={24} md={12}>
                                             <Form.Item label="Logo Organisasi">
                                                 <Space
                                                     direction="vertical"
@@ -923,18 +1022,6 @@ export default function SettingsIndex() {
                                             </Form.Item>
                                         </Col>
 
-                                        <Col xs={24} md={12}>
-                                            <Form.Item label="Mode Gelap">
-                                                <Switch
-                                                    onChange={() =>
-                                                        message.info(
-                                                            "TODO: dark mode",
-                                                        )
-                                                    }
-                                                />
-                                            </Form.Item>
-                                        </Col>
-
                                         <Col
                                             xs={24}
                                             style={{
@@ -965,16 +1052,16 @@ export default function SettingsIndex() {
                             >
                                 <li>
                                     Profil organisasi disimpan ke{" "}
-                                    <code>app_settings</code> untuk tampilan
-                                    aplikasi.
+                                    <code>app_settings</code> dan dipakai oleh
+                                    tampilan aplikasi, surat, dan verifikasi.
                                 </li>
                                 <li>
                                     Nama organisasi tampil di header & sidebar
                                     sebagai identitas.
                                 </li>
                                 <li>
-                                    Brand color dipakai untuk warna header dan
-                                    highlight.
+                                    Logo, alamat, telepon, dan email dipakai
+                                    untuk kop surat dan halaman verifikasi.
                                 </li>
                                 <li>
                                     Timezone dipakai untuk tanggal transaksi &
@@ -1034,22 +1121,14 @@ export default function SettingsIndex() {
                                                 {
                                                     title: "Aksi",
                                                     key: "aksi",
-                                                    width: 80,
+                                                    width: 110,
                                                     align: "right",
-                                                    render: (_, r) => (
-                                                        <Button
-                                                            size="small"
-                                                            danger
-                                                            icon={
-                                                                <DeleteOutlined />
-                                                            }
-                                                            onClick={() =>
-                                                                confirmDeleteDivision(
-                                                                    r,
-                                                                )
-                                                            }
-                                                        />
-                                                    ),
+                                                    render: (_, r) =>
+                                                        renderMasterActions(
+                                                            "divisions",
+                                                            r,
+                                                            confirmDeleteDivision,
+                                                        ),
                                                 },
                                             ]}
                                         />
@@ -1089,22 +1168,14 @@ export default function SettingsIndex() {
                                                 {
                                                     title: "Aksi",
                                                     key: "aksi",
-                                                    width: 80,
+                                                    width: 110,
                                                     align: "right",
-                                                    render: (_, r) => (
-                                                        <Button
-                                                            size="small"
-                                                            danger
-                                                            icon={
-                                                                <DeleteOutlined />
-                                                            }
-                                                            onClick={() =>
-                                                                confirmDeletePosition(
-                                                                    r,
-                                                                )
-                                                            }
-                                                        />
-                                                    ),
+                                                    render: (_, r) =>
+                                                        renderMasterActions(
+                                                            "positions",
+                                                            r,
+                                                            confirmDeletePosition,
+                                                        ),
                                                 },
                                             ]}
                                         />
@@ -1162,22 +1233,14 @@ export default function SettingsIndex() {
                                                 {
                                                     title: "Aksi",
                                                     key: "aksi",
-                                                    width: 80,
+                                                    width: 110,
                                                     align: "right",
-                                                    render: (_, r) => (
-                                                        <Button
-                                                            size="small"
-                                                            danger
-                                                            icon={
-                                                                <DeleteOutlined />
-                                                            }
-                                                            onClick={() =>
-                                                                confirmDeleteCashCategory(
-                                                                    r,
-                                                                )
-                                                            }
-                                                        />
-                                                    ),
+                                                    render: (_, r) =>
+                                                        renderMasterActions(
+                                                            "cash_categories",
+                                                            r,
+                                                            confirmDeleteCashCategory,
+                                                        ),
                                                 },
                                             ]}
                                         />
@@ -1219,22 +1282,14 @@ export default function SettingsIndex() {
                                                 {
                                                     title: "Aksi",
                                                     key: "aksi",
-                                                    width: 80,
+                                                    width: 110,
                                                     align: "right",
-                                                    render: (_, r) => (
-                                                        <Button
-                                                            size="small"
-                                                            danger
-                                                            icon={
-                                                                <DeleteOutlined />
-                                                            }
-                                                            onClick={() =>
-                                                                confirmDeleteCashMethod(
-                                                                    r,
-                                                                )
-                                                            }
-                                                        />
-                                                    ),
+                                                    render: (_, r) =>
+                                                        renderMasterActions(
+                                                            "cash_methods",
+                                                            r,
+                                                            confirmDeleteCashMethod,
+                                                        ),
                                                 },
                                             ]}
                                         />
@@ -1308,22 +1363,14 @@ export default function SettingsIndex() {
                                                 {
                                                     title: "Aksi",
                                                     key: "aksi",
-                                                    width: 80,
+                                                    width: 110,
                                                     align: "right",
-                                                    render: (_, r) => (
-                                                        <Button
-                                                            size="small"
-                                                            danger
-                                                            icon={
-                                                                <DeleteOutlined />
-                                                            }
-                                                            onClick={() =>
-                                                                confirmDeleteMemberStatus(
-                                                                    r,
-                                                                )
-                                                            }
-                                                        />
-                                                    ),
+                                                    render: (_, r) =>
+                                                        renderMasterActions(
+                                                            "member_statuses",
+                                                            r,
+                                                            confirmDeleteMemberStatus,
+                                                        ),
                                                 },
                                             ]}
                                         />
@@ -1384,22 +1431,14 @@ export default function SettingsIndex() {
                                                 {
                                                     title: "Aksi",
                                                     key: "aksi",
-                                                    width: 80,
+                                                    width: 110,
                                                     align: "right",
-                                                    render: (_, r) => (
-                                                        <Button
-                                                            size="small"
-                                                            danger
-                                                            icon={
-                                                                <DeleteOutlined />
-                                                            }
-                                                            onClick={() =>
-                                                                confirmDeletePaymentStatus(
-                                                                    r,
-                                                                )
-                                                            }
-                                                        />
-                                                    ),
+                                                    render: (_, r) =>
+                                                        renderMasterActions(
+                                                            "payment_statuses",
+                                                            r,
+                                                            confirmDeletePaymentStatus,
+                                                        ),
                                                 },
                                             ]}
                                         />
@@ -1518,16 +1557,6 @@ export default function SettingsIndex() {
                                                         </Form.Item>
                                                     </Col>
 
-                                                    <Col xs={24} md={12}>
-                                                        <Form.Item
-                                                            label="Boleh bayar parsial"
-                                                            name="allow_partial"
-                                                            valuePropName="checked"
-                                                        >
-                                                            <Switch />
-                                                        </Form.Item>
-                                                    </Col>
-
                                                     <Col
                                                         xs={24}
                                                         style={{
@@ -1576,7 +1605,7 @@ export default function SettingsIndex() {
                                     label: "Users",
                                     children: (
                                         <Row gutter={[12, 12]}>
-                                            <Col xs={24} lg={12}>
+                                            <Col xs={24}>
                                                 <Card
                                                     style={{ borderRadius: 12 }}
                                                     title={
@@ -1705,7 +1734,7 @@ export default function SettingsIndex() {
                                                 </Card>
                                             </Col>
 
-                                            <Col xs={24} lg={12}>
+                                            <Col xs={24}>
                                                 <Card
                                                     style={{ borderRadius: 12 }}
                                                     title={
@@ -1719,6 +1748,7 @@ export default function SettingsIndex() {
                                                         dataSource={users}
                                                         rowKey="id"
                                                         pagination={false}
+                                                        scroll={{ x: 820 }}
                                                         columns={[
                                                             {
                                                                 title: "Nama",
@@ -2127,85 +2157,210 @@ export default function SettingsIndex() {
                 ),
             },
 
-            // 4) Backup Database
+            // 4) Backup & Export Data
             {
                 key: "backup",
                 label: (
                     <Space>
                         <CloudDownloadOutlined />
-                        Backup Database
+                        Backup & Export Data
                     </Space>
                 ),
                 children: (
                     <Row gutter={[12, 12]}>
-                        <Col xs={24} lg={14}>
+                        <Col xs={24} lg={15}>
                             <Card
                                 style={{ borderRadius: 12 }}
-                                title={<Text strong>Backup Data</Text>}
+                                title={<Text strong>Backup Sistem</Text>}
                             >
                                 <Text type="secondary">
-                                    Backup data untuk kebutuhan arsip (dummy).
+                                    Backup seluruh tabel database ke file ZIP
+                                    berisi database.sql untuk migrasi,
+                                    pemulihan sistem, atau reimport oleh admin.
+                                    File ini bukan laporan harian.
+                                </Text>
+
+                                <div style={{ marginTop: 12 }}>
+                                    <Space wrap align="start">
+                                        <Button
+                                            type="primary"
+                                            onClick={createFullBackup}
+                                            icon={<DatabaseOutlined />}
+                                            loading={backupProcessing}
+                                        >
+                                            Backup Full Database
+                                        </Button>
+                                        <Button
+                                            onClick={() =>
+                                                setRestoreModalOpen(true)
+                                            }
+                                            icon={<CloudUploadOutlined />}
+                                        >
+                                            Import / Restore
+                                        </Button>
+                                        <Tag
+                                            icon={<LockOutlined />}
+                                            color="red"
+                                            style={{ padding: "4px 10px" }}
+                                        >
+                                            Khusus Admin Sistem
+                                        </Tag>
+                                    </Space>
+                                </div>
+                            </Card>
+
+                            <Card
+                                style={{ borderRadius: 12, marginTop: 12 }}
+                                title={<Text strong>Export Data Siap Pakai</Text>}
+                            >
+                                <Text type="secondary">
+                                    Export untuk arsip dan laporan yang mudah
+                                    dibuka oleh pengurus non-teknis. File ini
+                                    tidak ditujukan untuk restore database.
                                 </Text>
 
                                 <div style={{ marginTop: 12 }}>
                                     <Space wrap>
                                         <Button
                                             onClick={() =>
-                                                message.info(
-                                                    "TODO: backup members",
-                                                )
+                                                (window.location.href = route(
+                                                    "members.export",
+                                                    { format: "xlsx" },
+                                                ))
                                             }
-                                            icon={<CloudDownloadOutlined />}
+                                            icon={<FileExcelOutlined />}
                                         >
-                                            Backup Members
+                                            Export Anggota
                                         </Button>
                                         <Button
                                             onClick={() =>
-                                                message.info(
-                                                    "TODO: backup finance",
-                                                )
+                                                (window.location.href = route(
+                                                    "dues.recap.export",
+                                                ))
                                             }
-                                            icon={<CloudDownloadOutlined />}
+                                            icon={<FileExcelOutlined />}
                                         >
-                                            Backup Keuangan
+                                            Export Rekap Iuran
                                         </Button>
                                         <Button
-                                            type="primary"
                                             onClick={() =>
-                                                message.info("TODO: backup all")
+                                                (window.location.href = route(
+                                                    "reports.export",
+                                                ))
                                             }
                                             icon={<CloudDownloadOutlined />}
                                         >
-                                            Backup Semua
+                                            Buka Pusat Export
                                         </Button>
                                     </Space>
                                 </div>
                             </Card>
                         </Col>
 
-                        <Col xs={24} lg={10}>
+                        <Col xs={24} lg={9}>
                             <Card
                                 style={{
                                     borderRadius: 12,
                                     background: "#f5f7fb",
                                 }}
-                                title={<Text strong>Catatan</Text>}
+                                title={
+                                    <Space>
+                                        <HistoryOutlined />
+                                        <Text strong>Riwayat Backup Sistem</Text>
+                                    </Space>
+                                }
                             >
-                                <ul
-                                    style={{
-                                        margin: 0,
-                                        paddingLeft: 18,
-                                        color: "#595959",
-                                    }}
+                                <Space
+                                    direction="vertical"
+                                    size={10}
+                                    style={{ width: "100%" }}
                                 >
-                                    <li>
-                                        Backup idealnya hanya untuk role Admin.
-                                    </li>
-                                    <li>
-                                        Nanti simpan log backup ke tabel{" "}
-                                        <code>backups</code>.
-                                    </li>
-                                </ul>
+                                    {backups.length ? (
+                                        backups.map((backup) => (
+                                            <div
+                                                key={backup.id}
+                                                style={{
+                                                    padding: 12,
+                                                    border: "1px solid #e6e8ef",
+                                                    borderRadius: 10,
+                                                    background: "#fff",
+                                                }}
+                                            >
+                                                <Space
+                                                    align="start"
+                                                    style={{
+                                                        justifyContent:
+                                                            "space-between",
+                                                        width: "100%",
+                                                    }}
+                                                >
+                                                    <div>
+                                                        <Text strong>
+                                                            {backup.scope ===
+                                                            "finance"
+                                                                ? "Backup Keuangan"
+                                                                : backup.scope ===
+                                                                    "all"
+                                                                  ? "Backup Full Database"
+                                                                  : "Backup Anggota"}
+                                                        </Text>
+                                                        <br />
+                                                        <Text type="secondary">
+                                                            {backup.created_at}
+                                                        </Text>
+                                                        {backup.created_by ? (
+                                                            <>
+                                                                <br />
+                                                                <Text type="secondary">
+                                                                    Oleh{" "}
+                                                                    {
+                                                                        backup.created_by
+                                                                    }
+                                                                </Text>
+                                                            </>
+                                                        ) : null}
+                                                        <br />
+                                                        <Text type="secondary">
+                                                            {backup.file}
+                                                        </Text>
+                                                    </div>
+                                                    <Space direction="vertical" align="end">
+                                                        <Tag color="green">
+                                                            Berhasil
+                                                        </Tag>
+                                                        {backup.download_url ? (
+                                                            <Button
+                                                                size="small"
+                                                                icon={
+                                                                    <CloudDownloadOutlined />
+                                                                }
+                                                                onClick={() =>
+                                                                    (window.location.href =
+                                                                        backup.download_url)
+                                                                }
+                                                            >
+                                                                Download
+                                                            </Button>
+                                                        ) : null}
+                                                    </Space>
+                                                </Space>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <Text type="secondary">
+                                            Belum ada riwayat backup sistem.
+                                        </Text>
+                                    )}
+                                </Space>
+
+                                <Divider style={{ margin: "16px 0" }} />
+
+                                <Text type="secondary">
+                                    Backup baru berisi <code>database.sql</code>{" "}
+                                    untuk restore database. Backup format lama
+                                    tetap bisa di-restore bila ZIP masih memuat
+                                    <code>database.json</code>.
+                                </Text>
                             </Card>
                         </Col>
                     </Row>
@@ -2315,6 +2470,8 @@ export default function SettingsIndex() {
         users,
         roles,
         permissions,
+        backups,
+        backupProcessing,
         resetTableOptions,
         selectedResetTables,
     ]);
@@ -2327,13 +2484,69 @@ export default function SettingsIndex() {
                     title={t("settings.title")}
                     description={t("settings.description")}
                 />
-                <div className="idi-panel p-4">
+                <div className="idi-panel finance-settings p-3">
                     <Tabs
                         items={tabs}
                         defaultActiveKey="profile"
                         tabBarStyle={{ marginBottom: 12 }}
                     />
                 </div>
+                <Modal
+                    title="Import / Restore Database"
+                    open={restoreModalOpen}
+                    onCancel={() => {
+                        if (!restoreProcessing) {
+                            setRestoreModalOpen(false);
+                        }
+                    }}
+                    onOk={submitRestoreBackup}
+                    okText="Restore Database"
+                    okButtonProps={{
+                        danger: true,
+                        loading: restoreProcessing,
+                    }}
+                    cancelText="Batal"
+                    destroyOnClose
+                >
+                    <Space direction="vertical" size={12} style={{ width: "100%" }}>
+                        <Text type="danger">
+                            Restore akan menghapus data aktif lalu mengisi ulang
+                            database dari file backup SQL. Pastikan Anda sudah
+                            membuat backup terbaru sebelum melanjutkan.
+                        </Text>
+
+                        <Upload.Dragger
+                            accept=".zip,application/zip"
+                            maxCount={1}
+                            beforeUpload={() => false}
+                            fileList={restoreFileList}
+                            onRemove={() => {
+                                setRestoreFileList([]);
+                            }}
+                            onChange={({ fileList }) =>
+                                setRestoreFileList(fileList.slice(-1))
+                            }
+                        >
+                            <p className="ant-upload-drag-icon">
+                                <CloudUploadOutlined />
+                            </p>
+                            <p className="ant-upload-text">
+                                Pilih file backup ZIP
+                            </p>
+                            <p className="ant-upload-hint">
+                                Gunakan file dari tombol Backup Full Database.
+                            </p>
+                        </Upload.Dragger>
+
+                        <Input
+                            value={restoreConfirmation}
+                            onChange={(event) =>
+                                setRestoreConfirmation(event.target.value)
+                            }
+                            placeholder='Ketik "RESTORE DATABASE"'
+                        />
+                    </Space>
+                </Modal>
                 <Modal
                     title={`Assign Role: ${assignRoleModal.user?.name || ""}`}
                     open={assignRoleModal.open}
@@ -2720,6 +2933,113 @@ export default function SettingsIndex() {
                         <Form.Item name="color" label="Warna Tag">
                             <Input placeholder="blue" />
                         </Form.Item>
+                        <Form.Item
+                            name="is_active"
+                            label="Aktif"
+                            valuePropName="checked"
+                        >
+                            <Switch />
+                        </Form.Item>
+                    </Form>
+                </Modal>
+
+                <Modal
+                    title={`Edit ${masterLabels[editMasterModal.type] || "Master Data"}`}
+                    open={editMasterModal.open}
+                    onCancel={closeEditMaster}
+                    onOk={submitEditMaster}
+                    okText="Simpan"
+                >
+                    <Form form={editMasterForm} layout="vertical">
+                        {editMasterModal.type === "cash_categories" ? (
+                            <Form.Item
+                                name="type"
+                                label="Tipe"
+                                rules={[{ required: true, message: "Tipe wajib" }]}
+                            >
+                                <Select
+                                    options={[
+                                        { value: "in", label: "Masuk" },
+                                        { value: "out", label: "Keluar" },
+                                    ]}
+                                />
+                            </Form.Item>
+                        ) : null}
+
+                        {["member_statuses", "payment_statuses"].includes(
+                            editMasterModal.type,
+                        ) ? (
+                            <Form.Item
+                                name="code"
+                                label="Kode"
+                                rules={[
+                                    { required: true, message: "Kode wajib" },
+                                ]}
+                            >
+                                <Input />
+                            </Form.Item>
+                        ) : null}
+
+                        <Form.Item
+                            name="name"
+                            label={
+                                editMasterModal.type === "cash_methods"
+                                    ? "Nama Metode"
+                                    : "Nama"
+                            }
+                            rules={[{ required: true, message: "Nama wajib" }]}
+                        >
+                            <Input />
+                        </Form.Item>
+
+                        {[
+                            "divisions",
+                            "positions",
+                            "cash_categories",
+                        ].includes(editMasterModal.type) ? (
+                            <Form.Item name="code" label="Kode (opsional)">
+                                <Input />
+                            </Form.Item>
+                        ) : null}
+
+                        {editMasterModal.type === "payment_statuses" ? (
+                            <Form.Item name="color" label="Warna Tag">
+                                <Input placeholder="blue" />
+                            </Form.Item>
+                        ) : null}
+
+                        {editMasterModal.type === "member_statuses" ? (
+                            <>
+                                <Form.Item name="sort_order" label="Urutan">
+                                    <InputNumber
+                                        min={0}
+                                        style={{ width: "100%" }}
+                                    />
+                                </Form.Item>
+                                <Form.Item
+                                    name="is_active_member"
+                                    label="Anggota Aktif"
+                                    valuePropName="checked"
+                                >
+                                    <Switch />
+                                </Form.Item>
+                                <Form.Item
+                                    name="is_billable"
+                                    label="Masuk Perhitungan Iuran"
+                                    valuePropName="checked"
+                                >
+                                    <Switch />
+                                </Form.Item>
+                                <Form.Item
+                                    name="is_deceased"
+                                    label="Status Meninggal"
+                                    valuePropName="checked"
+                                >
+                                    <Switch />
+                                </Form.Item>
+                            </>
+                        ) : null}
+
                         <Form.Item
                             name="is_active"
                             label="Aktif"

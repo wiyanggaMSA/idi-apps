@@ -9,8 +9,10 @@ use App\Models\CashCategory;
 use App\Models\CashMethod;
 use App\Models\CashTransaction;
 use App\Models\Document;
+use App\Models\FinancialActionRequest;
 use App\Services\Cash\LedgerBalanceService;
 use App\Services\Cash\TransactionQueryService;
+use App\Services\Finance\FinancialActionRequestService;
 use Illuminate\Http\File;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -43,8 +45,16 @@ class TransactionsController extends Controller
             ->paginate($perPage)
             ->withQueryString();
 
+        $pendingVoidIds = FinancialActionRequest::query()
+            ->where('actionable_type', (new CashTransaction())->getMorphClass())
+            ->where('action', FinancialActionRequest::ACTION_VOID)
+            ->where('status', FinancialActionRequest::STATUS_PENDING)
+            ->whereIn('actionable_id', $transactions->getCollection()->pluck('id'))
+            ->pluck('actionable_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
         $openingBalance = $balanceService->openingBalance($request, $queryService);
-        $openingByMethod = $balanceService->openingBalanceByMethod($request, $queryService);
         $offsetBalance = $balanceService->offsetBalance($query, $page, $perPage);
         $summary = $balanceService->totals($request, $queryService);
         $closingBalance = $openingBalance + ($summary['net'] ?? 0);
@@ -52,7 +62,7 @@ class TransactionsController extends Controller
             ? $closingBalance - $offsetBalance
             : $openingBalance + $offsetBalance;
 
-        $mapped = $transactions->getCollection()->map(function (CashTransaction $transaction) use (&$runningBalance, $sortDir) {
+        $mapped = $transactions->getCollection()->map(function (CashTransaction $transaction) use (&$runningBalance, $sortDir, $pendingVoidIds) {
             $delta = $transaction->type === 'in' ? $transaction->amount : -$transaction->amount;
             $description = $transaction->description;
 
@@ -109,24 +119,11 @@ class TransactionsController extends Controller
                 ] : null,
                 'running_balance' => $rowRunningBalance,
                 'is_locked' => (bool) $transaction->dues_payment_id,
+                'has_pending_void_request' => in_array((int) $transaction->id, $pendingVoidIds, true),
             ];
         });
 
         $transactions->setCollection($mapped);
-
-        $methodTotals = CashTransaction::query();
-        $queryService->applyFilters($methodTotals, $request, true);
-        $methodTotals = $methodTotals
-            ->selectRaw('method_id, SUM(CASE WHEN type = "in" THEN amount ELSE 0 END) as total_in, SUM(CASE WHEN type = "out" THEN amount ELSE 0 END) as total_out')
-            ->groupBy('method_id')
-            ->get()
-            ->mapWithKeys(function ($row) use ($openingByMethod) {
-                $net = (int) $row->total_in - (int) $row->total_out;
-                $opening = $openingByMethod[$row->method_id] ?? 0;
-
-                return [$row->method_id => $opening + $net];
-            })
-            ->all();
 
         return Inertia::render('Transactions/Index', [
             'transactions' => $transactions,
@@ -135,7 +132,6 @@ class TransactionsController extends Controller
                 'opening_balance' => $openingBalance,
                 'closing_balance' => $closingBalance,
             ],
-            'balances_by_method' => $methodTotals,
             'filters' => [
                 'search' => $request->input('search'),
                 'type' => $request->input('type'),
@@ -159,7 +155,7 @@ class TransactionsController extends Controller
         DB::transaction(function () use ($request, $data) {
             $documentId = $this->storeAttachment($request->file('attachment'), $request->user()->id);
 
-            CashTransaction::query()->create([
+            $transaction = CashTransaction::query()->create([
                 'tx_date' => $data['tx_date'],
                 'type' => $data['type'],
                 'category_id' => $data['category_id'],
@@ -170,6 +166,12 @@ class TransactionsController extends Controller
                 'attachment_document_id' => $documentId,
                 'created_by' => $request->user()->id,
             ]);
+
+            activity('finance')
+                ->causedBy($request->user())
+                ->performedOn($transaction)
+                ->withProperties(['attributes' => $this->transactionSnapshot($transaction)])
+                ->log('cash_transaction.created');
         });
 
         return redirect()->back()->with('success', 'Transaksi berhasil ditambahkan.');
@@ -184,6 +186,17 @@ class TransactionsController extends Controller
         $data = $request->validated();
 
         DB::transaction(function () use ($request, $data, $transaction) {
+            $before = $this->transactionSnapshot($transaction->fresh());
+            $changesAmount = ((int) $transaction->amount !== (int) $data['amount'])
+                || ((string) $transaction->type !== (string) $data['type'])
+                || ((int) $transaction->category_id !== (int) $data['category_id']);
+
+            if ($changesAmount && ! $request->user()->can('transactions.adjust.amount')) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'amount' => 'Anda tidak memiliki izin mengubah nominal, tipe, atau kategori transaksi.',
+                ]);
+            }
+
             $documentId = $transaction->attachment_document_id;
             $previousDocumentId = $transaction->attachment_document_id;
 
@@ -210,23 +223,38 @@ class TransactionsController extends Controller
             if ($previousDocumentId && $previousDocumentId !== $documentId) {
                 $this->cleanupDocumentIfOrphan((int) $previousDocumentId);
             }
+
+            activity('finance')
+                ->causedBy($request->user())
+                ->performedOn($transaction)
+                ->withProperties([
+                    'reason' => $data['reason'],
+                    'before' => $before,
+                    'after' => $this->transactionSnapshot($transaction->fresh()),
+                ])
+                ->log('cash_transaction.updated');
         });
 
         return redirect()->back()->with('success', 'Transaksi berhasil diperbarui.');
     }
 
-    public function destroy(Request $request, CashTransaction $transaction): RedirectResponse
+    public function destroy(Request $request, CashTransaction $transaction, FinancialActionRequestService $actionRequestService): RedirectResponse
     {
         if ($transaction->dues_payment_id) {
             return redirect()->back()->withErrors(['transaction' => 'Transaksi iuran tidak dapat dihapus manual.']);
         }
 
-        $transaction->update([
-            'voided_at' => now(),
-            'voided_by' => $request->user()->id,
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'min:3', 'max:255'],
         ]);
 
-        return redirect()->back()->with('success', 'Transaksi berhasil dibatalkan.');
+        try {
+            $actionRequestService->requestVoid($transaction, $data['reason'], $request->user());
+        } catch (\RuntimeException $exception) {
+            return redirect()->back()->withErrors(['transaction' => $exception->getMessage()]);
+        }
+
+        return redirect()->back()->with('success', 'Request void transaksi dikirim untuk approval.');
     }
 
     public function attachment(Request $request, CashTransaction $transaction, Document $document): BinaryFileResponse
@@ -328,5 +356,27 @@ class TransactionsController extends Controller
         }
 
         return [null, null];
+    }
+
+    private function transactionSnapshot(?CashTransaction $transaction): array
+    {
+        if (! $transaction) {
+            return [];
+        }
+
+        return [
+            'id' => $transaction->id,
+            'tx_date' => optional($transaction->tx_date)->format('Y-m-d H:i:s'),
+            'type' => $transaction->type,
+            'category_id' => $transaction->category_id,
+            'method_id' => $transaction->method_id,
+            'amount' => $transaction->amount,
+            'description' => $transaction->description,
+            'reference_no' => $transaction->reference_no,
+            'member_id' => $transaction->member_id,
+            'dues_payment_id' => $transaction->dues_payment_id,
+            'attachment_document_id' => $transaction->attachment_document_id,
+            'voided_at' => optional($transaction->voided_at)->format('Y-m-d H:i:s'),
+        ];
     }
 }

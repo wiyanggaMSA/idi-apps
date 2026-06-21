@@ -18,6 +18,8 @@ import {
     FilePdfOutlined,
     FundOutlined,
     PlusOutlined,
+    AuditOutlined,
+    FormOutlined,
 } from "@ant-design/icons";
 
 export const appMenu = [
@@ -50,6 +52,13 @@ export const appMenu = [
                 icon: <MailOutlined />,
                 routeName: "secretariat.letters.index",
                 permission: "letters.view",
+            },
+            {
+                key: "secretariat.signatures",
+                label: "Tanda Tangan",
+                labelKey: "menu.signatures",
+                icon: <FormOutlined />,
+                routeName: "secretariat.signatures.index",
             },
             {
                 key: "secretariat.agenda",
@@ -90,7 +99,7 @@ export const appMenu = [
                 labelKey: "menu.memberData",
                 icon: <IdcardOutlined />,
                 routeName: "members.index",
-                Permission: "members.view",
+                permission: "members.view",
             },
             {
                 key: "members.import",
@@ -98,7 +107,7 @@ export const appMenu = [
                 labelKey: "menu.importExport",
                 icon: <ImportOutlined />,
                 routeName: "members.import-export",
-                Permission: "members.import",
+                permission: "members.import",
             },
         ],
     },
@@ -115,6 +124,7 @@ export const appMenu = [
                 labelKey: "menu.payments",
                 icon: <CreditCardOutlined />,
                 routeName: "dues.index",
+                permission: "dues.view",
             },
             {
                 key: "dues.recap",
@@ -122,6 +132,7 @@ export const appMenu = [
                 labelKey: "menu.duesRecap",
                 icon: <FileDoneOutlined />,
                 routeName: "dues.recap",
+                permission: "dues.recap.view",
             },
         ],
     },
@@ -163,9 +174,17 @@ export const appMenu = [
                 labelKey: "menu.financialSummary",
                 icon: <FileTextOutlined />,
                 routeName: "reports.financial-summary",
-                permission: "reports.summary.view",
+                permission: "reports.financial.view",
             },
         ],
+    },
+    {
+        key: "audit",
+        label: "Audit & Approval",
+        labelKey: "menu.audit",
+        icon: <AuditOutlined />,
+        routeName: "audit.index",
+        permission: "activity.view",
     },
     {
         key: "settings",
@@ -173,6 +192,7 @@ export const appMenu = [
         labelKey: "menu.settings",
         icon: <SettingOutlined />,
         routeName: "settings.index",
-        Permission: "settings.view",
+        permission: "settings.view",
     },
+    
 ];

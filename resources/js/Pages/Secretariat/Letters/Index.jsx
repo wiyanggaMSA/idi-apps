@@ -5,6 +5,7 @@ import { PlusOutlined, SearchOutlined } from "@ant-design/icons";
 import AppLayout from "@/Layouts/AppLayout";
 import PageHeader from "@/Components/App/PageHeader";
 import PageShell from "@/Components/App/PageShell";
+import { formatDate } from "@/lib/format";
 
 const statusColor = {
   draft: "gold",
@@ -145,7 +146,7 @@ export default function LettersIndex() {
                 ),
               },
               { title: "Nomor", dataIndex: "number", render: (value) => value || <span className="text-zinc-400">Belum final</span> },
-              { title: "Tanggal", dataIndex: "date", render: (value) => value || "-" },
+              { title: "Tanggal", dataIndex: "date", render: (value) => formatDate(value) },
               { title: "Lampiran", dataIndex: "documents_count", align: "center" },
               {
                 title: "Status",

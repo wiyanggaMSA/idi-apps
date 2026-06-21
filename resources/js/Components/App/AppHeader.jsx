@@ -25,7 +25,6 @@ export default function AppHeader({
     collapsed,
     onToggle,
     orgName,
-    brandColor,
 }) {
     const { language, toggleLanguage, t } = useI18n();
     const items = [
@@ -62,7 +61,7 @@ export default function AppHeader({
                         <p className="text-xs font-semibold uppercase tracking-[0.28em] text-zinc-400">
                             {orgName || "IDI Finance"}
                         </p>
-                        <h2 className="text-lg font-semibold tracking-tight text-zinc-950">
+                        <h2 className="text-base font-semibold tracking-tight text-zinc-950">
                             {title}
                         </h2>
                     </div>
@@ -93,9 +92,6 @@ export default function AppHeader({
                             icon={<UserOutlined />}
                             size="large"
                             className="!h-11 !rounded-2xl !border-zinc-200 !bg-white !px-4 !font-medium !text-zinc-700 !shadow-sm hover:!text-zinc-950"
-                            style={{
-                                borderColor: brandColor || undefined,
-                            }}
                         >
                             {user?.name || "User"}
                         </Button>

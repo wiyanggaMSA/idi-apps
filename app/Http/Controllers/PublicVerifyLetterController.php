@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AppSetting;
 use App\Models\Letter;
+use App\Services\Secretariat\LetterSignatureStatusService;
 use App\Support\Secretariat\LetterSignerNormalizer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -12,7 +13,7 @@ use Inertia\Response;
 
 class PublicVerifyLetterController extends Controller
 {
-    public function show(Request $request, string $public_hash): Response
+    public function show(Request $request, string $public_hash, LetterSignatureStatusService $signatureStatusService): Response
     {
         $org = AppSetting::query()->first();
         $logoUrl = null;
@@ -26,7 +27,13 @@ class PublicVerifyLetterController extends Controller
             }
         }
 
-        $letter = Letter::query()->where('public_hash', $public_hash)->firstOrFail();
+        $letter = Letter::query()->with('signatures')->where('public_hash', $public_hash)->firstOrFail();
+        $signatureSummary = $signatureStatusService->summary($letter);
+        $status = match (true) {
+            (bool) $letter->is_revoked => 'REVOKED',
+            $signatureSummary['status'] === 'PENDING_SIGNATURES' => 'PENDING_SIGNATURES',
+            default => 'VALID',
+        };
         $version = $request->integer('v');
         $signerIndex = max(1, $request->integer('signer', 1));
         $signers = LetterSignerNormalizer::normalize(
@@ -37,7 +44,8 @@ class PublicVerifyLetterController extends Controller
         $selectedSigner = $signers[$signerIndex - 1] ?? LetterSignerNormalizer::first($signers);
 
         $payload = [
-            'status' => $letter->is_revoked ? 'REVOKED' : 'VALID',
+            'status' => $status,
+            'signature_verification' => $signatureSummary,
             'signer_name' => $selectedSigner['name'] ?? $letter->signer_name,
             'signer_title' => $selectedSigner['title'] ?? $letter->signer_title,
             'signer_index' => $signerIndex,

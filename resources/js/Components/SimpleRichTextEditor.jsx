@@ -45,10 +45,14 @@ const formats = [
 const normalizeColonRows = (html) => String(html ?? "").replace(
   /<(p|div)([^>]*)>(.*?)<\/\1>/gis,
   (full, tag, attributes = "", inner = "") => {
+    if (/\bcolon-row\b/.test(attributes) || /\bcolon-label\b/.test(inner)) {
+      return full;
+    }
+
     const plain = inner.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim();
     const match = plain.match(/^([^:]{2,42})\s*:\s*(.+)$/u);
 
-    if (!match) {
+    if (!match || /<span\b/i.test(inner)) {
       return full;
     }
 
@@ -115,7 +119,10 @@ export default function SimpleRichTextEditor({ value, onChange, minHeight = 180,
         ref={quillRef}
         theme="snow"
         value={normalizedValue}
-        onChange={(html) => onChange?.(documentMode ? normalizeColonRows(html) : html)}
+        onChange={(html, _delta, source) => {
+          const nextHtml = documentMode && source === "user" ? normalizeColonRows(html) : html;
+          onChange?.(nextHtml);
+        }}
         modules={selectedModules}
         formats={formats}
       />

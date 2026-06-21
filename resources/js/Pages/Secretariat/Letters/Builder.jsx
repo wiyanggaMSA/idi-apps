@@ -7,6 +7,7 @@ import AppLayout from "@/Layouts/AppLayout";
 import PageHeader from "@/Components/App/PageHeader";
 import PageShell from "@/Components/App/PageShell";
 import SimpleRichTextEditor from "@/Components/SimpleRichTextEditor";
+import { formatDate } from "@/lib/format";
 
 const defaultLayout = () => [
   { i: "kop_surat", x: 0, y: 0, w: 12, h: 4, minW: 12, maxW: 12, minH: 4 },
@@ -147,10 +148,9 @@ export default function LetterComposer() {
       template_id: form.data.template_id,
       date: form.data.date,
       classification: form.data.classification,
-      commit: true,
     });
     form.setData("number", data.number);
-    message.success("Nomor surat berhasil dibuat.");
+    message.success("Nomor tersedia disarankan. Counter dikunci saat finalisasi.");
   };
 
   const finalize = () => {
@@ -402,7 +402,7 @@ export default function LetterComposer() {
                         <span>Lampiran</span><span>:</span><span>{form.data.attachment || "-"}</span>
                         <span>Perihal</span><span>:</span><span>{form.data.subject || "-"}</span>
                       </div>
-                      <div className="shrink-0 text-right">Purwakarta, {form.data.date || "-"}</div>
+                      <div className="shrink-0 text-right">Purwakarta, {formatDate(form.data.date)}</div>
                     </div>
                     <div className="prose prose-sm mt-6 max-w-none" dangerouslySetInnerHTML={{ __html: sanitizeHtml(form.data.recipient_text || "<p>Yth. ...</p>") }} />
                     <div className="prose prose-sm mt-5 max-w-none" dangerouslySetInnerHTML={{ __html: sanitizeHtml(form.data.body_text || "<p>Isi surat...</p>") }} />

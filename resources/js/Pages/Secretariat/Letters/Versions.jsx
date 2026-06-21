@@ -5,6 +5,7 @@ import AppLayout from "@/Layouts/AppLayout";
 import PageShell from "@/Components/App/PageShell";
 import PageHeader from "@/Components/App/PageHeader";
 import { useI18n } from "@/Contexts/I18nContext";
+import { formatDate } from "@/lib/format";
 
 export default function LetterVersions() {
   const { language } = useI18n();
@@ -23,7 +24,7 @@ export default function LetterVersions() {
   const columns = [
     { title: copy.version, dataIndex: "version", key: "version", render: (value) => <Tag>v{value}</Tag> },
     { title: copy.number, dataIndex: "number", key: "number", render: (value) => value || "-" },
-    { title: copy.date, dataIndex: "date", key: "date", render: (value) => value || "-" },
+    { title: copy.date, dataIndex: "date", key: "date", render: (value) => formatDate(value) },
     { title: copy.subject, dataIndex: "subject", key: "subject", render: (value) => value || "-" },
     {
       title: copy.actions,

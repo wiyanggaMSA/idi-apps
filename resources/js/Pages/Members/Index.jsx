@@ -64,6 +64,7 @@ export default function MembersIndex() {
   const filters = props.filters || {};
   const divisions = props.divisions || [];
   const positions = props.positions || [];
+  const users = props.users || [];
   const statuses = props.statuses || [];
   const genders = props.genders || [];
 
@@ -129,6 +130,11 @@ export default function MembersIndex() {
     demographicInfo: isEn ? "Demographic Information" : "Informasi Demografis",
     workInfo: isEn ? "Work & Membership" : "Keanggotaan & Organisasi",
     licenseInfo: isEn ? "License Information" : "Informasi SIP",
+    linkedAccount: isEn ? "Linked Login Account" : "Akun Login Tertaut",
+    selectLinkedAccount: isEn ? "Select login account" : "Pilih akun login",
+    linkedAccountHint: isEn
+      ? "This account will receive signature requests for this member."
+      : "Akun ini akan menerima daftar surat yang perlu ditandatangani anggota ini.",
   };
 
   const canCreate = props?.auth?.permissions?.includes("members.create");
@@ -272,6 +278,7 @@ export default function MembersIndex() {
       const values = await form.validateFields();
       const payload = {
         ...values,
+        user_id: values.user_id || null,
         birth_date: values.birth_date
           ? values.birth_date.format("YYYY-MM-DD")
           : null,
@@ -322,12 +329,12 @@ export default function MembersIndex() {
       {items.map((item) => (
         <div
           key={item.label}
-          className="grid grid-cols-[170px_minmax(0,1fr)] items-start gap-4 rounded-xl border border-zinc-200/70 bg-zinc-50/60 px-3 py-2.5"
+          className="grid grid-cols-[150px_minmax(0,1fr)] items-start gap-3 rounded-lg border border-zinc-200/70 bg-zinc-50/60 px-3 py-2"
         >
-          <p className="m-0 text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
+          <p className="m-0 text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
             {item.label}
           </p>
-          <p className="m-0 text-sm font-medium text-zinc-800 break-words">{item.value || "-"}</p>
+          <p className="m-0 text-[12px] font-medium text-zinc-800 break-words">{item.value || "-"}</p>
         </div>
       ))}
     </div>
@@ -510,8 +517,8 @@ export default function MembersIndex() {
   });
 
   const columnMenu = (
-    <Card style={{ minWidth: 220 }} bodyStyle={{ padding: 12 }}>
-      <Space direction="vertical" size={6} style={{ width: "100%" }}>
+	    <Card style={{ minWidth: 200 }} bodyStyle={{ padding: 10 }}>
+	      <Space direction="vertical" size={4} style={{ width: "100%" }}>
         {table.getAllLeafColumns().map((column) => (
           <Checkbox
             key={column.id}
@@ -555,49 +562,49 @@ export default function MembersIndex() {
         >
           <Space wrap size={10} style={{ width: "100%" }}>
             <Space orientation="vertical" size={4}>
-              <Text type="secondary">{copy.search}</Text>
+	              <Text type="secondary" style={{ fontSize: 12 }}>{copy.search}</Text>
               <Input
                 allowClear
                 value={searchValue}
                 onChange={(event) => setSearchValue(event.target.value)}
                 prefix={<SearchOutlined />}
                 placeholder={copy.searchPlaceholder}
-                style={{ width: 260 }}
+	                style={{ width: 240 }}
               />
             </Space>
 
             <Space orientation="vertical" size={4}>
-              <Text type="secondary">{copy.membershipStatus}</Text>
+	              <Text type="secondary" style={{ fontSize: 12 }}>{copy.membershipStatus}</Text>
               <Select
                 allowClear
                 value={filters.status || undefined}
                 onChange={(value) => applyFilters({ status: value, page: 1 })}
                 placeholder={copy.selectStatus}
-                style={{ width: 190 }}
+	                style={{ width: 170 }}
                 options={translatedStatuses}
               />
             </Space>
 
             <Space orientation="vertical" size={4}>
-              <Text type="secondary">{copy.gender}</Text>
+	              <Text type="secondary" style={{ fontSize: 12 }}>{copy.gender}</Text>
               <Select
                 allowClear
                 value={filters.gender || undefined}
                 onChange={(value) => applyFilters({ gender: value, page: 1 })}
                 placeholder={copy.selectGender}
-                style={{ width: 170 }}
+	                style={{ width: 150 }}
                 options={translatedGenders}
               />
             </Space>
 
             <Space orientation="vertical" size={4}>
-              <Text type="secondary">{copy.division}</Text>
+	              <Text type="secondary" style={{ fontSize: 12 }}>{copy.division}</Text>
               <Select
                 allowClear
                 value={filters.division_id || undefined}
                 onChange={(value) => applyFilters({ division_id: value, page: 1 })}
                 placeholder={copy.selectDivision}
-                style={{ width: 190 }}
+	                style={{ width: 170 }}
                 options={divisions.map((division) => ({
                   value: String(division.id),
                   label: division.name,
@@ -606,13 +613,13 @@ export default function MembersIndex() {
             </Space>
 
             <Space orientation="vertical" size={4}>
-              <Text type="secondary">{copy.position}</Text>
+	              <Text type="secondary" style={{ fontSize: 12 }}>{copy.position}</Text>
               <Select
                 allowClear
                 value={filters.position_id || undefined}
                 onChange={(value) => applyFilters({ position_id: value, page: 1 })}
                 placeholder={copy.selectPosition}
-                style={{ width: 190 }}
+	                style={{ width: 170 }}
                 options={positions.map((position) => ({
                   value: String(position.id),
                   label: position.name,
@@ -634,7 +641,7 @@ export default function MembersIndex() {
             columns={antdColumns}
             dataSource={members}
             rowKey="id"
-            size="middle"
+	            size="small"
             tableLayout="fixed"
             scroll={{ x: "max-content" }}
             pagination={{
@@ -655,7 +662,7 @@ export default function MembersIndex() {
             <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-red-700/80">
               {editingMember ? copy.editMember : copy.addMember}
             </p>
-            <h3 className="m-0 text-xl font-semibold text-zinc-950">
+            <h3 className="m-0 text-base font-semibold text-zinc-950">
               {editingMember?.full_name || copy.addMember}
             </h3>
           </div>
@@ -670,29 +677,29 @@ export default function MembersIndex() {
         centered
         destroyOnClose
         styles={{
-          header: {
-            padding: "22px 24px 0",
+	          header: {
+	            padding: "18px 22px 0",
             marginBottom: 0,
           },
-          body: {
-            padding: "18px 24px 10px",
+	          body: {
+	            padding: "14px 22px 8px",
             maxHeight: "72vh",
             overflowY: "auto",
           },
-          footer: {
-            padding: "16px 24px 22px",
+	          footer: {
+	            padding: "14px 22px 18px",
             marginTop: 0,
             borderTop: "1px solid rgba(228, 228, 231, 0.85)",
           },
         }}
       >
         <Form layout="vertical" form={form} className="member-form-grid">
-          <section className="rounded-[24px] border border-zinc-200/80 bg-zinc-50/75 p-4">
-            <div className="mb-4">
+	          <section className="rounded-2xl border border-zinc-200/80 bg-zinc-50/75 p-3">
+	            <div className="mb-3">
               <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
                 {copy.basicInfo}
               </p>
-              <p className="m-0 text-sm text-zinc-500">{copy.basicInfoHint}</p>
+	              <p className="m-0 text-xs text-zinc-500">{copy.basicInfoHint}</p>
             </div>
 
             <div className="grid gap-x-4 md:grid-cols-2">
@@ -723,12 +730,12 @@ export default function MembersIndex() {
             </div>
           </section>
 
-          <section className="mt-4 rounded-[24px] border border-zinc-200/80 bg-white p-4">
-            <div className="mb-4">
+	          <section className="mt-3 rounded-2xl border border-zinc-200/80 bg-white p-3">
+	            <div className="mb-3">
               <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
                 {copy.personalInfo}
               </p>
-              <p className="m-0 text-sm text-zinc-500">{copy.personalInfoHint}</p>
+	              <p className="m-0 text-xs text-zinc-500">{copy.personalInfoHint}</p>
             </div>
 
             <div className="grid gap-x-4 md:grid-cols-2">
@@ -751,12 +758,12 @@ export default function MembersIndex() {
             </div>
           </section>
 
-          <section className="mt-4 rounded-[24px] border border-zinc-200/80 bg-white p-4">
-            <div className="mb-4">
+	          <section className="mt-3 rounded-2xl border border-zinc-200/80 bg-white p-3">
+	            <div className="mb-3">
               <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
                 {copy.organizationalInfo}
               </p>
-              <p className="m-0 text-sm text-zinc-500">{copy.organizationalInfoHint}</p>
+	              <p className="m-0 text-xs text-zinc-500">{copy.organizationalInfoHint}</p>
             </div>
 
             <div className="grid gap-x-4 md:grid-cols-2">
@@ -787,6 +794,22 @@ export default function MembersIndex() {
                   placeholder={copy.memberStatus}
                 />
               </Form.Item>
+              <Form.Item
+                label={copy.linkedAccount}
+                name="user_id"
+                tooltip={copy.linkedAccountHint}
+              >
+                <Select
+                  allowClear
+                  showSearch
+                  optionFilterProp="label"
+                  placeholder={copy.selectLinkedAccount}
+                  options={users.map((user) => ({
+                    value: user.id,
+                    label: `${user.name}${user.email ? ` · ${user.email}` : ""}`,
+                  }))}
+                />
+              </Form.Item>
               <Form.Item label="SIP-1" name="sip_1">
                 <Input placeholder="SIP-1" />
               </Form.Item>
@@ -799,12 +822,12 @@ export default function MembersIndex() {
             </div>
           </section>
 
-          <section className="mt-4 rounded-[24px] border border-zinc-200/80 bg-zinc-50/75 p-4">
-            <div className="mb-4">
+	          <section className="mt-3 rounded-2xl border border-zinc-200/80 bg-zinc-50/75 p-3">
+	            <div className="mb-3">
               <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
                 {copy.optionalDetails}
               </p>
-              <p className="m-0 text-sm text-zinc-500">{copy.optionalDetailsHint}</p>
+	              <p className="m-0 text-xs text-zinc-500">{copy.optionalDetailsHint}</p>
             </div>
 
             <div className="grid gap-x-4 md:grid-cols-2">
@@ -825,7 +848,7 @@ export default function MembersIndex() {
             <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-red-700/80">
               {copy.memberOverview}
             </p>
-            <h3 className="m-0 text-xl font-semibold text-zinc-950">{copy.memberDetail}</h3>
+	            <h3 className="m-0 text-base font-semibold text-zinc-950">{copy.memberDetail}</h3>
           </div>
         }
         open={drawerOpen}
@@ -833,26 +856,26 @@ export default function MembersIndex() {
         size="large"
         styles={{
           header: {
-            padding: "24px 28px 8px",
+	            padding: "18px 22px 8px",
             marginBottom: 0,
           },
           body: {
-            padding: "18px 28px 24px",
+	            padding: "14px 22px 20px",
           },
         }}
       >
         {detailMember ? (
-          <div className="space-y-4">
-            <Card style={{ borderRadius: 16 }} bodyStyle={{ padding: 16 }}>
+	          <div className="space-y-3">
+	            <Card style={{ borderRadius: 14 }} bodyStyle={{ padding: 14 }}>
               <div className="flex items-start gap-3">
                 <Avatar
-                  size={48}
+	                  size={40}
                   icon={<UserOutlined />}
                   style={{ background: "linear-gradient(145deg, #b91c1c, #991b1b)" }}
                 />
                 <div className="min-w-0">
-                  <p className="m-0 truncate text-lg font-semibold text-zinc-900">{detailMember.full_name}</p>
-                  <p className="m-0 mt-1 text-sm text-zinc-600">NPA {detailMember.npa || "-"}</p>
+	                  <p className="m-0 truncate text-base font-semibold text-zinc-900">{detailMember.full_name}</p>
+	                  <p className="m-0 mt-1 text-xs text-zinc-600">NPA {detailMember.npa || "-"}</p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     <Tag color={statusTone(detailMember.status)} style={{ fontWeight: 600 }}>
                       {detailMember.status_name || statusLabel[detailMember.status] || detailMember.status || "-"}
@@ -868,6 +891,12 @@ export default function MembersIndex() {
               {detailRows([
                 { label: "Email", value: detailMember.email },
                 { label: copy.phone, value: detailMember.phone },
+                {
+                  label: copy.linkedAccount,
+                  value: detailMember.linked_user
+                    ? `${detailMember.linked_user.name || "-"} (${detailMember.linked_user.email || "-"})`
+                    : null,
+                },
                 { label: copy.address, value: detailMember.address },
               ])}
             </Card>

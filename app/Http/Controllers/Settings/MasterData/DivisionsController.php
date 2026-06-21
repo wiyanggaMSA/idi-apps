@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Division;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class DivisionsController extends Controller
 {
@@ -31,5 +32,27 @@ class DivisionsController extends Controller
         $division->delete();
 
         return back()->with('success', 'Divisi berhasil dihapus.');
+    }
+
+    public function update(Request $request, Division $division): RedirectResponse
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'code' => [
+                'nullable',
+                'string',
+                'max:50',
+                Rule::unique('divisions', 'code')->ignore($division->id)->whereNull('deleted_at'),
+            ],
+            'is_active' => ['sometimes', 'boolean'],
+        ]);
+
+        $division->update([
+            'name' => $data['name'],
+            'code' => $data['code'] ?? null,
+            'is_active' => $data['is_active'] ?? false,
+        ]);
+
+        return back()->with('success', 'Divisi berhasil diperbarui.');
     }
 }

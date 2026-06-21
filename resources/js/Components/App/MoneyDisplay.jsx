@@ -23,7 +23,7 @@ export default function MoneyDisplay({
         <span
             className={cn(
                 "font-semibold tabular-nums",
-                emphasize ? "text-xl" : "text-sm",
+                emphasize ? "text-base" : "text-xs",
                 toneClass,
                 className,
             )}

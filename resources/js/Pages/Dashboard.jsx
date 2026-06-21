@@ -257,10 +257,17 @@ export default function DashboardIndex() {
 
                 <section className="idi-grid">
                     <StatCard
+                        title={t("dashboard.cashBalance")}
+                        value={<MoneyDisplay value={kpi?.cash_balance ?? 0} emphasize tone="inverse" />}
+                        hint={t("dashboard.allPaymentMethods")}
+                        tone="primary"
+                        icon={<DollarCircleOutlined />}
+                    />
+                    <StatCard
                         title={t("dashboard.duesBalance")}
                         value={<MoneyDisplay value={kpi?.dues_balance ?? 0} emphasize tone="inverse" />}
                         hint={t("dashboard.duesBalanceHint")}
-                        tone="primary"
+                        tone="info"
                         icon={<DollarCircleOutlined />}
                     />
                     <StatCard
@@ -285,17 +292,6 @@ export default function DashboardIndex() {
                         })}
                         tone="warning"
                         icon={<BarChartOutlined />}
-                    />
-                </section>
-
-                <section className="grid gap-4 xl:grid-cols-4 md:grid-cols-2">
-                    <StatCard
-                        title={t("dashboard.totalBilled")}
-                        value={<MoneyDisplay value={kpi?.dues_billed} emphasize />}
-                        hint={t("dashboard.requiredMembers", {
-                            count: kpi?.members_total ?? 0,
-                        })}
-                        icon={<TeamOutlined />}
                     />
                     <StatCard
                         title={t("dashboard.totalCollected")}

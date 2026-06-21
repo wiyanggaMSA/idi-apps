@@ -4,6 +4,7 @@ import { Alert, Button, Card, Descriptions, Tag } from "antd";
 
 const statusMap = {
   VALID: { color: "success", label: "Terverifikasi" },
+  PENDING_SIGNATURE: { color: "warning", label: "Menunggu Tanda Tangan" },
   REVOKED: { color: "warning", label: "Dicabut / Tidak Berlaku" },
   INVALID: { color: "error", label: "Tidak Valid" },
 };
@@ -13,6 +14,7 @@ export default function VerifySignature() {
   const state = statusMap[payload?.status] ?? statusMap.INVALID;
   const org = payload?.organization ?? {};
   const logoUrl = org.logo_url || "/images/idi-logo.png";
+  const signatureSummary = payload?.signature_verification ?? {};
 
   return (
     <>
@@ -88,7 +90,7 @@ export default function VerifySignature() {
                 labelStyle={{ width: 220, fontWeight: 600 }}
               >
                 <Descriptions.Item label="Status">
-                  <Tag color={payload?.status === "VALID" ? "green" : payload?.status === "REVOKED" ? "orange" : "red"}>
+                  <Tag color={payload?.status === "VALID" ? "green" : payload?.status === "PENDING_SIGNATURE" ? "gold" : payload?.status === "REVOKED" ? "orange" : "red"}>
                     {payload?.status || "-"}
                   </Tag>
                 </Descriptions.Item>
@@ -109,6 +111,15 @@ export default function VerifySignature() {
                 </Descriptions.Item>
                 <Descriptions.Item label="Waktu Tanda Tangan">
                   {payload?.signed_at || "-"}
+                </Descriptions.Item>
+                <Descriptions.Item label="Kelengkapan Dokumen">
+                  {signatureSummary.required_count ? (
+                    <span>
+                      {signatureSummary.signed_count || 0}/{signatureSummary.required_count} tanda tangan lengkap
+                    </span>
+                  ) : (
+                    "-"
+                  )}
                 </Descriptions.Item>
               </Descriptions>
             </div>

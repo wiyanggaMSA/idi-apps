@@ -12,9 +12,9 @@ class LetterNumberGeneratorService
 {
     public function preview(LetterTemplate $template, CarbonInterface $date, ?string $type = null): string
     {
-        $sequence = $this->currentSequence($template, $date);
+        $sequence = $this->nextAvailableSequence($template, $date, $type);
 
-        return $this->format($template, $date, $sequence + 1, $type);
+        return $this->format($template, $date, $sequence, $type);
     }
 
     public function commit(LetterTemplate $template, CarbonInterface $date, ?string $type = null, ?int $ignoreLetterId = null): string
@@ -31,11 +31,10 @@ class LetterNumberGeneratorService
                 ]);
             }
 
-            do {
-                $sequence->last_seq++;
-                $number = $this->format($template, $date, $sequence->last_seq, $type);
-            } while ($this->numberExists($number, $ignoreLetterId));
+            $nextSeq = $this->nextAvailableSequence($template, $date, $type, $ignoreLetterId);
+            $number = $this->format($template, $date, $nextSeq, $type);
 
+            $sequence->last_seq = max((int) $sequence->last_seq, $nextSeq);
             $sequence->save();
             $template->forceFill(['last_number' => max((int) $template->last_number, $sequence->last_seq)])->save();
 
@@ -50,9 +49,70 @@ class LetterNumberGeneratorService
         }
     }
 
-    private function currentSequence(LetterTemplate $template, CarbonInterface $date): int
+    private function nextAvailableSequence(
+        LetterTemplate $template,
+        CarbonInterface $date,
+        ?string $type,
+        ?int $ignoreLetterId = null
+    ): int
     {
-        return (int) ($this->sequenceQuery($template, $date)->value('last_seq') ?? $template->last_number ?? 0);
+        $highestExisting = $this->highestExistingSequence($template, $date, $type, $ignoreLetterId);
+        $baseline = $highestExisting > 0
+            ? $highestExisting
+            : max((int) ($this->sequenceQuery($template, $date)->value('last_seq') ?? 0), (int) ($template->last_number ?? 0));
+
+        for ($sequence = $baseline + 1; $sequence <= $baseline + 1000; $sequence++) {
+            $number = $this->format($template, $date, $sequence, $type);
+            if (! $this->numberExists($number, $ignoreLetterId)) {
+                return $sequence;
+            }
+        }
+
+        return $baseline + 1001;
+    }
+
+    private function highestExistingSequence(
+        LetterTemplate $template,
+        CarbonInterface $date,
+        ?string $type,
+        ?int $ignoreLetterId = null
+    ): int {
+        $pattern = $this->numberRegex($template, $date, $type);
+        $highest = 0;
+
+        Letter::query()
+            ->whereNotNull('number')
+            ->when($ignoreLetterId, fn ($query) => $query->whereKeyNot($ignoreLetterId))
+            ->pluck('number')
+            ->each(function (string $number) use ($pattern, &$highest) {
+                if (preg_match($pattern, $number, $matches)) {
+                    $highest = max($highest, (int) ($matches['seq'] ?? 0));
+                }
+            });
+
+        return $highest;
+    }
+
+    private function numberRegex(LetterTemplate $template, CarbonInterface $date, ?string $type): string
+    {
+        $raw = (string) ($template->number_format ?: '{number}/IDI-PWK/{roman_month}/{year}');
+        $quoted = preg_quote($raw, '#');
+        $sequencePattern = '(?P<seq>\d+)';
+
+        foreach (['number', 'seq', 'counter'] as $placeholder) {
+            $token = preg_quote('{'.$placeholder.'}', '#');
+            if (str_contains($quoted, $token)) {
+                $quoted = preg_replace('#'.preg_quote($token, '#').'#', $sequencePattern, $quoted, 1);
+                $quoted = str_replace($token, '\d+', $quoted);
+            }
+        }
+
+        return '#^'.strtr($quoted, [
+            preg_quote('{month}', '#') => preg_quote(str_pad((string) $date->month, 2, '0', STR_PAD_LEFT), '#'),
+            preg_quote('{roman_month}', '#') => preg_quote($this->roman($date->month), '#'),
+            preg_quote('{year}', '#') => preg_quote((string) $date->year, '#'),
+            preg_quote('{type}', '#') => preg_quote($type ?: ($template->classification ?: 'UMUM'), '#'),
+        ]).'$#';
     }
 
     private function sequenceQuery(LetterTemplate $template, CarbonInterface $date)

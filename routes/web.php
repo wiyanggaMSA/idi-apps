@@ -8,6 +8,7 @@ use App\Http\Controllers\Cash\TransactionsController;
 use App\Http\Controllers\Dashboard\DashboardController;
 use App\Http\Controllers\Dues\DuesController;
 use App\Http\Controllers\Dues\DuesRecapController;
+use App\Http\Controllers\Finance\AuditController;
 use App\Http\Controllers\Members\MemberController;
 use App\Http\Controllers\Members\MemberImportExportController;
 use App\Http\Controllers\ProfileController;
@@ -27,6 +28,7 @@ use App\Http\Controllers\Secretariat\LetterTemplatesController;
 use App\Http\Controllers\Settings\Access\PermissionsController;
 use App\Http\Controllers\Settings\Access\RolesController;
 use App\Http\Controllers\Settings\Access\UsersController;
+use App\Http\Controllers\Settings\BackupController;
 use App\Http\Controllers\Settings\DuesSettingsController;
 use App\Http\Controllers\Settings\FactoryResetController;
 use App\Http\Controllers\Settings\MasterData\CashCategoriesController;
@@ -90,6 +92,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/letters/{letter}/signature/prepare', [LetterSignatureController::class, 'prepare'])
             ->middleware('permission:letters.create|letters.update')
             ->name('letters.signature.prepare');
+        Route::get('/signatures', [LetterSignatureController::class, 'index'])
+            ->name('signatures.index');
+        Route::post('/signatures/{signature}/sign', [LetterSignatureController::class, 'sign'])
+            ->name('signatures.sign');
         Route::post('/letters/{letter}/finalize', [LettersController::class, 'finalize'])
             ->middleware('permission:letters.finalize')
             ->name('letters.finalize');
@@ -212,22 +218,22 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
     // DUES
     Route::get('/dues', [DuesController::class, 'index'])
-        ->middleware('permission:dues.manage')
+        ->middleware('permission:dues.view|dues.manage')
         ->name('dues.index');
     Route::post('/dues/sync', [DuesController::class, 'syncMembers'])
-        ->middleware('permission:dues.manage')
+        ->middleware('permission:dues.sync|dues.manage')
         ->name('dues.sync');
     Route::post('/dues/payments', [DuesController::class, 'storePayment'])
-        ->middleware('permission:dues.manage')
+        ->middleware('permission:dues.create|dues.manage')
         ->name('dues.payments.store');
     Route::patch('/dues/payments/{payment}', [DuesController::class, 'updatePayment'])
-        ->middleware('permission:dues.manage')
+        ->middleware('permission:dues.update|dues.manage')
         ->name('dues.payments.update');
     Route::post('/dues/payments/{payment}/void', [DuesController::class, 'voidPayment'])
-        ->middleware('permission:dues.void')
+        ->middleware('permission:dues.void.request|dues.void')
         ->name('dues.payments.void');
     Route::get('/dues/members/{member}/payments', [DuesController::class, 'memberPayments'])
-        ->middleware('permission:dues.manage')
+        ->middleware('permission:dues.view|dues.manage')
         ->name('dues.members.payments');
     Route::get('/dues/recap', [DuesRecapController::class, 'index'])
         ->middleware('permission:dues.recap.view')
@@ -254,9 +260,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->middleware('permission:transactions.update')
             ->name('update');
         Route::delete('/{transaction}', [TransactionsController::class, 'destroy'])
-            ->middleware('permission:transactions.delete')
+            ->middleware('permission:transactions.void.request|transactions.delete')
             ->name('destroy');
     });
+
+    Route::get('/audit', [AuditController::class, 'index'])
+        ->middleware('permission:activity.view|dues.void.approve|transactions.void.approve')
+        ->name('audit.index');
+    Route::post('/audit/action-requests/{actionRequest}/approve', [AuditController::class, 'approve'])
+        ->middleware('permission:dues.void.approve|transactions.void.approve')
+        ->name('audit.action-requests.approve');
+    Route::post('/audit/action-requests/{actionRequest}/reject', [AuditController::class, 'reject'])
+        ->middleware('permission:dues.void.approve|transactions.void.approve')
+        ->name('audit.action-requests.reject');
 
     // REPORTS
     Route::get('/reports', ReportsController::class)->name('reports.index');
@@ -275,10 +291,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('permission:reports.export|reports.print')
         ->name('reports.financial-summary.pdf');
     // SETTINGS
-    Route::middleware(['role:Admin'])->group(function () {
+    Route::middleware(['role:admin|superadmin'])->group(function () {
         Route::get('/settings', SettingsController::class)->name('settings.index');
         Route::patch('/settings/profile', [OrganizationProfileController::class, 'update'])->name('settings.profile.update');
         Route::patch('/settings/dues', [DuesSettingsController::class, 'update'])->name('settings.dues.update');
+        Route::post('/settings/backups/full', [BackupController::class, 'store'])
+            ->middleware('permission:settings.view')
+            ->name('settings.backups.store');
+        Route::get('/settings/backups/{backup}/download', [BackupController::class, 'download'])
+            ->middleware('permission:settings.view')
+            ->name('settings.backups.download');
+        Route::post('/settings/backups/restore', [BackupController::class, 'restore'])
+            ->middleware('permission:settings.view')
+            ->name('settings.backups.restore');
         Route::post('/settings/factory-reset/hard', [FactoryResetController::class, 'hardReset'])
             ->middleware('permission:settings.view')
             ->name('settings.factory-reset.hard');
@@ -290,16 +315,22 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('settings.factory-reset.custom');
         Route::prefix('settings/master-data')->name('settings.master-data.')->group(function () {
             Route::post('/divisions', [DivisionsController::class, 'store'])->name('divisions.store');
+            Route::patch('/divisions/{division}', [DivisionsController::class, 'update'])->name('divisions.update');
             Route::delete('/divisions/{division}', [DivisionsController::class, 'destroy'])->name('divisions.destroy');
             Route::post('/positions', [PositionsController::class, 'store'])->name('positions.store');
+            Route::patch('/positions/{position}', [PositionsController::class, 'update'])->name('positions.update');
             Route::delete('/positions/{position}', [PositionsController::class, 'destroy'])->name('positions.destroy');
             Route::post('/cash-categories', [CashCategoriesController::class, 'store'])->name('cash-categories.store');
+            Route::patch('/cash-categories/{cashCategory}', [CashCategoriesController::class, 'update'])->name('cash-categories.update');
             Route::delete('/cash-categories/{cashCategory}', [CashCategoriesController::class, 'destroy'])->name('cash-categories.destroy');
             Route::post('/cash-methods', [CashMethodsController::class, 'store'])->name('cash-methods.store');
+            Route::patch('/cash-methods/{cashMethod}', [CashMethodsController::class, 'update'])->name('cash-methods.update');
             Route::delete('/cash-methods/{cashMethod}', [CashMethodsController::class, 'destroy'])->name('cash-methods.destroy');
             Route::post('/member-statuses', [MemberStatusesController::class, 'store'])->name('member-statuses.store');
+            Route::patch('/member-statuses/{memberStatus}', [MemberStatusesController::class, 'update'])->name('member-statuses.update');
             Route::delete('/member-statuses/{memberStatus}', [MemberStatusesController::class, 'destroy'])->name('member-statuses.destroy');
             Route::post('/payment-statuses', [PaymentStatusesController::class, 'store'])->name('payment-statuses.store');
+            Route::patch('/payment-statuses/{paymentStatus}', [PaymentStatusesController::class, 'update'])->name('payment-statuses.update');
             Route::delete('/payment-statuses/{paymentStatus}', [PaymentStatusesController::class, 'destroy'])->name('payment-statuses.destroy');
         });
         Route::prefix('settings/access')->name('settings.access.')->group(function () {

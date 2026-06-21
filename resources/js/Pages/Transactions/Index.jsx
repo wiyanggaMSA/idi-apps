@@ -24,6 +24,7 @@ import {
     Space,
     Upload,
     message,
+    Tag,
 } from "antd";
 import {
     flexRender,
@@ -73,12 +74,13 @@ export default function TransactionsIndex() {
         filters,
         categories,
         methods,
-        balances_by_method: balancesByMethod,
     } = props;
 
     const [form] = Form.useForm();
+    const [voidForm] = Form.useForm();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editing, setEditing] = useState(null);
+    const [voiding, setVoiding] = useState(null);
     const [fileList, setFileList] = useState([]);
     const [previewOpen, setPreviewOpen] = useState(false);
     const [attachmentPreview, setAttachmentPreview] = useState(null);
@@ -89,6 +91,11 @@ export default function TransactionsIndex() {
         "image/png",
         "application/pdf",
     ];
+    const permissions = props.auth?.permissions || [];
+    const canCreate = permissions.includes("transactions.create");
+    const canUpdate = permissions.includes("transactions.update");
+    const canAdjustAmount = permissions.includes("transactions.adjust.amount");
+    const canVoid = permissions.includes("transactions.void.request") || permissions.includes("transactions.delete");
 
     const [filterState, setFilterState] = useState({
         search: filters?.search || "",
@@ -193,7 +200,14 @@ export default function TransactionsIndex() {
             {
                 accessorKey: "reference_no",
                 header: t("common.reference"),
-                cell: ({ row }) => row.original.reference_no || row.original.source || "-",
+                cell: ({ row }) => (
+                    <Space size={6} wrap>
+                        <span>{row.original.reference_no || row.original.source || "-"}</span>
+                        {row.original.has_pending_void_request ? (
+                            <Tag color="gold">{t("transactions.pendingApproval")}</Tag>
+                        ) : null}
+                    </Space>
+                ),
                 meta: { width: 170 },
             },
             {
@@ -242,7 +256,7 @@ export default function TransactionsIndex() {
                             key: "edit",
                             icon: <EditOutlined />,
                             label: t("common.edit"),
-                            disabled: row.original.is_locked,
+                            disabled: row.original.is_locked || !canUpdate || row.original.has_pending_void_request,
                             onClick: () => handleEdit(row.original),
                         },
                         {
@@ -250,7 +264,7 @@ export default function TransactionsIndex() {
                             icon: <DeleteOutlined />,
                             label: t("transactions.canceled"),
                             danger: true,
-                            disabled: row.original.is_locked,
+                            disabled: row.original.is_locked || !canVoid || row.original.has_pending_void_request,
                             onClick: () => handleDelete(row.original),
                         },
                     ];
@@ -330,20 +344,26 @@ export default function TransactionsIndex() {
             description: record.description,
             reference_no: record.reference_no,
             remove_attachment: false,
+            reason: "",
         });
         setIsModalOpen(true);
     };
 
     const handleDelete = (record) => {
-        Modal.confirm({
-            title: t("transactions.cancelTransaction"),
-            content: t("transactions.cancelTransactionDesc"),
-            okText: t("transactions.confirmCancel"),
-            okButtonProps: { danger: true },
-            onOk: () =>
-                router.delete(route("transactions.destroy", record.id), {
-                    preserveScroll: true,
-                }),
+        setVoiding(record);
+        voidForm.resetFields();
+    };
+
+    const submitVoid = async () => {
+        const values = await voidForm.validateFields();
+
+        router.delete(route("transactions.destroy", voiding.id), {
+            data: { reason: values.reason.trim() },
+            preserveScroll: true,
+            onSuccess: () => {
+                setVoiding(null);
+                voidForm.resetFields();
+            },
         });
     };
 
@@ -362,6 +382,9 @@ export default function TransactionsIndex() {
         }
         if (values.remove_attachment) {
             payload.append("remove_attachment", "1");
+        }
+        if (values.reason) {
+            payload.append("reason", values.reason);
         }
 
         if (editing) {
@@ -416,7 +439,7 @@ export default function TransactionsIndex() {
                     description={t("transactions.description")}
                     extra={
                         <Space wrap>
-                            <Button type="primary" icon={<PlusOutlined />} onClick={openModal}>
+                            <Button type="primary" icon={<PlusOutlined />} onClick={openModal} disabled={!canCreate}>
                                 {t("transactions.addTransaction")}
                             </Button>
                             <Dropdown menu={columnMenu} trigger={["click"]}>
@@ -548,22 +571,6 @@ export default function TransactionsIndex() {
                     <Button onClick={resetFilters}>{t("common.reset")}</Button>
                 </FilterBar>
 
-                <Card title={t("transactions.balanceByMethod")}>
-                    <div className="grid gap-4 md:grid-cols-3">
-                        {methods.map((method) => (
-                            <div
-                                key={method.id}
-                                className="rounded-3xl border border-zinc-200 bg-zinc-50 px-5 py-4"
-                            >
-                                <p className="text-sm font-semibold text-zinc-900">{method.name}</p>
-                                <p className="mt-2 text-lg font-semibold text-zinc-950">
-                                    {formatIDR(balancesByMethod?.[method.id] || 0)}
-                                </p>
-                            </div>
-                        ))}
-                    </div>
-                </Card>
-
                 <Card title={t("transactions.transactionList")}>
                     <p className="mb-4 text-sm text-zinc-500">
                         {t("common.runningBalance")} {t("common.calculatedChronologically")}
@@ -618,7 +625,7 @@ export default function TransactionsIndex() {
                 open={isModalOpen}
                 onCancel={() => setIsModalOpen(false)}
                 onOk={submitForm}
-                okText={editing ? "Simpan" : "Tambah"}
+                okText={editing ? t("common.save") : t("common.add")}
                 width={760}
                 className="transaction-form-modal"
                 styles={{
@@ -644,23 +651,38 @@ export default function TransactionsIndex() {
                         <section className="rounded-[22px] border border-zinc-200/80 bg-zinc-50/75 p-4">
                             <div className="grid gap-4 md:grid-cols-2">
                             <Form.Item
-                                label="Tanggal"
+                                label={t("common.date")}
                                 name="tx_date"
-                                rules={[{ required: true, message: "Tanggal wajib diisi" }]}
+                                rules={[
+                                    {
+                                        required: true,
+                                        message: t("transactions.requiredField", {
+                                            field: t("common.date"),
+                                        }),
+                                    },
+                                ]}
                             >
                                 <DatePicker showTime style={{ width: "100%" }} />
                             </Form.Item>
 
                             <Form.Item
-                                label="Tipe"
+                                label={t("common.type")}
                                 name="type"
-                                rules={[{ required: true, message: "Tipe wajib diisi" }]}
+                                rules={[
+                                    {
+                                        required: true,
+                                        message: t("transactions.requiredField", {
+                                            field: t("common.type"),
+                                        }),
+                                    },
+                                ]}
                             >
                                 <Select
+                                    disabled={editing && !canAdjustAmount}
                                     onChange={() => form.setFieldsValue({ category_id: null })}
                                     options={[
-                                        { value: "in", label: "Masuk" },
-                                        { value: "out", label: "Keluar" },
+                                        { value: "in", label: t("transactions.typeIn") },
+                                        { value: "out", label: t("transactions.typeOut") },
                                     ]}
                                 />
                             </Form.Item>
@@ -668,11 +690,19 @@ export default function TransactionsIndex() {
                             <Form.Item shouldUpdate={(prev, curr) => prev.type !== curr.type}>
                                 {() => (
                                     <Form.Item
-                                        label="Kategori"
+                                        label={t("common.category")}
                                         name="category_id"
-                                        rules={[{ required: true, message: "Kategori wajib diisi" }]}
+                                        rules={[
+                                            {
+                                                required: true,
+                                                message: t("transactions.requiredField", {
+                                                    field: t("common.category"),
+                                                }),
+                                            },
+                                        ]}
                                     >
                                         <Select
+                                            disabled={editing && !canAdjustAmount}
                                             options={categoryOptions
                                                 .filter((option) => {
                                                     const type = form.getFieldValue("type");
@@ -688,20 +718,35 @@ export default function TransactionsIndex() {
                             </Form.Item>
 
                             <Form.Item
-                                label="Metode"
+                                label={t("common.method")}
                                 name="method_id"
-                                rules={[{ required: true, message: "Metode wajib diisi" }]}
+                                rules={[
+                                    {
+                                        required: true,
+                                        message: t("transactions.requiredField", {
+                                            field: t("common.method"),
+                                        }),
+                                    },
+                                ]}
                             >
                                 <Select options={methodOptions} />
                             </Form.Item>
 
                             <div className="md:col-span-2">
                                 <Form.Item
-                                    label="Nominal"
+                                    label={t("common.amount")}
                                     name="amount"
-                                    rules={[{ required: true, message: "Nominal wajib diisi" }]}
+                                    rules={[
+                                        {
+                                            required: true,
+                                            message: t("transactions.requiredField", {
+                                                field: t("common.amount"),
+                                            }),
+                                        },
+                                    ]}
                                 >
                                     <InputNumber
+                                        disabled={editing && !canAdjustAmount}
                                         style={{ width: "100%" }}
                                         min={1}
                                         inputMode="numeric"
@@ -727,17 +772,41 @@ export default function TransactionsIndex() {
 
                         <section className="mt-4 rounded-[22px] border border-zinc-200/80 bg-white p-4">
                             <div className="grid gap-4 md:grid-cols-2">
-                            <Form.Item label="Keterangan" name="description" className="md:col-span-2">
+                            <Form.Item
+                                label={t("common.description")}
+                                name="description"
+                                className="md:col-span-2"
+                            >
                                 <TextArea rows={3} />
                             </Form.Item>
 
-                            <Form.Item label="Referensi" name="reference_no">
+                            <Form.Item label={t("common.reference")} name="reference_no">
                                 <Input />
                             </Form.Item>
 
+                            {editing ? (
+                                <Form.Item
+                                    label={t("transactions.editReason")}
+                                    name="reason"
+                                    className="md:col-span-2"
+                                    rules={[
+                                        {
+                                            required: true,
+                                            message: t("transactions.requiredField", {
+                                                field: t("transactions.editReason"),
+                                            }),
+                                        },
+                                    ]}
+                                >
+                                    <TextArea rows={2} />
+                                </Form.Item>
+                            ) : null}
+
                             <Form.Item
-                                label="Lampiran Bukti"
-                                extra={`Format: JPG/PNG/PDF • Maks ${maxAttachmentKb}KB • Folder: /public/transactions/YYYY-MM`}
+                                label={t("transactions.attachmentProof")}
+                                extra={t("transactions.attachmentFormatHint", {
+                                    max: maxAttachmentKb,
+                                })}
                             >
                                 <Upload
                                     fileList={fileList}
@@ -746,13 +815,17 @@ export default function TransactionsIndex() {
                                             String(file.type || "").toLowerCase(),
                                         );
                                         if (!isValidType) {
-                                            message.error("Format lampiran harus JPG, PNG, atau PDF.");
+                                            message.error(t("transactions.attachmentFormatError"));
                                             return Upload.LIST_IGNORE;
                                         }
 
                                         const isValidSize = file.size / 1024 <= maxAttachmentKb;
                                         if (!isValidSize) {
-                                            message.error(`Ukuran lampiran maksimal ${maxAttachmentKb}KB.`);
+                                            message.error(
+                                                t("transactions.attachmentSizeError", {
+                                                    max: maxAttachmentKb,
+                                                }),
+                                            );
                                             return Upload.LIST_IGNORE;
                                         }
 
@@ -763,7 +836,7 @@ export default function TransactionsIndex() {
                                         setFileList(newFileList)
                                     }
                                 >
-                                    <Button icon={<PaperClipOutlined />}>Pilih File</Button>
+                                    <Button icon={<PaperClipOutlined />}>{t("common.chooseFile")}</Button>
                                 </Upload>
                             </Form.Item>
                             </div>
@@ -773,10 +846,10 @@ export default function TransactionsIndex() {
                                     <div className="flex flex-wrap items-center justify-between gap-3">
                                         <div className="min-w-0">
                                             <p className="m-0 text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
-                                                Lampiran Saat Ini
+                                                {t("transactions.currentAttachment")}
                                             </p>
                                             <p className="m-0 mt-1 truncate text-sm font-medium text-zinc-800">
-                                                {editing.attachment.title || "Bukti transaksi"}
+                                                {editing.attachment.title || t("transactions.transactionProof")}
                                             </p>
                                         </div>
                                         <Space>
@@ -785,7 +858,7 @@ export default function TransactionsIndex() {
                                                 icon={<EyeOutlined />}
                                                 onClick={() => openAttachmentPreview(editing.attachment)}
                                             >
-                                                Lihat
+                                                {t("transactions.view")}
                                             </Button>
                                             <Button
                                                 size="small"
@@ -795,7 +868,7 @@ export default function TransactionsIndex() {
                                                 rel="noreferrer"
                                                 download={editing.attachment.title || true}
                                             >
-                                                Unduh
+                                                {t("transactions.download")}
                                             </Button>
                                         </Space>
                                     </div>
@@ -814,7 +887,7 @@ export default function TransactionsIndex() {
                                                     })
                                                 }
                                             />
-                                            Hapus lampiran saat simpan
+                                            {t("transactions.removeAttachmentOnSave")}
                                         </label>
                                     </Form.Item>
                                 </div>
@@ -822,6 +895,38 @@ export default function TransactionsIndex() {
                         </section>
                     </Form>
                 </FormSection>
+            </Modal>
+
+            <Modal
+                title={t("transactions.requestVoidTitle")}
+                open={!!voiding}
+                okText={t("transactions.requestVoid")}
+                okButtonProps={{ danger: true }}
+                onOk={submitVoid}
+                onCancel={() => setVoiding(null)}
+            >
+                <div className="mb-4 rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-700">
+                    <p className="mb-1 font-semibold">{voiding?.description || "-"}</p>
+                    <p className="mb-0">
+                        {voiding?.tx_date ? `${formatDate(voiding.tx_date)} • ` : ""}
+                        {voiding?.amount ? <MoneyDisplay value={voiding.amount} /> : null}
+                    </p>
+                </div>
+                <Form form={voidForm} layout="vertical" requiredMark={false}>
+                    <Form.Item
+                        label={t("transactions.voidReason")}
+                        name="reason"
+                        rules={[
+                            {
+                                required: true,
+                                whitespace: true,
+                                message: t("transactions.voidReasonRequired"),
+                            },
+                        ]}
+                    >
+                        <TextArea rows={3} />
+                    </Form.Item>
+                </Form>
             </Modal>
 
             <Modal

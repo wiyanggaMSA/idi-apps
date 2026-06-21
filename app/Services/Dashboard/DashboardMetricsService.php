@@ -4,8 +4,10 @@ namespace App\Services\Dashboard;
 
 use App\Models\Agenda;
 use App\Models\CashTransaction;
-use App\Models\DuesInvoice;
 use App\Models\DuesPayment;
+use App\Models\DuesPaymentAllocation;
+use App\Models\DuesPeriod;
+use App\Models\DuesSetting;
 use App\Models\Letter;
 use App\Models\Member;
 use App\Models\MemberStatus;
@@ -75,22 +77,24 @@ class DashboardMetricsService
 
     public function getDuesMetrics(Carbon $startDate, Carbon $endDate, string $period): array
     {
-        $invoiceQuery = DuesInvoice::query()
-            ->where(function ($query) use ($period, $startDate, $endDate) {
-                $query->whereHas('period', function ($subQuery) use ($period) {
-                    $subQuery->where('period', $period);
-                })
-                    ->orWhereBetween('due_date', [$startDate->toDateString(), $endDate->toDateString()]);
-            });
+        $monthlyAmount = $this->monthlyDuesAmount($period);
+        $billableMembers = $this->billableMemberQuery()->count();
+        $billed = $this->isBillablePeriod($period) ? $billableMembers * $monthlyAmount : 0;
 
-        $billed = (int) (clone $invoiceQuery)->sum('amount_due');
         $collected = (int) DuesPayment::query()
+            ->whereNull('voided_at')
             ->whereBetween('paid_at', [$startDate, $endDate])
             ->sum('amount');
         $balance = (int) DuesPayment::query()
+            ->whereNull('voided_at')
             ->where('paid_at', '<=', $endDate)
             ->sum('amount');
-        $outstanding = max(0, $billed - $collected);
+        $allocatedForPeriod = (int) DuesPaymentAllocation::query()
+            ->join('dues_payments', 'dues_payments.id', '=', 'dues_payment_allocations.dues_payment_id')
+            ->whereNull('dues_payments.voided_at')
+            ->where('dues_payment_allocations.period_ym', $period)
+            ->sum('dues_payment_allocations.amount');
+        $outstanding = max(0, $billed - $allocatedForPeriod);
         $collectionRate = $billed > 0 ? round(($collected / $billed) * 100, 1) : 0;
         $netMonth = $collected - $billed;
 
@@ -173,6 +177,7 @@ class DashboardMetricsService
             ->keyBy('date');
 
         $duesRows = DuesPayment::query()
+            ->whereNull('voided_at')
             ->whereBetween('paid_at', [$startDate, $endDate])
             ->selectRaw('DATE(paid_at) as date')
             ->selectRaw('SUM(amount) as collected')
@@ -246,28 +251,7 @@ class DashboardMetricsService
                 ];
             });
 
-        $arrears = DuesInvoice::query()
-            ->select('member_id')
-            ->selectRaw('SUM(amount_due - amount_paid) as outstanding')
-            ->whereRaw('amount_due > amount_paid')
-            ->where(function ($query) use ($period, $startDate, $endDate) {
-                $query->whereHas('period', function ($subQuery) use ($period) {
-                    $subQuery->where('period', $period);
-                })
-                    ->orWhereBetween('due_date', [$startDate->toDateString(), $endDate->toDateString()]);
-            })
-            ->groupBy('member_id')
-            ->orderByDesc('outstanding')
-            ->limit(10)
-            ->with('member')
-            ->get()
-            ->map(function (DuesInvoice $invoice) {
-                return [
-                    'member_id' => $invoice->member_id,
-                    'member_name' => $invoice->member?->full_name,
-                    'outstanding' => (int) $invoice->outstanding,
-                ];
-            });
+        $arrears = $this->getTopDuesArrears($period);
 
         $today = Carbon::now()->startOfDay();
         $upcomingEnd = (clone $today)->addDays(7)->endOfDay();
@@ -330,5 +314,89 @@ class DashboardMetricsService
         }
 
         return $series;
+    }
+
+    public function cacheVersion(): string
+    {
+        return implode(':', [
+            DuesPayment::query()->max('updated_at') ?? '0',
+            DuesPaymentAllocation::query()->max('updated_at') ?? '0',
+            DuesSetting::query()->max('updated_at') ?? '0',
+            Member::query()->max('updated_at') ?? '0',
+            CashTransaction::query()->max('updated_at') ?? '0',
+            Agenda::query()->max('updated_at') ?? '0',
+            Letter::query()->max('updated_at') ?? '0',
+        ]);
+    }
+
+    private function monthlyDuesAmount(string $period): int
+    {
+        $configured = (int) (DuesSetting::query()->value('dues_amount') ?? 0);
+        if ($configured > 0) {
+            return $configured;
+        }
+
+        return (int) (DuesPeriod::query()
+            ->where('period', $period)
+            ->value('default_amount') ?? 0);
+    }
+
+    private function duesStartPeriod(): string
+    {
+        $configured = (string) (DuesSetting::query()->value('dues_start_period') ?? '');
+        if (preg_match('/^\d{4}-\d{2}$/', $configured) === 1) {
+            return $configured;
+        }
+
+        $detectedStart = collect([
+            DuesPeriod::query()->min('period'),
+            DuesPaymentAllocation::query()->min('period_ym'),
+        ])->filter()->min();
+
+        return is_string($detectedStart) && preg_match('/^\d{4}-\d{2}$/', $detectedStart) === 1
+            ? $detectedStart
+            : now()->format('Y-m');
+    }
+
+    private function isBillablePeriod(string $period): bool
+    {
+        return $period >= $this->duesStartPeriod();
+    }
+
+    private function billableMemberQuery()
+    {
+        $billableStatusCodes = MemberStatus::query()
+            ->active()
+            ->billable()
+            ->pluck('code');
+
+        return Member::query()
+            ->whereIn('status', $billableStatusCodes->isNotEmpty() ? $billableStatusCodes : collect(['aktif']));
+    }
+
+    private function getTopDuesArrears(string $period)
+    {
+        $monthlyAmount = $this->monthlyDuesAmount($period);
+        if ($monthlyAmount <= 0 || ! $this->isBillablePeriod($period)) {
+            return collect();
+        }
+
+        $paidMemberIds = DuesPaymentAllocation::query()
+            ->join('dues_payments', 'dues_payments.id', '=', 'dues_payment_allocations.dues_payment_id')
+            ->whereNull('dues_payments.voided_at')
+            ->where('dues_payment_allocations.period_ym', $period)
+            ->pluck('dues_payment_allocations.member_id')
+            ->unique();
+
+        return $this->billableMemberQuery()
+            ->whereNotIn('id', $paidMemberIds)
+            ->orderBy('full_name')
+            ->limit(10)
+            ->get(['id', 'full_name'])
+            ->map(fn (Member $member) => [
+                'member_id' => $member->id,
+                'member_name' => $member->full_name,
+                'outstanding' => $monthlyAmount,
+            ]);
     }
 }

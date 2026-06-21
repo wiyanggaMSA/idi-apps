@@ -355,20 +355,13 @@ class LettersController extends Controller
             'template_id' => ['nullable', 'integer', 'exists:letter_templates,id'],
             'date' => ['required', 'date'],
             'classification' => ['nullable', 'string', 'max:120'],
-            'commit' => ['nullable', 'boolean'],
         ]);
 
         $template = LetterTemplate::query()->find($data['template_id'] ?? $letter->template_id);
         abort_unless($template, 422, 'Pilih template surat terlebih dahulu.');
 
         $date = Carbon::parse($data['date']);
-        $number = $request->boolean('commit')
-            ? $numberGenerator->commit($template, $date, $data['classification'] ?? $template->classification, $letter->id)
-            : $numberGenerator->preview($template, $date, $data['classification'] ?? $template->classification);
-
-        if ($request->boolean('commit')) {
-            $letter->update(['number' => $number, 'updated_by' => $request->user()->id]);
-        }
+        $number = $numberGenerator->preview($template, $date, $data['classification'] ?? $template->classification);
 
         return response()->json(['number' => $number]);
     }

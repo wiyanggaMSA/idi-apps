@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\PaymentStatus;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class PaymentStatusesController extends Controller
 {
@@ -33,5 +34,33 @@ class PaymentStatusesController extends Controller
         $paymentStatus->delete();
 
         return back()->with('success', 'Status bayar berhasil dihapus.');
+    }
+
+    public function update(Request $request, PaymentStatus $paymentStatus): RedirectResponse
+    {
+        $request->merge([
+            'code' => strtoupper(trim((string) $request->input('code'))),
+        ]);
+
+        $data = $request->validate([
+            'code' => [
+                'required',
+                'string',
+                'max:50',
+                Rule::unique('payment_statuses', 'code')->ignore($paymentStatus->id)->whereNull('deleted_at'),
+            ],
+            'name' => ['required', 'string', 'max:255'],
+            'color' => ['nullable', 'string', 'max:50'],
+            'is_active' => ['sometimes', 'boolean'],
+        ]);
+
+        $paymentStatus->update([
+            'code' => $data['code'],
+            'name' => $data['name'],
+            'color' => $data['color'] ?? null,
+            'is_active' => $data['is_active'] ?? false,
+        ]);
+
+        return back()->with('success', 'Status bayar berhasil diperbarui.');
     }
 }

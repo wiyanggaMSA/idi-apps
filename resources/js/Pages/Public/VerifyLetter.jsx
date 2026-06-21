@@ -6,7 +6,9 @@ export default function VerifyLetter() {
   const { payload } = usePage().props;
   const org = payload?.organization ?? {};
   const isValid = payload?.status === "VALID";
+  const isPending = payload?.status === "PENDING_SIGNATURES";
   const logoUrl = org.logo_url || "/images/idi-logo.png";
+  const signatureSummary = payload?.signature_verification ?? {};
 
   return (
     <>
@@ -70,7 +72,9 @@ export default function VerifyLetter() {
                 message={
                   isValid
                     ? "Dokumen terverifikasi dan terdaftar di sistem."
-                    : "Dokumen tidak valid atau sudah dicabut."
+                    : isPending
+                      ? "Dokumen terdaftar, tetapi metadata verifikasi belum lengkap karena masih menunggu tanda tangan."
+                      : "Dokumen tidak valid atau sudah dicabut."
                 }
                 style={{ marginBottom: 16, borderRadius: 12 }}
               />
@@ -82,20 +86,51 @@ export default function VerifyLetter() {
                 labelStyle={{ width: 220, fontWeight: 600 }}
               >
                 <Descriptions.Item label="Status">
-                  <Tag color={isValid ? "green" : "red"}>{payload?.status || "-"}</Tag>
+                  <Tag color={isValid ? "green" : isPending ? "gold" : "red"}>{payload?.status || "-"}</Tag>
+                </Descriptions.Item>
+                <Descriptions.Item label="Status Tanda Tangan">
+                  {signatureSummary.required_count ? (
+                    <span>
+                      {signatureSummary.signed_count || 0}/{signatureSummary.required_count} sudah tanda tangan
+                    </span>
+                  ) : (
+                    "-"
+                  )}
                 </Descriptions.Item>
                 <Descriptions.Item label="Penandatangan">
-                  <div>
-                    <div>{payload?.signer_name || "-"}</div>
-                    {payload?.signer_title ? (
-                      <div style={{ color: "#64748b", fontSize: 13 }}>{payload.signer_title}</div>
-                    ) : null}
-                    {payload?.signers_count > 1 ? (
-                      <div style={{ color: "#94a3b8", fontSize: 12 }}>
-                        QR penandatangan {payload.signer_index} dari {payload.signers_count}
-                      </div>
-                    ) : null}
-                  </div>
+                  {signatureSummary.signers?.length ? (
+                    <div style={{ display: "grid", gap: 10 }}>
+                      {signatureSummary.signers.map((signer, index) => (
+                        <div
+                          key={signer.id || index}
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            gap: 12,
+                            borderBottom: index + 1 === signatureSummary.signers.length ? "none" : "1px solid #e5e7eb",
+                            paddingBottom: index + 1 === signatureSummary.signers.length ? 0 : 10,
+                          }}
+                        >
+                          <div>
+                            <div>{signer.name || "-"}</div>
+                            {signer.role ? (
+                              <div style={{ color: "#64748b", fontSize: 13 }}>{signer.role}</div>
+                            ) : null}
+                          </div>
+                          <Tag color={signer.status === "signed" ? "green" : "gold"}>
+                            {signer.status === "signed" ? "Sudah tanda tangan" : "Menunggu"}
+                          </Tag>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div>
+                      <div>{payload?.signer_name || "-"}</div>
+                      {payload?.signer_title ? (
+                        <div style={{ color: "#64748b", fontSize: 13 }}>{payload.signer_title}</div>
+                      ) : null}
+                    </div>
+                  )}
                 </Descriptions.Item>
                 <Descriptions.Item label="Nomor Surat">
                   {payload?.number || "-"}

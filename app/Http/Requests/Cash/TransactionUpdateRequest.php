@@ -29,6 +29,7 @@ class TransactionUpdateRequest extends FormRequest
             'reference_no' => ['nullable', 'string', 'max:100'],
             'attachment' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:500'],
             'remove_attachment' => ['nullable', 'boolean'],
+            'reason' => ['required', 'string', 'max:255'],
         ];
     }
 

@@ -21,7 +21,8 @@ class LetterFinalizeWorkflowService
         private readonly LetterPdfService $pdfService,
         private readonly LetterVersionService $versionService,
         private readonly LetterRenderDataService $renderDataService,
-        private readonly ArchiveService $archiveService
+        private readonly ArchiveService $archiveService,
+        private readonly LetterSignatureStatusService $signatureStatusService
     ) {}
 
     public function finalize(Letter $letter, array $input, int $userId): array
@@ -51,7 +52,7 @@ class LetterFinalizeWorkflowService
                 $profileId = $input['numbering_profile_id'] ?? null;
                 $profile = $profileId ? LetterNumberingProfile::query()->find($profileId) : null;
                 if ($profile) {
-                    $number = $this->numberService->commitNextNumber($profile, $date, $input['classification'] ?? null);
+                    $number = $this->numberService->commitNextNumber($profile, $date, $input['classification'] ?? null, $letter->id);
                 }
             }
         }
@@ -116,6 +117,7 @@ class LetterFinalizeWorkflowService
         ]);
         $letter->save();
         $this->syncSignerSignatureRecords($letter, $signers);
+        $this->signatureStatusService->refreshLetterPayload($letter->refresh());
 
         Storage::disk('public')->makeDirectory("letters/{$letter->id}");
         $html = view('letters.render', [
@@ -154,8 +156,17 @@ class LetterFinalizeWorkflowService
             ->values();
 
         if ($memberIds->isEmpty()) {
+            $letter->signatures()
+                ->whereNull('revoked_at')
+                ->update(['revoked_at' => now()]);
+
             return;
         }
+
+        $letter->signatures()
+            ->whereNull('revoked_at')
+            ->whereNotIn('signer_member_id', $memberIds)
+            ->update(['revoked_at' => now()]);
 
         $members = Member::query()
             ->with('position:id,name')
@@ -178,6 +189,7 @@ class LetterFinalizeWorkflowService
             $signature->signer_name_snapshot = $signer['name'] ?: $member->full_name;
             $signature->signer_role_snapshot = $signer['title'] ?: $member->position?->name;
             $signature->verification_code = $signature->verification_code ?: Str::random(32);
+            $signature->revoked_at = null;
             $signature->save();
         }
     }

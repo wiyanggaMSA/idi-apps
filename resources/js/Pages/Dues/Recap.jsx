@@ -59,6 +59,7 @@ export default function DuesRecap() {
   const { props } = usePage();
   const filters = props.filters || {};
   const kpis = props.kpis || {};
+  const realtimeReceived = props.realtimeReceived || 0;
   const monthlyRecap = props.monthlyRecap || [];
   const memberRecap = props.memberRecap || [];
   const topArrearsLongTerm = props.topArrearsLongTerm || [];
@@ -74,7 +75,8 @@ export default function DuesRecap() {
     division: isEn ? "Division" : "Divisi",
     totalDue: isEn ? "Total Billed" : "Total Tagihan",
     totalPaid: isEn ? "Total Paid" : "Total Dibayar",
-    totalReceived: isEn ? "Total Received" : "Total Diterima",
+    totalReceived: isEn ? "Total Paid for Period" : "Total Terbayar Periode",
+    realtimeReceived: isEn ? "Realtime Dues Income" : "Pemasukan Iuran Realtime",
     outstanding: isEn ? "Outstanding" : "Sisa Tagihan",
     collectionRate: isEn ? "Collection Rate" : "Rasio Penagihan",
     memberCount: isEn ? "Member Count" : "Jumlah Member",
@@ -95,7 +97,7 @@ export default function DuesRecap() {
     yearsData: isEn ? "{count} years of data" : "{count} tahun data",
     period: isEn ? "Period" : "Periode",
     billed: isEn ? "Billed" : "Tagihan",
-    received: isEn ? "Received" : "Diterima",
+    received: isEn ? "Paid for Period" : "Terbayar Periode",
     name: isEn ? "Name" : "Nama",
     status: isEn ? "Status" : "Status",
     collectionRateShort: isEn ? "Collection" : "Kolektibilitas",
@@ -330,48 +332,54 @@ export default function DuesRecap() {
         </Card>
 
         <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
-          <Col xs={24} md={8}>
-            <Card style={{ borderRadius: 12 }} bodyStyle={{ padding: 16 }}>
-              <Text type="secondary">{copy.totalDue}</Text>
-              <div style={{ fontSize: 20, fontWeight: 600 }}>{formatIDR(kpis.total_due, language)}</div>
+          <Col xs={24} sm={12} lg={6}>
+            <Card style={{ borderRadius: 12 }} bodyStyle={{ padding: 12 }}>
+              <Text type="secondary" style={{ fontSize: 12 }}>{copy.totalDue}</Text>
+              <div style={{ fontSize: 16, fontWeight: 600 }}>{formatIDR(kpis.total_due, language)}</div>
             </Card>
           </Col>
-          <Col xs={24} md={8}>
-            <Card style={{ borderRadius: 12 }} bodyStyle={{ padding: 16 }}>
-              <Text type="secondary">{copy.totalReceived}</Text>
-              <div style={{ fontSize: 20, fontWeight: 600 }}>{formatIDR(kpis.total_paid, language)}</div>
+          <Col xs={24} sm={12} lg={6}>
+            <Card style={{ borderRadius: 12 }} bodyStyle={{ padding: 12 }}>
+              <Text type="secondary" style={{ fontSize: 12 }}>{copy.totalReceived}</Text>
+              <div style={{ fontSize: 16, fontWeight: 600 }}>{formatIDR(kpis.total_paid, language)}</div>
             </Card>
           </Col>
-          <Col xs={24} md={8}>
-            <Card style={{ borderRadius: 12 }} bodyStyle={{ padding: 16 }}>
-              <Text type="secondary">{copy.outstanding}</Text>
-              <div style={{ fontSize: 20, fontWeight: 600 }}>{formatIDR(kpis.outstanding, language)}</div>
+          <Col xs={24} sm={12} lg={6}>
+            <Card style={{ borderRadius: 12 }} bodyStyle={{ padding: 12 }}>
+              <Text type="secondary" style={{ fontSize: 12 }}>{copy.realtimeReceived}</Text>
+              <div style={{ fontSize: 16, fontWeight: 600 }}>{formatIDR(realtimeReceived, language)}</div>
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} lg={6}>
+            <Card style={{ borderRadius: 12 }} bodyStyle={{ padding: 12 }}>
+              <Text type="secondary" style={{ fontSize: 12 }}>{copy.outstanding}</Text>
+              <div style={{ fontSize: 16, fontWeight: 600 }}>{formatIDR(kpis.outstanding, language)}</div>
             </Card>
           </Col>
         </Row>
 
         <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
           <Col xs={24} md={8}>
-            <Card style={{ borderRadius: 12 }} bodyStyle={{ padding: 16 }}>
-              <Text type="secondary">{copy.collectionRate}</Text>
-              <div style={{ fontSize: 20, fontWeight: 600 }}>{kpis.collection_rate}%</div>
+            <Card style={{ borderRadius: 12 }} bodyStyle={{ padding: 12 }}>
+              <Text type="secondary" style={{ fontSize: 12 }}>{copy.collectionRate}</Text>
+              <div style={{ fontSize: 16, fontWeight: 600 }}>{kpis.collection_rate}%</div>
             </Card>
           </Col>
           <Col xs={24} md={16}>
-            <Card style={{ borderRadius: 12 }} bodyStyle={{ padding: 16 }}>
-              <Text type="secondary">{copy.memberCount}</Text>
-              <Row style={{ marginTop: 12 }}>
+            <Card style={{ borderRadius: 12 }} bodyStyle={{ padding: 12 }}>
+              <Text type="secondary" style={{ fontSize: 12 }}>{copy.memberCount}</Text>
+              <Row style={{ marginTop: 10 }}>
                 <Col span={8}>
-                  <Text>{copy.paid}</Text>
-                  <div style={{ fontSize: 18, fontWeight: 600 }}>{kpis.counts?.paid || 0}</div>
+                  <Text style={{ fontSize: 12 }}>{copy.paid}</Text>
+                  <div style={{ fontSize: 15, fontWeight: 600 }}>{kpis.counts?.paid || 0}</div>
                 </Col>
                 <Col span={8}>
-                  <Text>{copy.unpaid}</Text>
-                  <div style={{ fontSize: 18, fontWeight: 600 }}>{kpis.counts?.unpaid || 0}</div>
+                  <Text style={{ fontSize: 12 }}>{copy.unpaid}</Text>
+                  <div style={{ fontSize: 15, fontWeight: 600 }}>{kpis.counts?.unpaid || 0}</div>
                 </Col>
                 <Col span={8}>
-                  <Text>{copy.overdue}</Text>
-                  <div style={{ fontSize: 18, fontWeight: 600 }}>{kpis.counts?.overdue || 0}</div>
+                  <Text style={{ fontSize: 12 }}>{copy.overdue}</Text>
+                  <div style={{ fontSize: 15, fontWeight: 600 }}>{kpis.counts?.overdue || 0}</div>
                 </Col>
               </Row>
             </Card>
@@ -382,13 +390,13 @@ export default function DuesRecap() {
           <Col xs={24} lg={16}>
             <Card title={copy.monthlyTrend} style={{ borderRadius: 12 }}>
               {trendChartData.length ? (
-                <div className="min-w-0" style={{ height: 320 }}>
-                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={320}>
+	                <div className="min-w-0" style={{ height: 300 }}>
+	                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={300}>
                     <ComposedChart data={trendChartData} margin={{ top: 16, right: 8, left: 8, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" vertical={false} />
-                      <XAxis dataKey="period_label" tick={{ fill: "#71717a", fontSize: 12 }} axisLine={false} tickLine={false} />
+	                      <XAxis dataKey="period_label" tick={{ fill: "#71717a", fontSize: 11 }} axisLine={false} tickLine={false} />
                       <YAxis
-                        tick={{ fill: "#71717a", fontSize: 12 }}
+	                        tick={{ fill: "#71717a", fontSize: 11 }}
                         axisLine={false}
                         tickLine={false}
                         width={84}
@@ -442,8 +450,8 @@ export default function DuesRecap() {
           <Col xs={24} lg={8}>
             <Card title={copy.collectionComposition} style={{ borderRadius: 12 }}>
               {statusChartData.length ? (
-                <div className="min-w-0" style={{ height: 320 }}>
-                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={320}>
+	                <div className="min-w-0" style={{ height: 300 }}>
+	                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={300}>
                     <PieChart>
                       <Pie
                         data={statusChartData}
@@ -481,12 +489,14 @@ export default function DuesRecap() {
         <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
           <Col xs={24} lg={14}>
             <Card title={copy.monthlyRecap} style={{ borderRadius: 12 }}>
-              <Table
-                columns={buildAntdColumns(monthlyTable)}
-                dataSource={monthlyRecap}
-                rowKey="period"
-                pagination={false}
-              />
+	              <Table
+	                className="finance-compact-table"
+	                columns={buildAntdColumns(monthlyTable)}
+	                dataSource={monthlyRecap}
+	                rowKey="period"
+	                size="small"
+	                pagination={false}
+	              />
             </Card>
           </Col>
           <Col xs={24} lg={10}>
@@ -503,8 +513,8 @@ export default function DuesRecap() {
                 {copy.asOfActivePeriod}
               </Text>
               {topArrearsChartData.length ? (
-                <div className="min-w-0" style={{ height: 356 }}>
-                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={356}>
+	                <div className="min-w-0" style={{ height: 320 }}>
+	                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={320}>
                     <BarChart
                       data={topArrearsChartData}
                       layout="vertical"
@@ -513,7 +523,7 @@ export default function DuesRecap() {
                       <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" horizontal={false} />
                       <XAxis
                         type="number"
-                        tick={{ fill: "#71717a", fontSize: 12 }}
+	                        tick={{ fill: "#71717a", fontSize: 11 }}
                         axisLine={false}
                         tickLine={false}
                         tickFormatter={(value) => formatIDR(value, language).replace("Rp", "").replace("IDR", "").trim()}
@@ -522,7 +532,7 @@ export default function DuesRecap() {
                         type="category"
                         dataKey="short_name"
                         width={110}
-                        tick={{ fill: "#52525b", fontSize: 12 }}
+	                        tick={{ fill: "#52525b", fontSize: 11 }}
                         axisLine={false}
                         tickLine={false}
                       />
@@ -551,12 +561,14 @@ export default function DuesRecap() {
         <Row gutter={[12, 12]}>
           <Col xs={24} lg={14}>
             <Card title={copy.memberRecap} style={{ borderRadius: 12 }}>
-              <Table
-                columns={buildAntdColumns(memberTable)}
-                dataSource={memberRecap}
-                rowKey="member_id"
-                pagination={{ pageSize: 8 }}
-              />
+	              <Table
+	                className="finance-compact-table"
+	                columns={buildAntdColumns(memberTable)}
+	                dataSource={memberRecap}
+	                rowKey="member_id"
+	                size="small"
+	                pagination={{ pageSize: 8 }}
+	              />
             </Card>
           </Col>
           <Col xs={24} lg={10}>
@@ -573,8 +585,8 @@ export default function DuesRecap() {
                 {copy.asOfActivePeriod}
               </Text>
               {topPayersChartData.length ? (
-                <div className="min-w-0" style={{ height: 356 }}>
-                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={356}>
+	                <div className="min-w-0" style={{ height: 320 }}>
+	                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={320}>
                     <BarChart
                       data={topPayersChartData}
                       layout="vertical"
@@ -583,7 +595,7 @@ export default function DuesRecap() {
                       <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" horizontal={false} />
                       <XAxis
                         type="number"
-                        tick={{ fill: "#71717a", fontSize: 12 }}
+	                        tick={{ fill: "#71717a", fontSize: 11 }}
                         axisLine={false}
                         tickLine={false}
                         tickFormatter={(value) => formatIDR(value, language).replace("Rp", "").replace("IDR", "").trim()}
@@ -592,7 +604,7 @@ export default function DuesRecap() {
                         type="category"
                         dataKey="short_name"
                         width={110}
-                        tick={{ fill: "#52525b", fontSize: 12 }}
+	                        tick={{ fill: "#52525b", fontSize: 11 }}
                         axisLine={false}
                         tickLine={false}
                       />

@@ -60,7 +60,7 @@ export default function DuesIndex() {
         paymentLoadFailed: isEn ? "Failed to load payment details." : "Gagal memuat detail pembayaran.",
         paymentRefreshFailed: isEn ? "Failed to refresh payment details." : "Gagal memperbarui detail pembayaran.",
         paymentUpdated: isEn ? "Payment updated successfully." : "Pembayaran berhasil diperbarui.",
-        paymentVoided: isEn ? "Payment voided successfully." : "Pembayaran berhasil dibatalkan.",
+        paymentVoided: isEn ? "Void request sent for approval." : "Pengajuan pembatalan dikirim untuk persetujuan.",
         member: isEn ? "Member" : "Anggota",
         memberStatus: isEn ? "Member Status" : "Status Anggota",
         lastPeriod: isEn ? "Last Period" : "Periode Terakhir",
@@ -96,10 +96,15 @@ export default function DuesIndex() {
         referenceNo: isEn ? "Reference No." : "No. Referensi",
         optional: isEn ? "Optional" : "Opsional",
         notes: isEn ? "Notes" : "Catatan",
-        paymentDetail: isEn ? "Payment Detail" : "Detail Pembayaran",
+        paymentDetail: isEn ? "Payment Details" : "Detail Pembayaran",
         phone: isEn ? "Phone" : "Telepon",
         education: isEn ? "Education" : "Pendidikan",
         paymentHistory: isEn ? "Payment History" : "Riwayat Pembayaran",
+        paymentTransactions: isEn ? "Payment Records" : "Catatan Pembayaran",
+        monthlyLedger: isEn ? "Monthly Dues History" : "Riwayat Iuran Bulanan",
+        correctionHint: isEn
+            ? "Edit payment metadata here. To correct period, duration, or amount, request void approval and record the payment again."
+            : "Ubah tanggal, metode, referensi, atau catatan pembayaran di bagian ini. Jika periode, durasi, atau nominal salah, ajukan pembatalan untuk disetujui lalu input ulang pembayaran yang benar.",
         noPaymentsYet: isEn ? "No payments yet" : "Belum ada pembayaran",
         paymentHistoryHint: isEn ? "This member's payment history will appear here." : "Riwayat pembayaran anggota akan tampil di sini.",
         date: isEn ? "Date" : "Tanggal",
@@ -110,12 +115,16 @@ export default function DuesIndex() {
         edit: isEn ? "Edit" : "Edit",
         noPaymentDetail: isEn ? "No payment detail available" : "Tidak ada detail pembayaran",
         noPaymentDetailDesc: isEn ? "Choose a member with payment history to view details." : "Pilih anggota yang memiliki riwayat pembayaran untuk melihat detail.",
-        editPayment: isEn ? "Edit Payment" : "Edit Pembayaran",
-        editReason: isEn ? "Edit Reason" : "Alasan Edit",
-        enterEditReason: isEn ? "Enter edit reason" : "Masukkan alasan edit",
-        voidPayment: isEn ? "Void Payment" : "Void Pembayaran",
-        voidReason: isEn ? "Void Reason" : "Alasan Void",
-        enterVoidReason: isEn ? "Enter void reason" : "Masukkan alasan void",
+        editPayment: isEn ? "Edit Payment" : "Ubah Pembayaran",
+        editReason: isEn ? "Edit Reason" : "Alasan Perubahan",
+        enterEditReason: isEn ? "Enter edit reason" : "Masukkan alasan perubahan",
+        voidPayment: isEn ? "Request Payment Cancellation" : "Ajukan Pembatalan Pembayaran",
+        voidReason: isEn ? "Cancellation Reason" : "Alasan Pembatalan",
+        enterVoidReason: isEn ? "Enter cancellation reason" : "Masukkan alasan pembatalan",
+        pendingApproval: isEn ? "Pending Approval" : "Menunggu Approval",
+        requestVoid: isEn ? "Request Cancellation" : "Ajukan Pembatalan",
+        unpaidLabel: isEn ? "Unpaid" : "Belum Bayar",
+        futureLabel: isEn ? "Future" : "Akan Datang",
         months: isEn ? "months" : "bulan",
         paymentSetup: isEn ? "Payment Setup" : "Setup Pembayaran",
         paymentSetupHint: isEn ? "Choose member, billing period, and duration." : "Pilih anggota, periode tagihan, dan durasi pembayaran.",
@@ -144,7 +153,9 @@ export default function DuesIndex() {
     const [voidForm] = Form.useForm();
 
     const canManage = props?.auth?.permissions?.includes("dues.manage");
-    const canVoid = props?.auth?.permissions?.includes("dues.void");
+    const canCreate = props?.auth?.permissions?.includes("dues.create") || canManage;
+    const canUpdate = props?.auth?.permissions?.includes("dues.update") || canManage;
+    const canVoid = props?.auth?.permissions?.includes("dues.void.request") || props?.auth?.permissions?.includes("dues.void");
     const membersById = useMemo(
         () => new Map(members.map((member) => [member.id, member])),
         [members],
@@ -427,7 +438,7 @@ export default function DuesIndex() {
                             size="small"
                             type="primary"
                             onClick={() => openPaymentDrawer(row)}
-                            disabled={!canManage}
+                            disabled={!canCreate}
                         >
                             {copy.pay}
                         </Button>
@@ -456,7 +467,7 @@ export default function DuesIndex() {
                             type="primary"
                             icon={<PlusOutlined />}
                             onClick={() => openPaymentDrawer()}
-                            disabled={!canManage}
+                            disabled={!canCreate}
                         >
                             {t("dues.inputPayment")}
                         </Button>
@@ -610,7 +621,7 @@ export default function DuesIndex() {
                 footer={
                     <Space style={{ display: "flex", justifyContent: "flex-end" }}>
                         <Button onClick={() => setPaymentOpen(false)}>{copy.cancel}</Button>
-                        <Button type="primary" onClick={submitPayment} disabled={!canManage}>
+                        <Button type="primary" onClick={submitPayment} disabled={!canCreate}>
                             {copy.save}
                         </Button>
                     </Space>
@@ -684,7 +695,6 @@ export default function DuesIndex() {
                                 >
                                     <InputNumber
                                         min={1}
-                                        max={36}
                                         style={{ width: "100%" }}
                                     />
                                 </Form.Item>
@@ -774,7 +784,7 @@ export default function DuesIndex() {
 
             <Drawer
                 open={detailOpen}
-                size="large"
+                width="min(1280px, 78vw)"
                 title={copy.paymentDetail}
                 onClose={() => setDetailOpen(false)}
             >
@@ -804,52 +814,67 @@ export default function DuesIndex() {
                             />
                         </FormSection>
 
-                        <Card title={copy.paymentHistory}>
+                        <Alert
+                            type="info"
+                            showIcon
+                            message={copy.correctionHint}
+                            className="!rounded-[16px] !border-zinc-200"
+                        />
+
+                        <Card title={copy.paymentTransactions}>
                             <DataTable
                                 size="middle"
                                 dataSource={detailData.payments || []}
                                 rowKey="id"
                                 pagination={false}
+                                scroll={{ x: 980 }}
                                 emptyTitle={copy.noPaymentsYet}
                                 emptyDescription={copy.paymentHistoryHint}
                                 columns={[
                                     {
                                         title: copy.date,
                                         dataIndex: "paid_at",
-                                        render: (value) => formatDate(value),
+                                        width: 140,
+                                        render: (value) => value ? formatDate(value) : "—",
                                     },
                                     {
                                         title: copy.period,
+                                        width: 210,
                                         render: (_, row) =>
                                             row.start_period
-                                                ? `${row.start_period} - ${row.end_period}`
+                                                ? `${formatMonthCompact(row.start_period)} - ${formatMonthCompact(row.end_period)}`
                                                 : "—",
                                     },
                                     {
                                         title: copy.amount,
                                         dataIndex: "amount",
+                                        width: 160,
                                         align: "right",
                                         render: (value) => <MoneyDisplay value={value} />,
                                     },
-                                    { title: copy.method, dataIndex: "method" },
+                                    { title: copy.method, dataIndex: "method", width: 140 },
                                     {
                                         title: copy.status,
+                                        width: 170,
                                         render: (_, row) =>
-                                            row.voided_at ? (
+                                            row.status === "void" || row.voided_at ? (
                                                 <StatusBadge status="void" label="Void" color="red" />
+                                            ) : row.has_pending_void_request ? (
+                                                <StatusBadge status="pending" label={copy.pendingApproval} color="gold" />
                                             ) : (
-                                                <StatusBadge status="active" label={copy.active} color="green" />
+                                                <StatusBadge status="paid" label={copy.paidLabel} color="green" />
                                             ),
                                     },
                                     {
                                         title: copy.actions,
+                                        width: 280,
                                         render: (_, row) => (
                                             <Space>
                                                 <Button
                                                     size="small"
                                                     icon={<EditOutlined />}
                                                     onClick={() => openEditModal(row)}
-                                                    disabled={!canManage || row.voided_at}
+                                                    disabled={!canUpdate || !row.can_edit || row.voided_at || row.has_pending_void_request}
                                                 >
                                                     {copy.edit}
                                                 </Button>
@@ -858,12 +883,66 @@ export default function DuesIndex() {
                                                     danger
                                                     icon={<StopOutlined />}
                                                     onClick={() => openVoidModal(row)}
-                                                    disabled={!canVoid || row.voided_at}
+                                                    disabled={!canVoid || !row.can_void || row.voided_at || row.has_pending_void_request}
                                                 >
-                                                    Void
+                                                    {copy.requestVoid}
                                                 </Button>
                                             </Space>
                                         ),
+                                    },
+                                ]}
+                            />
+                        </Card>
+
+                        <Card title={copy.monthlyLedger}>
+                            <DataTable
+                                size="middle"
+                                dataSource={detailData.history || detailData.payments || []}
+                                rowKey="id"
+                                pagination={false}
+                                scroll={{ x: 760 }}
+                                emptyTitle={copy.noPaymentsYet}
+                                emptyDescription={copy.paymentHistoryHint}
+                                columns={[
+                                    {
+                                        title: copy.date,
+                                        dataIndex: "paid_at",
+                                        width: 140,
+                                        render: (value) => value ? formatDate(value) : "—",
+                                    },
+                                    {
+                                        title: copy.period,
+                                        width: 160,
+                                        render: (_, row) =>
+                                            row.period
+                                                ? formatMonthCompact(row.period)
+                                                : row.start_period
+                                                ? `${row.start_period} - ${row.end_period}`
+                                                : "—",
+                                    },
+                                    {
+                                        title: copy.amount,
+                                        dataIndex: "amount",
+                                        width: 160,
+                                        align: "right",
+                                        render: (value) => <MoneyDisplay value={value} />,
+                                    },
+                                    { title: copy.method, dataIndex: "method", width: 140 },
+                                    {
+                                        title: copy.status,
+                                        width: 170,
+                                        render: (_, row) =>
+                                            row.status === "void" || row.voided_at ? (
+                                                <StatusBadge status="void" label="Void" color="red" />
+                                            ) : row.has_pending_void_request ? (
+                                                <StatusBadge status="pending" label={copy.pendingApproval} color="gold" />
+                                            ) : row.status === "unpaid" ? (
+                                                <StatusBadge status="unpaid" label={copy.unpaidLabel} color="gold" />
+                                            ) : row.status === "future" ? (
+                                                <StatusBadge status="future" label={copy.futureLabel} color="blue" />
+                                            ) : (
+                                                <StatusBadge status="paid" label={copy.paidLabel} color="green" />
+                                            ),
                                     },
                                 ]}
                             />
@@ -925,14 +1004,14 @@ export default function DuesIndex() {
                 title={copy.voidPayment}
                 onCancel={() => setVoidingPayment(null)}
                 onOk={submitVoid}
-                okText="Void"
+                okText={copy.requestVoid}
                 okButtonProps={{ danger: true }}
             >
                 <Form form={voidForm} layout="vertical" requiredMark={false}>
                     <Form.Item
                         label={copy.voidReason}
                         name="reason"
-                        rules={[{ required: true, message: copy.enterVoidReason }]}
+                        rules={[{ required: true, whitespace: true, message: copy.enterVoidReason }]}
                     >
                         <TextArea rows={3} />
                     </Form.Item>

@@ -3,6 +3,20 @@ import { router, usePage } from "@inertiajs/react";
 import dayjs from "dayjs";
 import { FilePdfOutlined } from "@ant-design/icons";
 import { Button, Card, DatePicker, Select, Space, Switch } from "antd";
+import {
+    Bar,
+    BarChart,
+    CartesianGrid,
+    LabelList,
+    Legend,
+    Line,
+    LineChart,
+    ReferenceLine,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis,
+} from "recharts";
 import AppLayout from "@/Layouts/AppLayout";
 import PageShell from "@/Components/App/PageShell";
 import PageHeader from "@/Components/App/PageHeader";
@@ -14,93 +28,147 @@ import { useI18n } from "@/Contexts/I18nContext";
 
 const { RangePicker } = DatePicker;
 
-function SimpleLineChart({ title, series, color }) {
-    const width = 640;
-    const height = 180;
-    const pad = 28;
-    const maxY = Math.max(...series.map((item) => item.value), 1);
-    const xStep = (width - pad * 2) / Math.max(series.length - 1, 1);
-    const mapY = (value) => height - pad - (value / maxY) * (height - pad * 2);
-    const points = series
-        .map((item, index) => `${pad + index * xStep},${mapY(item.value)}`)
-        .join(" ");
+const moneyFormatter = new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    maximumFractionDigits: 0,
+});
 
+function formatMoney(value) {
+    return moneyFormatter.format(Number(value || 0));
+}
+
+function formatCompactMoney(value) {
+    const absolute = Math.abs(Number(value || 0));
+
+    if (absolute >= 1_000_000_000) {
+        return `Rp ${(Number(value) / 1_000_000_000).toFixed(1).replace(".", ",")} M`;
+    }
+
+    if (absolute >= 1_000_000) {
+        return `Rp ${(Number(value) / 1_000_000).toFixed(1).replace(".", ",")} jt`;
+    }
+
+    if (absolute >= 1_000) {
+        return `Rp ${Math.round(Number(value) / 1_000)} rb`;
+    }
+
+    return `Rp ${Number(value || 0).toLocaleString("id-ID")}`;
+}
+
+function EmptyChart({ title, description }) {
     return (
         <Card title={title} className="h-full">
-            <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-                <line x1={pad} y1={height - pad} x2={width - pad} y2={height - pad} stroke="#d4d4d8" />
-                <line x1={pad} y1={pad} x2={pad} y2={height - pad} stroke="#d4d4d8" />
-                <polyline fill="none" stroke={color} strokeWidth="3" points={points} />
-                {series.map((item, index) => (
-                    <g key={item.label}>
-                        <circle
-                            cx={pad + index * xStep}
-                            cy={mapY(item.value)}
-                            r="4"
-                            fill={color}
-                        />
-                        <text
-                            x={pad + index * xStep}
-                            y={height - 8}
-                            textAnchor="middle"
-                            fontSize="11"
-                            fill="#71717a"
-                        >
-                            {item.label}
-                        </text>
-                    </g>
-                ))}
-            </svg>
+            <div className="flex h-64 items-center justify-center rounded-md border border-dashed border-zinc-200 bg-zinc-50 text-center">
+                <div>
+                    <div className="text-xs font-semibold text-zinc-700">{description}</div>
+                </div>
+            </div>
         </Card>
     );
 }
 
-function StackedBarChart({ title, series }) {
-    const width = 640;
-    const height = 180;
-    const pad = 28;
-    const maxY = Math.max(...series.map((item) => item.in + item.out), 1);
-    const barWidth = (width - pad * 2) / Math.max(series.length, 1) - 8;
+function ChartTooltip({ active, payload, label }) {
+    if (!active || !payload?.length) return null;
+
+    return (
+        <div className="rounded-md border border-zinc-200 bg-white px-3 py-2 text-[11px] shadow-lg">
+            <div className="mb-1 font-semibold text-zinc-900">{label}</div>
+            {payload.map((item) => (
+                <div key={item.dataKey} className="flex min-w-40 items-center justify-between gap-4">
+                    <span style={{ color: item.color }}>{item.name}</span>
+                    <span className="font-semibold text-zinc-800">{formatMoney(item.value)}</span>
+                </div>
+            ))}
+        </div>
+    );
+}
+
+function NetCashflowChart({ title, data, description, netLabel, closingBalanceLabel }) {
+    if (!data.length) {
+        return <EmptyChart title={title} description={description} />;
+    }
 
     return (
         <Card title={title} className="h-full">
-            <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-                <line x1={pad} y1={height - pad} x2={width - pad} y2={height - pad} stroke="#d4d4d8" />
-                {series.map((item, index) => {
-                    const x = pad + index * (barWidth + 8);
-                    const inHeight = (item.in / maxY) * (height - pad * 2);
-                    const outHeight = (item.out / maxY) * (height - pad * 2);
-                    return (
-                        <g key={item.label}>
-                            <rect
-                                x={x}
-                                y={height - pad - inHeight}
-                                width={barWidth}
-                                height={inHeight}
-                                rx="10"
-                                fill="#b91c1c"
+            <div className="h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={data} margin={{ top: 20, right: 24, left: 4, bottom: 4 }}>
+                        <CartesianGrid stroke="#e4e4e7" strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="label" tick={{ fill: "#71717a", fontSize: 11 }} axisLine={false} tickLine={false} />
+                        <YAxis
+                            width={68}
+                            tick={{ fill: "#71717a", fontSize: 11 }}
+                            axisLine={false}
+                            tickLine={false}
+                            tickFormatter={formatCompactMoney}
+                        />
+                        <Tooltip content={<ChartTooltip />} />
+                        <Legend iconType="circle" wrapperStyle={{ fontSize: 11 }} />
+                        <ReferenceLine y={0} stroke="#a1a1aa" strokeDasharray="4 4" />
+                        <Line
+                            type="monotone"
+                            dataKey="net"
+                            name={netLabel}
+                            stroke="#b91c1c"
+                            strokeWidth={2}
+                            dot={{ r: 4, strokeWidth: 2, fill: "#fff" }}
+                            activeDot={{ r: 5 }}
+                        >
+                            <LabelList
+                                dataKey="net"
+                                position="top"
+                                formatter={formatCompactMoney}
+                                fill="#3f3f46"
+                                fontSize={10}
                             />
-                            <rect
-                                x={x}
-                                y={height - pad - inHeight - outHeight}
-                                width={barWidth}
-                                height={outHeight}
-                                rx="10"
-                                fill="#18181b"
-                            />
-                            <text
-                                x={x + barWidth / 2}
-                                y={height - 8}
-                                textAnchor="middle"
-                                fontSize="11"
-                                fill="#71717a"
-                            >
-                                {item.label}
-                            </text>
-                        </g>
-                    );
-                })}
-            </svg>
+                        </Line>
+                        <Line
+                            type="monotone"
+                            dataKey="closingBalance"
+                            name={closingBalanceLabel}
+                            stroke="#18181b"
+                            strokeWidth={2}
+                            dot={{ r: 3, strokeWidth: 2, fill: "#fff" }}
+                            activeDot={{ r: 5 }}
+                        />
+                    </LineChart>
+                </ResponsiveContainer>
+            </div>
+        </Card>
+    );
+}
+
+function IncomeExpenseChart({ title, data, description, incomeLabel, expenseLabel }) {
+    if (!data.length) {
+        return <EmptyChart title={title} description={description} />;
+    }
+
+    return (
+        <Card title={title} className="h-full">
+            <div className="h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={data} margin={{ top: 20, right: 16, left: 4, bottom: 4 }} barGap={6}>
+                        <CartesianGrid stroke="#e4e4e7" strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="label" tick={{ fill: "#71717a", fontSize: 11 }} axisLine={false} tickLine={false} />
+                        <YAxis
+                            width={68}
+                            tick={{ fill: "#71717a", fontSize: 11 }}
+                            axisLine={false}
+                            tickLine={false}
+                            tickFormatter={formatCompactMoney}
+                        />
+                        <Tooltip content={<ChartTooltip />} />
+                        <Legend iconType="circle" wrapperStyle={{ fontSize: 11 }} />
+                        <Bar dataKey="in" name={incomeLabel} fill="#15803d" radius={[6, 6, 0, 0]}>
+                            <LabelList dataKey="in" position="top" formatter={formatCompactMoney} fill="#3f3f46" fontSize={10} />
+                        </Bar>
+                        <Bar dataKey="out" name={expenseLabel} fill="#b91c1c" radius={[6, 6, 0, 0]}>
+                            <LabelList dataKey="out" position="top" formatter={formatCompactMoney} fill="#3f3f46" fontSize={10} />
+                        </Bar>
+                    </BarChart>
+                </ResponsiveContainer>
+            </div>
         </Card>
     );
 }
@@ -160,9 +228,10 @@ export default function CashReport() {
         () =>
             monthly.map((row) => ({
                 label: row.period,
-                value: row.net,
+                net: row.net,
                 in: row.total_in,
                 out: row.total_out,
+                closingBalance: row.closing_balance,
             })),
         [monthly],
     );
@@ -218,7 +287,7 @@ export default function CashReport() {
                     <Select
                         allowClear
                         placeholder={t("common.category")}
-                        style={{ width: 200 }}
+                        style={{ width: 180 }}
                         value={filterState.category_id || undefined}
                         onChange={(value) =>
                             setFilterState((prev) => ({ ...prev, category_id: value || "" }))
@@ -231,7 +300,7 @@ export default function CashReport() {
                     <Select
                         allowClear
                         placeholder={t("common.method")}
-                        style={{ width: 200 }}
+                        style={{ width: 180 }}
                         value={filterState.method_id || undefined}
                         onChange={(value) =>
                             setFilterState((prev) => ({ ...prev, method_id: value || "" }))
@@ -242,7 +311,7 @@ export default function CashReport() {
                         }))}
                     />
                     <Space>
-                        <span className="text-sm text-zinc-500">{t("reports.cash.includeDues")}</span>
+                        <span className="text-xs text-zinc-500">{t("reports.cash.includeDues")}</span>
                         <Switch
                             checked={filterState.include_dues}
                             onChange={(checked) =>
@@ -255,29 +324,28 @@ export default function CashReport() {
                     </Button>
                 </FilterBar>
 
-                <div className="grid gap-4 xl:grid-cols-2">
-                    <SimpleLineChart
+                <div className="grid gap-3 xl:grid-cols-2">
+                    <NetCashflowChart
                         title={t("reports.cash.lineTitle")}
-                        series={monthlySeries.map((row) => ({
-                            label: row.label,
-                            value: row.value,
-                        }))}
-                        color="#b91c1c"
+                        data={monthlySeries}
+                        description={t("reports.cash.noPeriodDesc")}
+                        netLabel={t("reports.cash.net")}
+                        closingBalanceLabel={t("reports.cash.closingBalance")}
                     />
-                    <StackedBarChart
+                    <IncomeExpenseChart
                         title={t("reports.cash.compareTitle")}
-                        series={monthlySeries.map((row) => ({
-                            label: row.label,
-                            in: row.in,
-                            out: row.out,
-                        }))}
+                        data={monthlySeries}
+                        description={t("reports.cash.noPeriodDesc")}
+                        incomeLabel={t("reports.cash.totalIn")}
+                        expenseLabel={t("reports.cash.totalOut")}
                     />
                 </div>
 
-                <div className="grid gap-4 xl:grid-cols-2">
+                <div className="grid gap-3 xl:grid-cols-2">
                     <Card title={t("reports.cash.periodRecap")}>
                         <DataTable
-                            size="middle"
+                            className="finance-compact-table"
+                            size="small"
                             pagination={false}
                             dataSource={monthly}
                             rowKey="period"
@@ -306,13 +374,21 @@ export default function CashReport() {
                                     align: "right",
                                     render: (value) => <MoneyDisplay value={value} />,
                                 },
+                                {
+                                    title: t("reports.cash.closingBalance"),
+                                    dataIndex: "closing_balance",
+                                    key: "closing_balance",
+                                    align: "right",
+                                    render: (value) => <MoneyDisplay value={value} />,
+                                },
                             ]}
                         />
                     </Card>
 
                     <Card title={t("reports.cash.categoryRecap")}>
                         <DataTable
-                            size="middle"
+                            className="finance-compact-table"
+                            size="small"
                             pagination={false}
                             dataSource={byCategory}
                             rowKey="id"
