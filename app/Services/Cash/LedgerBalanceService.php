@@ -6,7 +6,8 @@ use App\Models\CashMethod;
 use App\Models\CashTransaction;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\URL;
 
 class LedgerBalanceService
 {
@@ -20,7 +21,7 @@ class LedgerBalanceService
         $query = CashTransaction::query();
         $queryService->applyFilters($query, $request, false);
 
-        $start = Carbon::parse($startDate)->startOfDay();
+        $start = $queryService->startOfReportDay($startDate);
         $query->where('tx_date', '<', $start);
 
         return $this->netFromQuery($query);
@@ -36,7 +37,7 @@ class LedgerBalanceService
         $query = CashTransaction::query();
         $queryService->applyFilters($query, $request, false);
 
-        $start = Carbon::parse($startDate)->startOfDay();
+        $start = $queryService->startOfReportDay($startDate);
         $query->where('tx_date', '<', $start);
 
         return $query
@@ -86,6 +87,94 @@ class LedgerBalanceService
             'net' => $totalIn - $totalOut,
             'net_cash' => $netCash,
         ];
+    }
+
+    public function summaryForPage(
+        Request $request,
+        TransactionQueryService $queryService,
+        Builder $sortedQuery,
+        int $page,
+        int $perPage,
+        string $sortDir
+    ): array {
+        $openingBalance = $this->openingBalance($request, $queryService);
+        $offsetBalance = $this->offsetBalance($sortedQuery, $page, $perPage);
+        $summary = $this->totals($request, $queryService);
+        $closingBalance = $openingBalance + ($summary['net'] ?? 0);
+        $runningBalance = $sortDir === 'desc'
+            ? $closingBalance - $offsetBalance
+            : $openingBalance + $offsetBalance;
+
+        return [
+            'summary' => $summary,
+            'opening_balance' => $openingBalance,
+            'closing_balance' => $closingBalance,
+            'running_balance_start' => $runningBalance,
+        ];
+    }
+
+    public function decorateTransactions(Collection $transactions, int $runningBalance, string $sortDir, array $pendingVoidIds): Collection
+    {
+        return $transactions->map(function (CashTransaction $transaction) use (&$runningBalance, $sortDir, $pendingVoidIds) {
+            $delta = $transaction->type === 'in' ? $transaction->amount : -$transaction->amount;
+            $description = $transaction->description;
+
+            if ($transaction->dues_payment_id && $transaction->member) {
+                $memberLabel = $transaction->member->npa
+                    ? sprintf('%s (%s)', $transaction->member->full_name, $transaction->member->npa)
+                    : $transaction->member->full_name;
+                $description = sprintf('Pembayaran iuran anggota %s', $memberLabel);
+            }
+
+            $rowRunningBalance = $sortDir === 'desc' ? $runningBalance : ($runningBalance += $delta);
+
+            if ($sortDir === 'desc') {
+                $runningBalance -= $delta;
+            }
+
+            return [
+                'id' => $transaction->id,
+                'tx_date' => optional($transaction->tx_date)->format('Y-m-d H:i:s'),
+                'type' => $transaction->type,
+                'category_id' => $transaction->category_id,
+                'category' => $transaction->category?->name,
+                'method_id' => $transaction->method_id,
+                'method' => $transaction->method?->name,
+                'amount' => $transaction->amount,
+                'description' => $description,
+                'reference_no' => $transaction->reference_no,
+                'member_name' => $transaction->member?->full_name,
+                'member_npa' => $transaction->member?->npa,
+                'dues_payment_id' => $transaction->dues_payment_id,
+                'source' => $transaction->dues_payment_id ? 'Iuran' : 'Manual',
+                'attachment' => $transaction->attachmentDocument ? [
+                    'id' => $transaction->attachmentDocument->id,
+                    'title' => $transaction->attachmentDocument->title,
+                    'url' => URL::temporarySignedRoute(
+                        'transactions.attachments.show',
+                        now()->addMinutes(10),
+                        [
+                            'transaction' => $transaction->id,
+                            'document' => $transaction->attachmentDocument->id,
+                        ]
+                    ),
+                    'download_url' => URL::temporarySignedRoute(
+                        'transactions.attachments.show',
+                        now()->addMinutes(10),
+                        [
+                            'transaction' => $transaction->id,
+                            'document' => $transaction->attachmentDocument->id,
+                            'download' => 1,
+                        ]
+                    ),
+                    'mime_type' => $transaction->attachmentDocument->mime_type,
+                    'size' => $transaction->attachmentDocument->size,
+                ] : null,
+                'running_balance' => $rowRunningBalance,
+                'is_locked' => (bool) $transaction->dues_payment_id,
+                'has_pending_void_request' => in_array((int) $transaction->id, $pendingVoidIds, true),
+            ];
+        });
     }
 
     private function netCashOnly(Builder $query): int

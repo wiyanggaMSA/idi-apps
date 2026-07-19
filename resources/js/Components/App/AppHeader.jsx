@@ -24,6 +24,8 @@ export default function AppHeader({
     user,
     collapsed,
     onToggle,
+    mobileMenuOpen,
+    onMobileOpen,
     orgName,
 }) {
     const { language, toggleLanguage, t } = useI18n();
@@ -52,9 +54,21 @@ export default function AppHeader({
                     <button
                         type="button"
                         onClick={onToggle}
-                        className="flex h-11 w-11 items-center justify-center rounded-2xl border border-zinc-200 bg-white text-zinc-700 shadow-sm transition hover:-translate-y-0.5 hover:text-zinc-950 focus:outline-none focus:ring-2 focus:ring-red-500"
+                        aria-label={collapsed ? "Perluas menu navigasi" : "Ringkas menu navigasi"}
+                        className="hidden h-11 w-11 items-center justify-center rounded-2xl border border-zinc-200 bg-white text-zinc-700 shadow-sm transition hover:-translate-y-0.5 hover:text-zinc-950 focus:outline-none focus:ring-2 focus:ring-red-500 xl:flex"
                     >
                         {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={onMobileOpen}
+                        aria-label="Buka menu navigasi"
+                        aria-expanded={mobileMenuOpen}
+                        aria-controls="app-sidebar"
+                        className="flex h-11 w-11 items-center justify-center rounded-2xl border border-zinc-200 bg-white text-zinc-700 shadow-sm transition hover:-translate-y-0.5 hover:text-zinc-950 focus:outline-none focus:ring-2 focus:ring-red-500 xl:hidden"
+                    >
+                        <MenuUnfoldOutlined />
                     </button>
 
                     <div>

@@ -8,6 +8,7 @@ use App\Models\FinancialActionRequest;
 use App\Models\Member;
 use App\Services\Dues\DuesLedgerService;
 use App\Services\Dues\DuesInvoiceService;
+use App\Services\Finance\FinancePeriodService;
 use App\Services\Finance\FinancialActionRequestService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -20,6 +21,8 @@ class DuesController extends Controller
 {
     public function index(Request $request, DuesLedgerService $ledgerService): Response
     {
+        $this->authorize('viewAny', DuesPayment::class);
+
         $perPage = 10;
         $page = max((int) $request->input('page', 1), 1);
         $filters = [
@@ -46,8 +49,10 @@ class DuesController extends Controller
         ]);
     }
 
-    public function storePayment(Request $request, DuesLedgerService $ledgerService): RedirectResponse
+    public function storePayment(Request $request, DuesLedgerService $ledgerService, FinancePeriodService $financePeriodService): RedirectResponse
     {
+        $this->authorize('create', DuesPayment::class);
+
         $duesStartPeriod = $ledgerService->duesStartPeriod();
 
         $data = $request->validate([
@@ -61,6 +66,10 @@ class DuesController extends Controller
         ]);
 
         try {
+            $financePeriodService->ensureOpen(
+                $data['paid_at'],
+                'Periode pembayaran sudah closed. Gunakan adjustment pada periode yang masih open.'
+            );
             $ledgerService->storePayment($data, $request->user()->id);
         } catch (\RuntimeException $exception) {
             return redirect()->back()->withErrors(['payment' => $exception->getMessage()]);
@@ -71,14 +80,18 @@ class DuesController extends Controller
 
     public function syncMembers(DuesInvoiceService $invoiceService): RedirectResponse
     {
+        $this->authorize('sync', DuesPayment::class);
+
         $now = now();
         $invoiceService->generateMonthlyInvoices((int) $now->format('Y'), (int) $now->format('m'));
 
         return redirect()->back()->with('success', 'Sinkronisasi iuran selesai.');
     }
 
-    public function updatePayment(Request $request, DuesPayment $payment, DuesLedgerService $ledgerService): RedirectResponse
+    public function updatePayment(Request $request, DuesPayment $payment, DuesLedgerService $ledgerService, FinancePeriodService $financePeriodService): RedirectResponse
     {
+        $this->authorize('update', $payment);
+
         $data = $request->validate([
             'paid_at' => ['required', 'date'],
             'method' => ['required', 'in:cash,transfer'],
@@ -88,6 +101,10 @@ class DuesController extends Controller
         ]);
 
         try {
+            $financePeriodService->ensureOpen(
+                $payment->paid_at,
+                'Periode pembayaran sudah closed. Pembayaran tidak dapat diubah setelah tutup buku.'
+            );
             $ledgerService->updatePayment($payment, $data, $request->user()->id);
         } catch (\RuntimeException $exception) {
             return redirect()->back()->withErrors(['payment' => $exception->getMessage()]);
@@ -96,13 +113,19 @@ class DuesController extends Controller
         return redirect()->back()->with('success', 'Pembayaran berhasil diperbarui.');
     }
 
-    public function voidPayment(Request $request, DuesPayment $payment, FinancialActionRequestService $actionRequestService): RedirectResponse
+    public function voidPayment(Request $request, DuesPayment $payment, FinancialActionRequestService $actionRequestService, FinancePeriodService $financePeriodService): RedirectResponse
     {
+        $this->authorize('requestVoid', $payment);
+
         $data = $request->validate([
             'reason' => ['required', 'string', 'min:3', 'max:255'],
         ]);
 
         try {
+            $financePeriodService->ensureOpen(
+                $payment->paid_at,
+                'Periode pembayaran sudah closed. Void hanya dapat dilakukan melalui adjustment pada periode open.'
+            );
             $actionRequestService->requestVoid($payment, $data['reason'], $request->user());
         } catch (\RuntimeException $exception) {
             return redirect()->back()->withErrors(['payment' => $exception->getMessage()]);
@@ -113,6 +136,8 @@ class DuesController extends Controller
 
     public function memberPayments(Member $member, DuesLedgerService $ledgerService): JsonResponse
     {
+        $this->authorize('viewAny', DuesPayment::class);
+
         $payments = DuesPayment::query()
             ->where('member_id', $member->id)
             ->with(['allocations' => function ($query) {

@@ -51,6 +51,7 @@ export default function AuditIndex() {
     const [requestStatus, setRequestStatus] = useState(filters.request_status || "pending");
     const [detailActivity, setDetailActivity] = useState(null);
     const [reviewState, setReviewState] = useState({ open: false, mode: null, request: null, note: "" });
+    const [reviewSubmitting, setReviewSubmitting] = useState(false);
 
     const copy = {
         title: isEn ? "Audit & Approval" : "Audit & Approval",
@@ -134,7 +135,10 @@ export default function AuditIndex() {
     };
 
     const submitReview = () => {
+        if (reviewSubmitting) return;
+
         const { mode, request, note } = reviewState;
+        setReviewSubmitting(true);
         router.post(
             route(`audit.action-requests.${mode}`, request.id),
             { note },
@@ -145,6 +149,7 @@ export default function AuditIndex() {
                     setReviewState({ open: false, mode: null, request: null, note: "" });
                 },
                 onError: () => message.error(copy.approvalError),
+                onFinish: () => setReviewSubmitting(false),
             },
         );
     };
@@ -387,9 +392,15 @@ export default function AuditIndex() {
                 title={reviewState.mode === "approve" ? copy.approveTitle : copy.rejectTitle}
                 open={reviewState.open}
                 okText={reviewState.mode === "approve" ? copy.approve : copy.reject}
-                okButtonProps={{ danger: reviewState.mode === "reject" }}
+                confirmLoading={reviewSubmitting}
+                okButtonProps={{ danger: reviewState.mode === "reject", disabled: reviewSubmitting }}
+                cancelButtonProps={{ disabled: reviewSubmitting }}
                 onOk={submitReview}
-                onCancel={() => setReviewState({ open: false, mode: null, request: null, note: "" })}
+                onCancel={() => {
+                    if (!reviewSubmitting) {
+                        setReviewState({ open: false, mode: null, request: null, note: "" });
+                    }
+                }}
             >
                 <Descriptions column={1} size="small" bordered>
                     <Descriptions.Item label={copy.target}>{reviewState.request?.target_label}</Descriptions.Item>

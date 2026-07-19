@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Dues;
 use App\Http\Controllers\Controller;
 use App\Exports\DuesRecapExport;
 use App\Models\Division;
+use App\Models\DuesPayment;
 use App\Models\DuesPeriod;
 use App\Models\Member;
 use App\Services\Dues\DuesRecapService;
@@ -17,6 +18,8 @@ class DuesRecapController extends Controller
 {
     public function index(Request $request, DuesRecapService $recapService): Response
     {
+        $this->authorize('viewReport', DuesPayment::class);
+
         [$startPeriod, $endPeriod] = $this->resolvePeriods($request, $recapService);
 
         $divisionId = $request->input('division_id');
@@ -53,6 +56,8 @@ class DuesRecapController extends Controller
 
     public function exportXlsx(Request $request, DuesRecapService $recapService)
     {
+        $this->authorize('export', DuesPayment::class);
+
         [$startPeriod, $endPeriod] = $this->resolvePeriods($request, $recapService);
         $divisionId = $request->input('division_id');
 

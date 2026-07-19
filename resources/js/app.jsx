@@ -5,6 +5,7 @@ import { createInertiaApp } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createRoot } from 'react-dom/client';
 import { I18nProvider } from '@/Contexts/I18nContext';
+import { App as AntdApp } from 'antd';
 
 const appName = import.meta.env.VITE_APP_NAME || 'IDI Finance';
 
@@ -20,7 +21,9 @@ createInertiaApp({
 
         root.render(
             <I18nProvider>
-                <App {...props} />
+                <AntdApp>
+                    <App {...props} />
+                </AntdApp>
             </I18nProvider>
         );
     },

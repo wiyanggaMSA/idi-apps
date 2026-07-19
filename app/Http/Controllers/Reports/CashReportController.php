@@ -7,6 +7,7 @@ use App\Models\AppSetting;
 use App\Models\CashCategory;
 use App\Models\CashMethod;
 use App\Services\Cash\CashReportService;
+use App\Services\Finance\FinancePeriodService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -14,7 +15,7 @@ use Inertia\Response;
 
 class CashReportController extends Controller
 {
-    public function index(Request $request, CashReportService $service): Response
+    public function index(Request $request, CashReportService $service, FinancePeriodService $financePeriodService): Response
     {
         $filters = [
             'start_date' => $request->input('start_date'),
@@ -28,6 +29,7 @@ class CashReportController extends Controller
 
         return Inertia::render('Reports/Cash', [
             'filters' => $filters,
+            'period_status' => $financePeriodService->statusForRange($filters['start_date'], $filters['end_date']),
             'summary' => [
                 'total_in' => $report['totals']['total_in'],
                 'total_out' => $report['totals']['total_out'],
@@ -43,7 +45,7 @@ class CashReportController extends Controller
         ]);
     }
 
-    public function pdf(Request $request, CashReportService $service)
+    public function pdf(Request $request, CashReportService $service, FinancePeriodService $financePeriodService)
     {
         $filters = [
             'start_date' => $request->input('start_date'),
@@ -58,6 +60,7 @@ class CashReportController extends Controller
         $pdf = Pdf::loadView('reports.cash-pdf', [
             'org' => AppSetting::query()->first(),
             'filters' => $filters,
+            'period_status' => $financePeriodService->statusForRange($filters['start_date'], $filters['end_date']),
             'summary' => [
                 'total_in' => $report['totals']['total_in'],
                 'total_out' => $report['totals']['total_out'],

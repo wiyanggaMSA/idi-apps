@@ -50,6 +50,7 @@ export const messages = {
         menu: {
             dashboard: "Dashboard",
             secretariat: "Sekretariat",
+            organization: "Pengurus",
             letters: "Surat",
             agenda: "Agenda",
             templates: "Template Surat",
@@ -65,6 +66,7 @@ export const messages = {
             reports: "Laporan",
             cashReport: "Laporan Kas",
             financialSummary: "Resume Keuangan",
+            periodClosing: "Tutup Buku",
             settings: "Pengaturan",
             audit: "Audit & Approval",
         },
@@ -227,6 +229,9 @@ export const messages = {
             voidReason: "Alasan Void",
             voidReasonRequired: "Alasan void wajib diisi.",
             editReason: "Alasan Edit",
+            immutableEditTitle: "Transaksi kas sudah tercatat",
+            immutableEditDescription:
+                "Nominal, tanggal, tipe, kategori, dan metode tidak dapat diubah setelah transaksi tercatat. Jika transaksi salah, ajukan Request Void lalu buat transaksi baru.",
             pendingApproval: "Menunggu Approval",
             addModal: "Tambah Transaksi",
             editModal: "Edit Transaksi",
@@ -248,7 +253,12 @@ export const messages = {
             canceled: "Batalkan",
         },
         reports: {
+            periodStatus: "Status periode laporan",
+            closedPeriodDescription:
+                "Sebagian atau seluruh periode laporan sudah ditutup. Angka historis tidak dapat diubah melalui transaksi atau void pada periode tersebut.",
+            openPeriodDescription: "Periode laporan masih terbuka.",
             cash: {
+                eyebrow: "Laporan Kas",
                 title: "Laporan Kas",
                 description:
                     "Rekap arus kas masuk dan keluar dengan visual yang lebih jelas untuk kebutuhan monitoring dan export PDF.",
@@ -272,8 +282,13 @@ export const messages = {
                 noMethod: "Belum ada ringkasan metode",
                 noMethodDesc:
                     "Ringkasan metode pembayaran akan tampil setelah data tersedia.",
+                period: "Periode",
+                income: "Masuk",
+                expense: "Keluar",
+                category: "Kategori",
             },
             summary: {
+                eyebrow: "Resume Keuangan",
                 title: "Resume Keuangan",
                 description:
                     "Ringkasan terpadu antara arus kas dan iuran untuk memudahkan pembacaan posisi keuangan organisasi.",
@@ -301,6 +316,8 @@ export const messages = {
                 noCombined: "Belum ada ringkasan gabungan",
                 noCombinedDesc:
                     "Ringkasan bulanan gabungan akan tampil setelah data laporan tersedia.",
+                cashInColumn: "Kas Masuk",
+                cashOutColumn: "Kas Keluar",
             },
             export: {
                 title: "Export PDF",
@@ -421,6 +438,7 @@ export const messages = {
         menu: {
             dashboard: "Dashboard",
             secretariat: "Secretariat",
+            organization: "Organization Board",
             letters: "Letters",
             agenda: "Agenda",
             templates: "Letter Templates",
@@ -436,6 +454,7 @@ export const messages = {
             reports: "Reports",
             cashReport: "Cash Report",
             financialSummary: "Financial Summary",
+            periodClosing: "Period Closing",
             settings: "Settings",
             audit: "Audit & Approval",
         },
@@ -598,6 +617,9 @@ export const messages = {
             voidReason: "Void Reason",
             voidReasonRequired: "Void reason is required.",
             editReason: "Edit Reason",
+            immutableEditTitle: "Cash transaction is already posted",
+            immutableEditDescription:
+                "Amount, date, type, category, and method cannot be changed after posting. If the transaction is wrong, request a void and create a new transaction.",
             pendingApproval: "Pending Approval",
             addModal: "Add Transaction",
             editModal: "Edit Transaction",
@@ -619,7 +641,12 @@ export const messages = {
             canceled: "Cancel",
         },
         reports: {
+            periodStatus: "Report period status",
+            closedPeriodDescription:
+                "Some or all report periods are closed. Historical figures cannot be changed through transactions or voids in those periods.",
+            openPeriodDescription: "The report period is still open.",
             cash: {
+                eyebrow: "Cash Report",
                 title: "Cash Report",
                 description:
                     "Cash inflow and outflow summary with clearer visuals for monitoring and PDF export.",
@@ -643,8 +670,13 @@ export const messages = {
                 noMethod: "No method summary yet",
                 noMethodDesc:
                     "Payment method summary will appear after data is available.",
+                period: "Period",
+                income: "Income",
+                expense: "Expense",
+                category: "Category",
             },
             summary: {
+                eyebrow: "Financial Summary",
                 title: "Financial Summary",
                 description:
                     "A combined overview of cash flow and dues to make the organization’s financial position easier to read.",
@@ -672,6 +704,8 @@ export const messages = {
                 noCombined: "No combined summary yet",
                 noCombinedDesc:
                     "Combined monthly summary will appear once report data is available.",
+                cashInColumn: "Cash In",
+                cashOutColumn: "Cash Out",
             },
             export: {
                 title: "Export PDF",

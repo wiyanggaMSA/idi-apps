@@ -6,6 +6,7 @@ import AppLayout from "@/Layouts/AppLayout";
 import PageHeader from "@/Components/App/PageHeader";
 import PageShell from "@/Components/App/PageShell";
 import { formatDate } from "@/lib/format";
+import useBilingual from "@/Hooks/useBilingual";
 
 const statusColor = {
   draft: "gold",
@@ -13,14 +14,15 @@ const statusColor = {
   archived: "green",
 };
 
-const statusOptions = [
-  { label: "Draft", value: "draft" },
-  { label: "Final", value: "finalized" },
-  { label: "Arsip", value: "archived" },
-];
-
 export default function LettersIndex() {
   const { letters, filters = {}, templates = [], summary = {} } = usePage().props;
+  const { tx } = useBilingual();
+  const statusLabels = {
+    draft: tx("Draf", "Draft"),
+    finalized: tx("Final", "Finalized"),
+    archived: tx("Arsip", "Archived"),
+  };
+  const statusOptions = Object.entries(statusLabels).map(([value, label]) => ({ label, value }));
   const [isPending, startTransition] = useTransition();
   const [search, setSearch] = useState(filters.search || "");
   const templateOptions = useMemo(
@@ -47,19 +49,19 @@ export default function LettersIndex() {
   const data = letters?.data || [];
 
   return (
-    <AppLayout title="Sekretariat - Surat">
+    <AppLayout title={tx("Sekretariat - Surat", "Secretariat - Letters")}>
       <PageShell>
         <PageHeader
-          eyebrow="Surat"
-          title="Daftar Surat"
-          description="Kelola draft, finalisasi, preview PDF, dan arsip surat dari satu tempat."
+          eyebrow={tx("Surat", "Letters")}
+          title={tx("Daftar Surat", "Letter List")}
+          description={tx("Kelola draf, finalisasi, pratinjau PDF, dan arsip surat dari satu tempat.", "Manage drafts, finalization, PDF previews, and letter archives in one place.")}
           extra={
             <Space>
               <Link href={route("secretariat.templates.index")}>
-                <Button>Template Surat</Button>
+                <Button>{tx("Template Surat", "Letter Templates")}</Button>
               </Link>
               <Link href={route("secretariat.letters.create")}>
-                <Button type="primary" icon={<PlusOutlined />}>Buat Surat</Button>
+                <Button type="primary" icon={<PlusOutlined />}>{tx("Buat Surat", "Create Letter")}</Button>
               </Link>
             </Space>
           }
@@ -67,9 +69,9 @@ export default function LettersIndex() {
 
         <Row gutter={[16, 16]}>
           {[
-            ["Draft", summary.draft ?? 0, "bg-amber-50 border-amber-100"],
+            [tx("Draf", "Draft"), summary.draft ?? 0, "bg-amber-50 border-amber-100"],
             ["Final", summary.finalized ?? 0, "bg-blue-50 border-blue-100"],
-            ["Arsip", summary.archived ?? 0, "bg-emerald-50 border-emerald-100"],
+            [tx("Arsip", "Archived"), summary.archived ?? 0, "bg-emerald-50 border-emerald-100"],
           ].map(([label, value, tone]) => (
             <Col span={8} key={label}>
               <div className={`rounded-lg border ${tone} px-5 py-4`}>
@@ -86,14 +88,14 @@ export default function LettersIndex() {
               className="col-span-4"
               allowClear
               prefix={<SearchOutlined />}
-              placeholder="Cari nomor, perihal, penerima..."
+              placeholder={tx("Cari nomor, perihal, penerima...", "Search number, subject, recipient...")}
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />
             <Select
               className="col-span-2"
               allowClear
-              placeholder="Status"
+              placeholder={tx("Status", "Status")}
               value={filters.status || undefined}
               options={statusOptions}
               onChange={(value) => applyFilter({ status: value || "" })}
@@ -101,7 +103,7 @@ export default function LettersIndex() {
             <Select
               className="col-span-3"
               allowClear
-              placeholder="Template/Jenis"
+              placeholder={tx("Template/Jenis", "Template/Type")}
               value={filters.classification || undefined}
               options={templateOptions}
               onChange={(value) => applyFilter({ classification: value || "" })}
@@ -118,9 +120,9 @@ export default function LettersIndex() {
             dataSource={data}
             locale={{
               emptyText: (
-                <Empty description="Belum ada surat sesuai filter.">
+                <Empty description={tx("Belum ada surat sesuai filter.", "No letters match the filters.")}>
                   <Link href={route("secretariat.letters.create")}>
-                    <Button type="primary">Buat Surat</Button>
+                    <Button type="primary">{tx("Buat Surat", "Create Letter")}</Button>
                   </Link>
                 </Empty>
               ),
@@ -134,30 +136,30 @@ export default function LettersIndex() {
             }}
             columns={[
               {
-                title: "Perihal",
+                title: tx("Perihal", "Subject"),
                 dataIndex: "subject",
                 render: (value, record) => (
                   <div>
                     <Link className="font-medium text-zinc-950" href={route("secretariat.letters.show", record.id)}>
                       {value || "-"}
                     </Link>
-                    <div className="text-xs text-zinc-500">{record.template?.name || "Tanpa template"}</div>
+                    <div className="text-xs text-zinc-500">{record.template?.name || tx("Tanpa template", "No template")}</div>
                   </div>
                 ),
               },
-              { title: "Nomor", dataIndex: "number", render: (value) => value || <span className="text-zinc-400">Belum final</span> },
-              { title: "Tanggal", dataIndex: "date", render: (value) => formatDate(value) },
-              { title: "Lampiran", dataIndex: "documents_count", align: "center" },
+              { title: tx("Nomor", "Number"), dataIndex: "number", render: (value) => value || <span className="text-zinc-400">{tx("Belum final", "Not finalized")}</span> },
+              { title: tx("Tanggal", "Date"), dataIndex: "date", render: (value) => formatDate(value) },
+              { title: tx("Lampiran", "Attachments"), dataIndex: "documents_count", align: "center" },
               {
-                title: "Status",
+                title: tx("Status", "Status"),
                 dataIndex: "status",
-                render: (value) => <Tag color={statusColor[value] || "default"}>{value || "-"}</Tag>,
+                render: (value) => <Tag color={statusColor[value] || "default"}>{statusLabels[value] || value || "-"}</Tag>,
               },
               {
-                title: "Aksi",
+                title: tx("Aksi", "Actions"),
                 render: (_, record) => (
                   <Space>
-                    <Link href={route("secretariat.letters.show", record.id)}>Detail</Link>
+                    <Link href={route("secretariat.letters.show", record.id)}>{tx("Detail", "Details")}</Link>
                     {record.status === "draft" ? <Link href={route("secretariat.letters.edit", record.id)}>Edit</Link> : null}
                     <a href={route("secretariat.letters.pdf.preview", record.id)} target="_blank" rel="noreferrer">PDF</a>
                   </Space>

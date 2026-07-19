@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use App\Services\Cash\TransactionNumberService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -32,6 +34,26 @@ class CashTransaction extends Model
         'tx_date' => 'datetime',
         'voided_at' => 'datetime',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (CashTransaction $transaction) {
+            if (! $transaction->transaction_number) {
+                $transaction->transaction_number = app(TransactionNumberService::class)
+                    ->generate($transaction->tx_date);
+            }
+        });
+    }
+
+    public function scopeValidForFinance(Builder $query): Builder
+    {
+        return $query->whereNull($this->qualifyColumn('voided_at'));
+    }
+
+    public function scopeValid(Builder $query): Builder
+    {
+        return $query->validForFinance();
+    }
 
     public function member(): BelongsTo
     {

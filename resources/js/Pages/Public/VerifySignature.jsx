@@ -75,7 +75,7 @@ export default function VerifySignature() {
               <Alert
                 type={state.color}
                 showIcon
-                message={
+                title={
                   <span>
                     Status dokumen: <strong>{state.label}</strong>
                   </span>

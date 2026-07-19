@@ -20,6 +20,9 @@ import {
     PlusOutlined,
     AuditOutlined,
     FormOutlined,
+    LockOutlined,
+    ProjectOutlined,
+    ScheduleOutlined,
 } from "@ant-design/icons";
 
 export const appMenu = [
@@ -44,6 +47,14 @@ export const appMenu = [
                 icon: <DashboardOutlined />,
                 routeName: "secretariat.dashboard",
                 permission: "secretariat.view",
+            },
+            {
+                key: "secretariat.organization",
+                label: "Pengurus",
+                labelKey: "menu.organization",
+                icon: <TeamOutlined />,
+                routeName: "secretariat.organization.index",
+                permission: "organization.view|organization.history.view",
             },
             {
                 key: "secretariat.letters",
@@ -111,6 +122,32 @@ export const appMenu = [
             },
         ],
     },
+    // WORK PROGRAMS
+    {
+        key: "work-programs",
+        label: "Program Kerja",
+        labelKey: "menu.workPrograms",
+        icon: <ProjectOutlined />,
+        permission: "work_program.view|work_program.view_own_field|work_program.review|work_program.update_progress",
+        children: [
+            {
+                key: "work-programs.list",
+                label: "Daftar Program",
+                labelKey: "menu.workProgramList",
+                icon: <ScheduleOutlined />,
+                routeName: "work-programs.index",
+                permission: "work_program.view|work_program.view_own_field|work_program.review|work_program.update_progress",
+            },
+            {
+                key: "work-programs.report",
+                label: "Laporan",
+                labelKey: "menu.workProgramReport",
+                icon: <BarChartOutlined />,
+                routeName: "work-programs.report",
+                permission: "work_program.view|work_program.view_own_field|work_program.review|work_program.update_progress",
+            },
+        ],
+    },
     //DUES
     {
         key: "dues",
@@ -175,6 +212,14 @@ export const appMenu = [
                 icon: <FileTextOutlined />,
                 routeName: "reports.financial-summary",
                 permission: "reports.financial.view",
+            },
+            {
+                key: "reports.periods",
+                label: "Tutup Buku",
+                labelKey: "menu.periodClosing",
+                icon: <LockOutlined />,
+                routeName: "finance.periods.index",
+                permission: "finance.period.view",
             },
         ],
     },

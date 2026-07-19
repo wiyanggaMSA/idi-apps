@@ -2,7 +2,9 @@
 
 namespace App\Services\Dues;
 
-use App\Models\CashCategory;
+use App\Actions\Dues\CalculateMemberDuesAction;
+use App\Actions\Dues\ProcessDuesPaymentAction;
+use App\Actions\Dues\VoidDuesPaymentAction;
 use App\Models\CashMethod;
 use App\Models\CashTransaction;
 use App\Models\DuesPayment;
@@ -15,11 +17,26 @@ use Carbon\Carbon;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class DuesLedgerService
 {
+    private CalculateMemberDuesAction $calculateMemberDues;
+
+    private ProcessDuesPaymentAction $processDuesPayment;
+
+    private VoidDuesPaymentAction $voidDuesPayment;
+
+    public function __construct(
+        ?CalculateMemberDuesAction $calculateMemberDues = null,
+        ?ProcessDuesPaymentAction $processDuesPayment = null,
+        ?VoidDuesPaymentAction $voidDuesPayment = null
+    ) {
+        $this->calculateMemberDues = $calculateMemberDues ?? app(CalculateMemberDuesAction::class);
+        $this->processDuesPayment = $processDuesPayment ?? app(ProcessDuesPaymentAction::class);
+        $this->voidDuesPayment = $voidDuesPayment ?? app(VoidDuesPaymentAction::class);
+    }
+
     public function activePeriod(): string
     {
         return max(now()->format('Y-m'), $this->duesStartPeriod());
@@ -109,140 +126,13 @@ class DuesLedgerService
         int $monthlyAmount
     ): Collection
     {
-        $allocationRows = DuesPaymentAllocation::query()
-            ->select('dues_payment_allocations.member_id', 'dues_payment_allocations.period_ym')
-            ->join('dues_payments', 'dues_payments.id', '=', 'dues_payment_allocations.dues_payment_id')
-            ->whereNull('dues_payments.voided_at')
-            ->where('dues_payment_allocations.period_ym', '>=', $duesStartPeriod)
-            ->orderBy('dues_payment_allocations.member_id')
-            ->orderBy('dues_payment_allocations.period_ym')
-            ->get()
-            ->groupBy('member_id');
-
-        return $members->map(function (Member $member) use ($allocationRows, $latestPayments, $duesStartPeriod, $activePeriod, $monthlyAmount) {
-            $periods = $allocationRows->get($member->id, collect())
-                ->pluck('period_ym')
-                ->unique()
-                ->values();
-
-            $lastPaidPeriod = $periods->max();
-            $paidThrough = $this->computePaidThrough($periods, $duesStartPeriod);
-            $dueNow = $this->computeDueNow($periods, $duesStartPeriod, $activePeriod);
-            $arrears = $this->computeArrearsMonths($periods, $duesStartPeriod, $activePeriod);
-            $advance = $this->computeAdvanceMonths($periods, $activePeriod);
-            $status = $this->resolveStatus($arrears, $advance, $dueNow, $activePeriod);
-            $latestPayment = $latestPayments->get($member->id);
-
-            return [
-                'member_id' => $member->id,
-                'npa' => $member->npa,
-                'full_name' => $member->full_name,
-                'member_status' => $member->status,
-                'member_status_name' => $member->memberStatus?->name ?? $member->status,
-                'member_status_is_active' => $member->memberStatus?->is_active_member ?? ($member->status === 'aktif'),
-                'last_payment_method' => $latestPayment['method_name'] ?? $latestPayment['method'] ?? null,
-                'last_payment_method_raw' => $latestPayment['method'] ?? null,
-                'last_paid_period' => $lastPaidPeriod,
-                'paid_through' => $paidThrough,
-                'paid_through_label' => $paidThrough ?? '—',
-                'due_now' => $dueNow,
-                'due_now_label' => $dueNow ?? '—',
-                'arrears_months' => $arrears,
-                'advance_months' => $advance,
-                'status' => $status,
-                'total_arrears_amount' => $arrears * $monthlyAmount,
-            ];
-        });
-    }
-
-    private function computePaidThrough(Collection $periods, string $duesStartPeriod): ?string
-    {
-        if ($periods->isEmpty()) {
-            return null;
-        }
-
-        $periodSet = array_fill_keys($periods->all(), true);
-        $cursor = Carbon::createFromFormat('Y-m', $duesStartPeriod)->startOfMonth();
-        $end = Carbon::createFromFormat('Y-m', $periods->max())->startOfMonth();
-        $last = null;
-
-        while ($cursor <= $end) {
-            $key = $cursor->format('Y-m');
-            if (! isset($periodSet[$key])) {
-                break;
-            }
-            $last = $key;
-            $cursor->addMonth();
-        }
-
-        return $last;
-    }
-
-    private function computeDueNow(Collection $periods, string $duesStartPeriod, string $activePeriod): ?string
-    {
-        $periodSet = array_fill_keys($periods->all(), true);
-        $cursor = Carbon::createFromFormat('Y-m', $duesStartPeriod)->startOfMonth();
-        $end = Carbon::createFromFormat('Y-m', $activePeriod)->startOfMonth();
-
-        while ($cursor <= $end) {
-            $key = $cursor->format('Y-m');
-            if (! isset($periodSet[$key])) {
-                return $key;
-            }
-            $cursor->addMonth();
-        }
-
-        if ($periods->isNotEmpty()) {
-            return Carbon::createFromFormat('Y-m', $periods->max())
-                ->addMonth()
-                ->format('Y-m');
-        }
-
-        return $duesStartPeriod;
-    }
-
-    private function computeArrearsMonths(Collection $periods, string $duesStartPeriod, string $activePeriod): int
-    {
-        $periodSet = array_fill_keys($periods->all(), true);
-        $cursor = Carbon::createFromFormat('Y-m', $duesStartPeriod)->startOfMonth();
-        $end = Carbon::createFromFormat('Y-m', $activePeriod)->startOfMonth()->subMonth();
-        $count = 0;
-
-        if ($end->lt($cursor)) {
-            return 0;
-        }
-
-        while ($cursor <= $end) {
-            $key = $cursor->format('Y-m');
-            if (! isset($periodSet[$key])) {
-                $count++;
-            }
-            $cursor->addMonth();
-        }
-
-        return $count;
-    }
-
-    private function computeAdvanceMonths(Collection $periods, string $activePeriod): int
-    {
-        return $periods->filter(fn (string $period) => $period > $activePeriod)->count();
-    }
-
-    private function resolveStatus(int $arrears, int $advance, ?string $dueNow, string $activePeriod): string
-    {
-        if ($arrears > 0) {
-            return 'MENUNGGAK';
-        }
-
-        if ($dueNow === $activePeriod) {
-            return 'BELUM_BAYAR';
-        }
-
-        if ($advance > 0) {
-            return 'ADVANCE';
-        }
-
-        return 'LUNAS';
+        return $this->calculateMemberDues->execute(
+            $members,
+            $latestPayments,
+            $duesStartPeriod,
+            $activePeriod,
+            $monthlyAmount
+        );
     }
 
     private function applyFilters(Collection $rows, array $filters): Collection
@@ -380,82 +270,7 @@ class DuesLedgerService
 
     public function storePayment(array $payload, int $userId): DuesPayment
     {
-        $memberId = (int) $payload['member_id'];
-        $startPeriod = $payload['start_period'];
-        $duesStartPeriod = $this->duesStartPeriod();
-        $duration = (int) $payload['duration'];
-        $monthlyAmount = $this->monthlyAmount();
-        $endPeriod = Carbon::createFromFormat('Y-m', $startPeriod)->addMonths($duration - 1)->format('Y-m');
-        $activePeriod = $this->activePeriod();
-
-        $existingPeriods = DuesPaymentAllocation::query()
-            ->select('dues_payment_allocations.period_ym')
-            ->join('dues_payments', 'dues_payments.id', '=', 'dues_payment_allocations.dues_payment_id')
-            ->whereNull('dues_payments.voided_at')
-            ->where('dues_payment_allocations.member_id', $memberId)
-            ->pluck('dues_payment_allocations.period_ym')
-            ->unique()
-            ->values();
-
-        $dueNow = $this->computeDueNow($existingPeriods, $duesStartPeriod, $activePeriod);
-        if ($dueNow && $startPeriod !== $dueNow) {
-            throw new \RuntimeException(sprintf(
-                'Periode mulai harus mengikuti bulan iuran saat ini (%s).',
-                $dueNow
-            ));
-        }
-
-        $hasOverlap = DuesPaymentAllocation::query()
-            ->join('dues_payments', 'dues_payments.id', '=', 'dues_payment_allocations.dues_payment_id')
-            ->whereNull('dues_payments.voided_at')
-            ->where('dues_payment_allocations.member_id', $memberId)
-            ->whereBetween('dues_payment_allocations.period_ym', [$startPeriod, $endPeriod])
-            ->exists();
-
-        if ($hasOverlap) {
-            throw new \RuntimeException('Periode yang dipilih sudah pernah dibayarkan. Pilih bulan yang belum terbayar.');
-        }
-
-        return DB::transaction(function () use ($payload, $memberId, $startPeriod, $duration, $monthlyAmount, $endPeriod, $userId) {
-            $payment = DuesPayment::query()->create([
-                'dues_invoice_id' => null,
-                'member_id' => $memberId,
-                'paid_at' => $payload['paid_at'],
-                'amount' => $monthlyAmount * $duration,
-                'method' => $payload['method'],
-                'reference_no' => $payload['reference_no'] ?? null,
-                'notes' => $payload['notes'] ?? null,
-                'created_by' => $userId,
-            ]);
-
-            $allocations = [];
-            $cursor = Carbon::createFromFormat('Y-m', $startPeriod)->startOfMonth();
-            for ($i = 0; $i < $duration; $i++) {
-                $allocations[] = [
-                    'dues_payment_id' => $payment->id,
-                    'member_id' => $memberId,
-                    'period_ym' => $cursor->format('Y-m'),
-                    'amount' => $monthlyAmount,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ];
-                $cursor->addMonth();
-            }
-
-            DuesPaymentAllocation::query()->insert($allocations);
-            $this->syncCashTransaction($payment, $userId);
-
-            activity('finance')
-                ->causedBy($userId)
-                ->performedOn($payment)
-                ->withProperties([
-                    'attributes' => $this->paymentSnapshot($payment->fresh(['member', 'allocations'])),
-                    'periods' => collect($allocations)->pluck('period_ym')->values(),
-                ])
-                ->log('dues_payment.created');
-
-            return $payment;
-        });
+        return $this->processDuesPayment->execute($payload, $userId);
     }
 
     public function updatePayment(DuesPayment $payment, array $payload, int $userId): DuesPayment
@@ -500,74 +315,7 @@ class DuesLedgerService
 
     public function voidPayment(DuesPayment $payment, string $reason, int $userId): DuesPayment
     {
-        if ($payment->voided_at) {
-            throw new \RuntimeException('Pembayaran sudah dibatalkan.');
-        }
-
-        $payment->update([
-            'voided_at' => now(),
-            'void_reason' => $reason,
-            'updated_by' => $userId,
-        ]);
-
-        $transaction = CashTransaction::query()->where('dues_payment_id', $payment->id)->first();
-        if ($transaction) {
-            $transaction->update([
-                'voided_at' => now(),
-                'voided_by' => $userId,
-            ]);
-        }
-
-        return $payment;
-    }
-
-    private function syncCashTransaction(DuesPayment $payment, int $userId): void
-    {
-        $category = $this->resolveCashCategory();
-        $methodId = $this->resolveCashMethodId($payment->method);
-        $payment->loadMissing('member');
-        $memberName = $payment->member?->full_name ?? 'Anggota';
-        $memberNpa = $payment->member?->npa;
-        $memberLabel = $memberNpa ? sprintf('%s (%s)', $memberName, $memberNpa) : $memberName;
-
-        CashTransaction::query()->create([
-            'tx_date' => $payment->paid_at,
-            'type' => 'in',
-            'category_id' => $category->id,
-            'method_id' => $methodId,
-            'amount' => $payment->amount,
-            'description' => sprintf('Pembayaran iuran anggota %s', $memberLabel),
-            'reference_no' => $payment->reference_no,
-            'member_id' => $payment->member_id,
-            'dues_payment_id' => $payment->id,
-            'created_by' => $userId,
-        ]);
-    }
-
-    private function resolveCashCategory(): CashCategory
-    {
-        $category = CashCategory::query()
-            ->where('is_active', true)
-            ->where('type', 'in')
-            ->where(function ($query) {
-                $query->whereRaw('LOWER(code) = ?', ['dues'])
-                    ->orWhereRaw('LOWER(name) = ?', ['iuran']);
-            })
-            ->first();
-
-        if (! $category) {
-            $category = CashCategory::query()
-                ->where('is_active', true)
-                ->where('type', 'in')
-                ->orderBy('id')
-                ->first();
-        }
-
-        if (! $category) {
-            throw new \RuntimeException('Kategori kas untuk iuran belum tersedia.');
-        }
-
-        return $category;
+        return $this->voidDuesPayment->execute($payment, $reason, $userId);
     }
 
     private function resolveCashMethodId(?string $method): ?int
@@ -591,7 +339,7 @@ class DuesLedgerService
 
         $cashTransaction = CashTransaction::query()
             ->where('dues_payment_id', $payment->id)
-            ->first(['id', 'voided_at']);
+            ->first(['id', 'transaction_number', 'voided_at']);
 
         return [
             'id' => $payment->id,
@@ -606,6 +354,7 @@ class DuesLedgerService
             'voided_at' => optional($payment->voided_at)->format('Y-m-d H:i:s'),
             'void_reason' => $payment->void_reason,
             'cash_transaction_id' => $cashTransaction?->id,
+            'cash_transaction_number' => $cashTransaction?->transaction_number,
             'cash_transaction_voided_at' => optional($cashTransaction?->voided_at)->format('Y-m-d H:i:s'),
         ];
     }

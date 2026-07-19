@@ -69,7 +69,7 @@ export default function VerifyLetter() {
               <Alert
                 type={isValid ? "success" : "warning"}
                 showIcon
-                message={
+                title={
                   isValid
                     ? "Dokumen terverifikasi dan terdaftar di sistem."
                     : isPending

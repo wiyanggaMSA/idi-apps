@@ -3,10 +3,14 @@
 namespace App\Services\Cash;
 
 use App\Models\CashTransaction;
-use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class CashReportService
 {
+    public function __construct(private readonly TransactionQueryService $transactionQuery)
+    {
+    }
+
     public function build(array $filters): array
     {
         $startDate = $filters['start_date'] ?? null;
@@ -15,7 +19,7 @@ class CashReportService
         $methodId = $filters['method_id'] ?? null;
         $includeDues = (bool) ($filters['include_dues'] ?? true);
 
-        $baseQuery = CashTransaction::query()->whereNull('voided_at');
+        $baseQuery = CashTransaction::query()->validForFinance();
 
         if (! $includeDues) {
             $baseQuery->whereNull('dues_payment_id');
@@ -31,10 +35,10 @@ class CashReportService
 
         $rangeQuery = clone $baseQuery;
         if ($startDate) {
-            $rangeQuery->where('tx_date', '>=', Carbon::parse($startDate)->startOfDay());
+            $rangeQuery->where('tx_date', '>=', $this->transactionQuery->startOfReportDay($startDate));
         }
         if ($endDate) {
-            $rangeQuery->where('tx_date', '<=', Carbon::parse($endDate)->endOfDay());
+            $rangeQuery->where('tx_date', '<=', $this->transactionQuery->endOfReportDay($endDate));
         }
 
         $totals = $this->totals($rangeQuery);
@@ -78,7 +82,7 @@ class CashReportService
         }
 
         $summary = (clone $query)
-            ->where('tx_date', '<', Carbon::parse($startDate)->startOfDay())
+            ->where('tx_date', '<', $this->transactionQuery->startOfReportDay($startDate))
             ->selectRaw('SUM(CASE WHEN type = "in" THEN amount ELSE 0 END) as total_in, SUM(CASE WHEN type = "out" THEN amount ELSE 0 END) as total_out')
             ->first();
 
@@ -88,7 +92,7 @@ class CashReportService
     private function monthly($query, int $openingBalance): array
     {
         $rows = (clone $query)
-            ->selectRaw("DATE_FORMAT(tx_date, '%Y-%m') as period")
+            ->selectRaw($this->monthPeriodExpression('tx_date').' as period')
             ->selectRaw('SUM(CASE WHEN type = "in" THEN amount ELSE 0 END) as total_in')
             ->selectRaw('SUM(CASE WHEN type = "out" THEN amount ELSE 0 END) as total_out')
             ->groupBy('period')
@@ -159,5 +163,12 @@ class CashReportService
                 ];
             })
             ->all();
+    }
+
+    private function monthPeriodExpression(string $column): string
+    {
+        return DB::connection()->getDriverName() === 'sqlite'
+            ? sprintf("strftime('%%Y-%%m', %s)", $column)
+            : sprintf("DATE_FORMAT(%s, '%%Y-%%m')", $column);
     }
 }

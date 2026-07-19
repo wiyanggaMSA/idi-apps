@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Settings\Access;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\Access\AssignRoleRequest;
+use App\Http\Requests\Settings\Access\ResetUserPasswordRequest;
 use App\Http\Requests\Settings\Access\StoreUserRequest;
 use App\Http\Requests\Settings\Access\SyncUserPermissionsRequest;
 use App\Http\Requests\Settings\Access\UpdateUserRequest;
@@ -25,6 +26,13 @@ class UsersController extends Controller
         $service->update($user, $request->validated(), $request->user());
 
         return back()->with('success', 'User berhasil diperbarui.');
+    }
+
+    public function resetPassword(ResetUserPasswordRequest $request, User $user, UserAccessService $service): RedirectResponse
+    {
+        $service->resetPassword($user, $request->validated()['password'], $request->user());
+
+        return back()->with('success', 'Password user berhasil direset.');
     }
 
     public function disable(User $user, UserAccessService $service): RedirectResponse

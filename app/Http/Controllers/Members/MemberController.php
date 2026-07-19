@@ -21,6 +21,7 @@ class MemberController extends Controller
     public function index(Request $request, MemberQueryService $queryService): Response
     {
         $perPage = 15;
+        $canManageLinkedLoginAccount = $request->user()?->hasAnyRole(['admin', 'superadmin']) ?? false;
         $memberStatuses = MemberStatus::query()
             ->active()
             ->orderBy('sort_order')
@@ -56,7 +57,7 @@ class MemberController extends Controller
                 'address' => $member->address,
                 'notes' => $member->notes,
                 'created_at' => optional($member->created_at)->format('Y-m-d'),
-                'linked_user' => $member->user_id ? [
+                'linked_user' => $canManageLinkedLoginAccount && $member->user_id ? [
                     'id' => $member->user_id,
                     'name' => $member->user?->name,
                     'email' => $member->user?->email,
@@ -69,12 +70,13 @@ class MemberController extends Controller
             'mutasi' => Member::query()->where('status', 'mutasi')->count(),
             'meninggal' => Member::query()->whereIn('status', $memberStatuses->where('is_deceased', true)->pluck('code'))->count(),
         ];
+
         return Inertia::render('Members/Index', [
             'members' => $members,
             'stats' => $stats,
             'divisions' => Division::query()->active()->orderBy('name')->get(['id', 'name']),
             'positions' => Position::query()->active()->orderBy('name')->get(['id', 'name']),
-            'users' => User::query()
+            'users' => $canManageLinkedLoginAccount ? User::query()
                 ->where('is_active', true)
                 ->orderBy('name')
                 ->get(['id', 'name', 'email'])
@@ -83,7 +85,7 @@ class MemberController extends Controller
                     'name' => $user->name,
                     'email' => $user->email,
                 ])
-                ->values(),
+                ->values() : [],
             'statuses' => $memberStatuses->map(fn (MemberStatus $status) => [
                 'value' => $status->code,
                 'label' => $status->name,

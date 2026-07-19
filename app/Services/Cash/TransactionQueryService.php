@@ -10,7 +10,7 @@ class TransactionQueryService
 {
     public function applyFilters(Builder $query, Request $request, bool $includeDateRange = true): Builder
     {
-        $query->whereNull('voided_at');
+        $query->validForFinance();
 
         $type = $request->input('type');
         $categoryId = $request->input('category_id');
@@ -32,8 +32,8 @@ class TransactionQueryService
         }
 
         if ($includeDateRange && ($startDate || $endDate)) {
-            $start = $startDate ? Carbon::parse($startDate)->startOfDay() : null;
-            $end = $endDate ? Carbon::parse($endDate)->endOfDay() : null;
+            $start = $startDate ? $this->startOfReportDay($startDate) : null;
+            $end = $endDate ? $this->endOfReportDay($endDate) : null;
 
             if ($start && $end) {
                 $query->whereBetween('tx_date', [$start, $end]);
@@ -108,5 +108,20 @@ class TransactionQueryService
         }
 
         return $query->orderBy('id', $sortDir);
+    }
+
+    public function startOfReportDay(string $date): Carbon
+    {
+        return Carbon::parse($date, $this->reportTimezone())->startOfDay();
+    }
+
+    public function endOfReportDay(string $date): Carbon
+    {
+        return Carbon::parse($date, $this->reportTimezone())->endOfDay();
+    }
+
+    public function reportTimezone(): string
+    {
+        return config('finance.reporting_timezone') ?: 'Asia/Jakarta';
     }
 }

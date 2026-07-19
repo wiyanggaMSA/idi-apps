@@ -67,6 +67,9 @@ export default function MembersIndex() {
   const users = props.users || [];
   const statuses = props.statuses || [];
   const genders = props.genders || [];
+  const authRoles = props.auth?.roles || [];
+  const canManageLinkedLoginAccount =
+    authRoles.includes("admin") || authRoles.includes("superadmin");
 
   const [searchValue, setSearchValue] = useState(filters.search || "");
   const [modalOpen, setModalOpen] = useState(false);
@@ -278,12 +281,17 @@ export default function MembersIndex() {
       const values = await form.validateFields();
       const payload = {
         ...values,
-        user_id: values.user_id || null,
         birth_date: values.birth_date
           ? values.birth_date.format("YYYY-MM-DD")
           : null,
         join_date: values.join_date ? values.join_date.format("YYYY-MM-DD") : null,
       };
+
+      if (canManageLinkedLoginAccount) {
+        payload.user_id = values.user_id || null;
+      } else {
+        delete payload.user_id;
+      }
 
       if (editingMember) {
         router.patch(route("members.update", editingMember.id), payload, {
@@ -518,7 +526,7 @@ export default function MembersIndex() {
 
   const columnMenu = (
 	    <Card style={{ minWidth: 200 }} bodyStyle={{ padding: 10 }}>
-	      <Space direction="vertical" size={4} style={{ width: "100%" }}>
+	      <Space orientation="vertical" size={4} style={{ width: "100%" }}>
         {table.getAllLeafColumns().map((column) => (
           <Checkbox
             key={column.id}
@@ -539,7 +547,7 @@ export default function MembersIndex() {
           title={copy.pageTitle}
           extra={
             <Space>
-               <Dropdown dropdownRender={() => columnMenu} trigger={["click"]}>
+               <Dropdown popupRender={() => columnMenu} trigger={["click"]}>
                 <Button icon={<SettingOutlined />}>{copy.columns}</Button>
               </Dropdown>
               <Button
@@ -675,7 +683,7 @@ export default function MembersIndex() {
         cancelText={copy.cancel}
         width={860}
         centered
-        destroyOnClose
+        destroyOnHidden
         styles={{
 	          header: {
 	            padding: "18px 22px 0",
@@ -794,22 +802,24 @@ export default function MembersIndex() {
                   placeholder={copy.memberStatus}
                 />
               </Form.Item>
-              <Form.Item
-                label={copy.linkedAccount}
-                name="user_id"
-                tooltip={copy.linkedAccountHint}
-              >
-                <Select
-                  allowClear
-                  showSearch
-                  optionFilterProp="label"
-                  placeholder={copy.selectLinkedAccount}
-                  options={users.map((user) => ({
-                    value: user.id,
-                    label: `${user.name}${user.email ? ` · ${user.email}` : ""}`,
-                  }))}
-                />
-              </Form.Item>
+              {canManageLinkedLoginAccount ? (
+                <Form.Item
+                  label={copy.linkedAccount}
+                  name="user_id"
+                  tooltip={copy.linkedAccountHint}
+                >
+                  <Select
+                    allowClear
+                    showSearch
+                    optionFilterProp="label"
+                    placeholder={copy.selectLinkedAccount}
+                    options={users.map((user) => ({
+                      value: user.id,
+                      label: `${user.name}${user.email ? ` · ${user.email}` : ""}`,
+                    }))}
+                  />
+                </Form.Item>
+              ) : null}
               <Form.Item label="SIP-1" name="sip_1">
                 <Input placeholder="SIP-1" />
               </Form.Item>
@@ -891,12 +901,16 @@ export default function MembersIndex() {
               {detailRows([
                 { label: "Email", value: detailMember.email },
                 { label: copy.phone, value: detailMember.phone },
-                {
-                  label: copy.linkedAccount,
-                  value: detailMember.linked_user
-                    ? `${detailMember.linked_user.name || "-"} (${detailMember.linked_user.email || "-"})`
-                    : null,
-                },
+                ...(canManageLinkedLoginAccount
+                  ? [
+                      {
+                        label: copy.linkedAccount,
+                        value: detailMember.linked_user
+                          ? `${detailMember.linked_user.name || "-"} (${detailMember.linked_user.email || "-"})`
+                          : null,
+                      },
+                    ]
+                  : []),
                 { label: copy.address, value: detailMember.address },
               ])}
             </Card>

@@ -24,6 +24,8 @@ function getInitialLanguage() {
 }
 
 function resolvePath(object, path) {
+    if (typeof path !== "string" || path.length === 0) return undefined;
+
     return path.split(".").reduce((accumulator, part) => accumulator?.[part], object);
 }
 

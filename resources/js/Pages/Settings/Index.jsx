@@ -56,10 +56,25 @@ export default function SettingsIndex() {
     const roles = access.roles || [];
     const permissions = access.permissions || [];
     const backups = props.backups || [];
+    const authPermissions = props.auth?.permissions || [];
+    const canResetPassword =
+        authPermissions.includes("users.reset-password") ||
+        authPermissions.includes("users.update");
+    const queryParams =
+        typeof window === "undefined"
+            ? new URLSearchParams()
+            : new URLSearchParams(window.location.search);
+    const [activeSettingsTab, setActiveSettingsTab] = useState(
+        queryParams.get("tab") || "profile",
+    );
+    const [activeAccessTab, setActiveAccessTab] = useState(
+        queryParams.get("access_tab") || "users",
+    );
 
     const [orgForm] = Form.useForm();
     const [duesForm] = Form.useForm();
     const [userForm] = Form.useForm();
+    const [resetPasswordForm] = Form.useForm();
 
     const [divisionForm] = Form.useForm();
     const [positionForm] = Form.useForm();
@@ -67,6 +82,7 @@ export default function SettingsIndex() {
     const [cashMethodForm] = Form.useForm();
     const [memberStatusForm] = Form.useForm();
     const [paymentStatusForm] = Form.useForm();
+    const [workProgramPeriodForm] = Form.useForm();
     const [logoFileList, setLogoFileList] = useState([]);
 
     const [assignRoleForm] = Form.useForm();
@@ -84,6 +100,7 @@ export default function SettingsIndex() {
     const cashMethods = masterData.cash_methods || [];
     const memberStatuses = masterData.member_statuses || [];
     const paymentStatuses = masterData.payment_statuses || [];
+    const workProgramPeriods = masterData.work_program_periods || [];
     const duesSettings = props.duesSettings || {
         dues_amount: 100000,
         dues_start_period: dayjs().format("YYYY-MM"),
@@ -119,12 +136,17 @@ export default function SettingsIndex() {
         open: false,
         user: null,
     });
+    const [resetPasswordModal, setResetPasswordModal] = useState({
+        open: false,
+        user: null,
+    });
     const [divisionModalOpen, setDivisionModalOpen] = useState(false);
     const [positionModalOpen, setPositionModalOpen] = useState(false);
     const [cashCategoryModalOpen, setCashCategoryModalOpen] = useState(false);
     const [cashMethodModalOpen, setCashMethodModalOpen] = useState(false);
     const [memberStatusModalOpen, setMemberStatusModalOpen] = useState(false);
     const [paymentStatusModalOpen, setPaymentStatusModalOpen] = useState(false);
+    const [workProgramPeriodModalOpen, setWorkProgramPeriodModalOpen] = useState(false);
     const [editMasterModal, setEditMasterModal] = useState({
         open: false,
         type: null,
@@ -339,6 +361,30 @@ export default function SettingsIndex() {
         } catch {}
     };
 
+    const submitWorkProgramPeriod = async () => {
+        try {
+            const v = await workProgramPeriodForm.validateFields();
+            const payload = {
+                ...v,
+                start_date: v.start_date?.format("YYYY-MM-DD"),
+                end_date: v.end_date?.format("YYYY-MM-DD"),
+            };
+
+            router.post(
+                route("settings.master-data.work-program-periods.store"),
+                payload,
+                {
+                    preserveScroll: true,
+                    onSuccess: () => {
+                        workProgramPeriodForm.resetFields();
+                        setWorkProgramPeriodModalOpen(false);
+                        message.success("Periode program kerja berhasil ditambahkan.");
+                    },
+                },
+            );
+        } catch {}
+    };
+
     const masterUpdateRoutes = {
         divisions: "settings.master-data.divisions.update",
         positions: "settings.master-data.positions.update",
@@ -346,6 +392,7 @@ export default function SettingsIndex() {
         cash_methods: "settings.master-data.cash-methods.update",
         member_statuses: "settings.master-data.member-statuses.update",
         payment_statuses: "settings.master-data.payment-statuses.update",
+        work_program_periods: "settings.master-data.work-program-periods.update",
     };
 
     const masterLabels = {
@@ -355,11 +402,14 @@ export default function SettingsIndex() {
         cash_methods: "Metode Bayar",
         member_statuses: "Status Anggota",
         payment_statuses: "Status Bayar",
+        work_program_periods: "Periode Program Kerja",
     };
 
     const openEditMaster = (type, record) => {
         editMasterForm.setFieldsValue({
             ...record,
+            start_date: record.start_date ? dayjs(record.start_date) : null,
+            end_date: record.end_date ? dayjs(record.end_date) : null,
             is_active: record.is_active ?? true,
         });
         setEditMasterModal({ open: true, type, record });
@@ -374,8 +424,15 @@ export default function SettingsIndex() {
         try {
             const values = await editMasterForm.validateFields();
             const { type, record } = editMasterModal;
+            const payload = type === "work_program_periods"
+                ? {
+                      ...values,
+                      start_date: values.start_date?.format("YYYY-MM-DD"),
+                      end_date: values.end_date?.format("YYYY-MM-DD"),
+                  }
+                : values;
 
-            router.patch(route(masterUpdateRoutes[type], record.id), values, {
+            router.patch(route(masterUpdateRoutes[type], record.id), payload, {
                 preserveScroll: true,
                 onSuccess: () => {
                     message.success(`${masterLabels[type]} berhasil diperbarui.`);
@@ -535,6 +592,28 @@ export default function SettingsIndex() {
         });
     };
 
+    const confirmDeleteWorkProgramPeriod = (period) => {
+        Modal.confirm({
+            title: "Hapus periode program kerja?",
+            content: `${period.name} akan dihapus jika belum dipakai oleh program.`,
+            okText: "Hapus",
+            okButtonProps: { danger: true },
+            cancelText: "Batal",
+            onOk: () =>
+                router.delete(
+                    route(
+                        "settings.master-data.work-program-periods.destroy",
+                        period.id,
+                    ),
+                    {
+                        preserveScroll: true,
+                        onSuccess: () =>
+                            message.success("Periode program kerja berhasil dihapus."),
+                    },
+                ),
+        });
+    };
+
     const confirmDisableUser = (user) => {
         Modal.confirm({
             title: "Nonaktifkan user?",
@@ -563,6 +642,35 @@ export default function SettingsIndex() {
                         setEditUserModal({ open: false, user: null });
                         editUserForm.resetFields();
                         message.success("User berhasil diperbarui.");
+                    },
+                },
+            );
+        } catch {}
+    };
+
+    const openResetPassword = (user) => {
+        setResetPasswordModal({ open: true, user });
+        resetPasswordForm.resetFields();
+    };
+
+    const closeResetPassword = () => {
+        setResetPasswordModal({ open: false, user: null });
+        resetPasswordForm.resetFields();
+    };
+
+    const submitResetPassword = async () => {
+        try {
+            const v = await resetPasswordForm.validateFields();
+            router.patch(
+                route(
+                    "settings.access.users.reset-password",
+                    resetPasswordModal.user.id,
+                ),
+                v,
+                {
+                    onSuccess: () => {
+                        closeResetPassword();
+                        message.success("Password user berhasil direset.");
                     },
                 },
             );
@@ -738,6 +846,7 @@ export default function SettingsIndex() {
             { key: "positions", label: "positions", note: "Master jabatan" },
             { key: "divisions", label: "divisions", note: "Master divisi" },
             { key: "payment_statuses", label: "payment_statuses", note: "Status pembayaran" },
+            { key: "work_program_periods", label: "work_program_periods", note: "Periode program kerja" },
             { key: "cash_methods", label: "cash_methods", note: "Metode kas" },
             { key: "cash_categories", label: "cash_categories", note: "Kategori kas" },
             { key: "dues_settings", label: "dues_settings", note: "Pengaturan iuran" },
@@ -969,7 +1078,7 @@ export default function SettingsIndex() {
                                         <Col xs={24} md={12}>
                                             <Form.Item label="Logo Organisasi">
                                                 <Space
-                                                    direction="vertical"
+                                                    orientation="vertical"
                                                     size={8}
                                                     style={{ width: "100%" }}
                                                 >
@@ -1085,6 +1194,8 @@ export default function SettingsIndex() {
                 children: (
                     <Card style={{ borderRadius: 12 }}>
                         <Tabs
+                            activeKey={activeAccessTab}
+                            onChange={setActiveAccessTab}
                             tabBarStyle={{ marginBottom: 12 }}
                             items={[
                                 {
@@ -1445,6 +1556,88 @@ export default function SettingsIndex() {
                                     ),
                                 },
                                 {
+                                    key: "work_program_periods",
+                                    label: "Periode Program Kerja",
+                                    children: (
+                                        <Table
+                                            size="small"
+                                            pagination={false}
+                                            dataSource={workProgramPeriods}
+                                            rowKey="id"
+                                            title={() => (
+                                                <Space>
+                                                    <Text strong>
+                                                        Periode Program Kerja
+                                                    </Text>
+                                                    <Button
+                                                        size="small"
+                                                        icon={<PlusOutlined />}
+                                                        onClick={() =>
+                                                            setWorkProgramPeriodModalOpen(
+                                                                true,
+                                                            )
+                                                        }
+                                                    >
+                                                        Tambah
+                                                    </Button>
+                                                </Space>
+                                            )}
+                                            columns={[
+                                                {
+                                                    title: "Kode",
+                                                    dataIndex: "code",
+                                                    key: "code",
+                                                    width: 140,
+                                                    render: (value) => value || "-",
+                                                },
+                                                {
+                                                    title: "Nama",
+                                                    dataIndex: "name",
+                                                    key: "name",
+                                                },
+                                                {
+                                                    title: "Tanggal",
+                                                    key: "date_range",
+                                                    width: 230,
+                                                    render: (_, record) =>
+                                                        `${dayjs(record.start_date).format("DD MMM YYYY")} - ${dayjs(record.end_date).format("DD MMM YYYY")}`,
+                                                },
+                                                {
+                                                    title: "Status",
+                                                    dataIndex: "is_active",
+                                                    key: "is_active",
+                                                    width: 110,
+                                                    render: (value) =>
+                                                        value ? (
+                                                            <Tag color="green">Aktif</Tag>
+                                                        ) : (
+                                                            <Tag>Inactive</Tag>
+                                                        ),
+                                                },
+                                                {
+                                                    title: "Catatan",
+                                                    dataIndex: "notes",
+                                                    key: "notes",
+                                                    ellipsis: true,
+                                                    render: (value) => value || "-",
+                                                },
+                                                {
+                                                    title: "Aksi",
+                                                    key: "aksi",
+                                                    width: 110,
+                                                    align: "right",
+                                                    render: (_, record) =>
+                                                        renderMasterActions(
+                                                            "work_program_periods",
+                                                            record,
+                                                            confirmDeleteWorkProgramPeriod,
+                                                        ),
+                                                },
+                                            ]}
+                                        />
+                                    ),
+                                },
+                                {
                                     key: "dues_settings",
                                     label: "Pengaturan Iuran",
                                     children: (
@@ -1748,7 +1941,7 @@ export default function SettingsIndex() {
                                                         dataSource={users}
                                                         rowKey="id"
                                                         pagination={false}
-                                                        scroll={{ x: 820 }}
+                                                        scroll={{ x: 940 }}
                                                         columns={[
                                                             {
                                                                 title: "Nama",
@@ -1822,7 +2015,7 @@ export default function SettingsIndex() {
                                                             {
                                                                 title: "Aksi",
                                                                 key: "aksi",
-                                                                width: 260,
+                                                                width: 380,
                                                                 align: "right",
                                                                 render: (
                                                                     _,
@@ -1861,6 +2054,21 @@ export default function SettingsIndex() {
                                                                             Sync
                                                                             Permission
                                                                         </Button>
+                                                                        {canResetPassword && (
+                                                                            <Button
+                                                                                size="small"
+                                                                                icon={
+                                                                                    <LockOutlined />
+                                                                                }
+                                                                                onClick={() =>
+                                                                                    openResetPassword(
+                                                                                        r,
+                                                                                    )
+                                                                                }
+                                                                            >
+                                                                                Reset
+                                                                            </Button>
+                                                                        )}
                                                                         <Button
                                                                             size="small"
                                                                             danger
@@ -2271,7 +2479,7 @@ export default function SettingsIndex() {
                                 }
                             >
                                 <Space
-                                    direction="vertical"
+                                    orientation="vertical"
                                     size={10}
                                     style={{ width: "100%" }}
                                 >
@@ -2324,7 +2532,7 @@ export default function SettingsIndex() {
                                                             {backup.file}
                                                         </Text>
                                                     </div>
-                                                    <Space direction="vertical" align="end">
+                                                    <Space orientation="vertical" align="end">
                                                         <Tag color="green">
                                                             Berhasil
                                                         </Tag>
@@ -2391,12 +2599,12 @@ export default function SettingsIndex() {
                             </Card>
                         </Col>
                         <Col xs={24} lg={14}>
-                            <Space direction="vertical" style={{ width: "100%" }} size={12}>
+                            <Space orientation="vertical" style={{ width: "100%" }} size={12}>
                                 <Card
                                     style={{ borderRadius: 12 }}
                                     title={<Text strong>Hard Reset</Text>}
                                 >
-                                    <Space direction="vertical">
+                                    <Space orientation="vertical">
                                         <Text>
                                             Menghapus semua data dan membuat ulang admin + permission default.
                                         </Text>
@@ -2410,7 +2618,7 @@ export default function SettingsIndex() {
                                     style={{ borderRadius: 12 }}
                                     title={<Text strong>Reset Data Iuran & Kas</Text>}
                                 >
-                                    <Space direction="vertical">
+                                    <Space orientation="vertical">
                                         <Text>
                                             Hanya menghapus data transaksi iuran dan kas, master data tetap.
                                         </Text>
@@ -2433,10 +2641,10 @@ export default function SettingsIndex() {
                                         onChange={(values) => setSelectedResetTables(values)}
                                         style={{ width: "100%" }}
                                     >
-                                        <Space direction="vertical" style={{ width: "100%" }}>
+                                        <Space orientation="vertical" style={{ width: "100%" }}>
                                             {resetTableOptions.map((option) => (
                                                 <Checkbox value={option.key} key={option.key}>
-                                                    <Space direction="vertical" size={0}>
+                                                    <Space orientation="vertical" size={0}>
                                                         <Text>{option.label}</Text>
                                                         <Text type="secondary" style={{ fontSize: 12 }}>
                                                             {option.note}
@@ -2472,6 +2680,8 @@ export default function SettingsIndex() {
         permissions,
         backups,
         backupProcessing,
+        canResetPassword,
+        activeAccessTab,
         resetTableOptions,
         selectedResetTables,
     ]);
@@ -2487,7 +2697,8 @@ export default function SettingsIndex() {
                 <div className="idi-panel finance-settings p-3">
                     <Tabs
                         items={tabs}
-                        defaultActiveKey="profile"
+                        activeKey={activeSettingsTab}
+                        onChange={setActiveSettingsTab}
                         tabBarStyle={{ marginBottom: 12 }}
                     />
                 </div>
@@ -2506,9 +2717,9 @@ export default function SettingsIndex() {
                         loading: restoreProcessing,
                     }}
                     cancelText="Batal"
-                    destroyOnClose
+                    destroyOnHidden
                 >
-                    <Space direction="vertical" size={12} style={{ width: "100%" }}>
+                    <Space orientation="vertical" size={12} style={{ width: "100%" }}>
                         <Text type="danger">
                             Restore akan menghapus data aktif lalu mengisi ulang
                             database dari file backup SQL. Pastikan Anda sudah
@@ -2596,6 +2807,71 @@ export default function SettingsIndex() {
                             rules={[{ required: true, message: "Email wajib" }]}
                         >
                             <Input />
+                        </Form.Item>
+                    </Form>
+                </Modal>
+
+                <Modal
+                    title={`Reset Password: ${resetPasswordModal.user?.name || ""}`}
+                    open={resetPasswordModal.open}
+                    onCancel={closeResetPassword}
+                    onOk={submitResetPassword}
+                    okText="Reset Password"
+                    okButtonProps={{ danger: true }}
+                >
+                    <Form
+                        form={resetPasswordForm}
+                        layout="vertical"
+                        requiredMark={false}
+                    >
+                        <Form.Item
+                            name="password"
+                            label="Password Baru"
+                            rules={[
+                                {
+                                    required: true,
+                                    message: "Password baru wajib",
+                                },
+                                {
+                                    min: 8,
+                                    message: "Minimal 8 karakter",
+                                },
+                            ]}
+                        >
+                            <Input.Password
+                                autoComplete="new-password"
+                                placeholder="Password sementara baru..."
+                            />
+                        </Form.Item>
+                        <Form.Item
+                            name="password_confirmation"
+                            label="Konfirmasi Password"
+                            dependencies={["password"]}
+                            rules={[
+                                {
+                                    required: true,
+                                    message: "Konfirmasi password wajib",
+                                },
+                                ({ getFieldValue }) => ({
+                                    validator(_, value) {
+                                        if (
+                                            !value ||
+                                            getFieldValue("password") === value
+                                        ) {
+                                            return Promise.resolve();
+                                        }
+
+                                        return Promise.reject(
+                                            new Error("Konfirmasi password tidak sama."),
+                                        );
+                                    },
+                                }),
+                            ]}
+                        >
+                            <Input.Password
+                                autoComplete="new-password"
+                                placeholder="Ulangi password baru..."
+                            />
                         </Form.Item>
                     </Form>
                 </Modal>
@@ -2944,6 +3220,68 @@ export default function SettingsIndex() {
                 </Modal>
 
                 <Modal
+                    title="Tambah Periode Program Kerja"
+                    open={workProgramPeriodModalOpen}
+                    onCancel={() => {
+                        setWorkProgramPeriodModalOpen(false);
+                        workProgramPeriodForm.resetFields();
+                    }}
+                    onOk={submitWorkProgramPeriod}
+                    okText="Simpan"
+                >
+                    <Form
+                        form={workProgramPeriodForm}
+                        layout="vertical"
+                        initialValues={{
+                            start_date: dayjs().startOf("year"),
+                            end_date: dayjs().endOf("year"),
+                            is_active: true,
+                        }}
+                    >
+                        <Form.Item
+                            name="name"
+                            label="Nama Periode"
+                            rules={[{ required: true, message: "Nama periode wajib" }]}
+                        >
+                            <Input placeholder="Contoh: Program Kerja 2026" />
+                        </Form.Item>
+                        <Form.Item name="code" label="Kode (opsional)">
+                            <Input placeholder="PROKER-2026" />
+                        </Form.Item>
+                        <Row gutter={12}>
+                            <Col xs={24} md={12}>
+                                <Form.Item
+                                    name="start_date"
+                                    label="Tanggal Mulai"
+                                    rules={[{ required: true, message: "Tanggal mulai wajib" }]}
+                                >
+                                    <DatePicker style={{ width: "100%" }} />
+                                </Form.Item>
+                            </Col>
+                            <Col xs={24} md={12}>
+                                <Form.Item
+                                    name="end_date"
+                                    label="Tanggal Selesai"
+                                    rules={[{ required: true, message: "Tanggal selesai wajib" }]}
+                                >
+                                    <DatePicker style={{ width: "100%" }} />
+                                </Form.Item>
+                            </Col>
+                        </Row>
+                        <Form.Item name="notes" label="Catatan">
+                            <Input.TextArea rows={3} />
+                        </Form.Item>
+                        <Form.Item
+                            name="is_active"
+                            label="Aktif"
+                            valuePropName="checked"
+                        >
+                            <Switch />
+                        </Form.Item>
+                    </Form>
+                </Modal>
+
+                <Modal
                     title={`Edit ${masterLabels[editMasterModal.type] || "Master Data"}`}
                     open={editMasterModal.open}
                     onCancel={closeEditMaster}
@@ -2996,10 +3334,49 @@ export default function SettingsIndex() {
                             "divisions",
                             "positions",
                             "cash_categories",
+                            "work_program_periods",
                         ].includes(editMasterModal.type) ? (
                             <Form.Item name="code" label="Kode (opsional)">
                                 <Input />
                             </Form.Item>
+                        ) : null}
+
+                        {editMasterModal.type === "work_program_periods" ? (
+                            <>
+                                <Row gutter={12}>
+                                    <Col xs={24} md={12}>
+                                        <Form.Item
+                                            name="start_date"
+                                            label="Tanggal Mulai"
+                                            rules={[
+                                                {
+                                                    required: true,
+                                                    message: "Tanggal mulai wajib",
+                                                },
+                                            ]}
+                                        >
+                                            <DatePicker style={{ width: "100%" }} />
+                                        </Form.Item>
+                                    </Col>
+                                    <Col xs={24} md={12}>
+                                        <Form.Item
+                                            name="end_date"
+                                            label="Tanggal Selesai"
+                                            rules={[
+                                                {
+                                                    required: true,
+                                                    message: "Tanggal selesai wajib",
+                                                },
+                                            ]}
+                                        >
+                                            <DatePicker style={{ width: "100%" }} />
+                                        </Form.Item>
+                                    </Col>
+                                </Row>
+                                <Form.Item name="notes" label="Catatan">
+                                    <Input.TextArea rows={3} />
+                                </Form.Item>
+                            </>
                         ) : null}
 
                         {editMasterModal.type === "payment_statuses" ? (

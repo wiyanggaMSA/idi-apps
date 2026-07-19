@@ -402,7 +402,7 @@ export default function LetterGridBuilder({
           </>
         )}
 
-        <Space direction="vertical" style={{ width: "100%" }}>
+        <Space orientation="vertical" style={{ width: "100%" }}>
           {blockCatalog.map((block) => (
             <Button key={block.type} onClick={() => handleAddBlock(block.type)}>
               {block.label}
@@ -589,7 +589,7 @@ export default function LetterGridBuilder({
         okText="Finalisasi"
         cancelText="Batal"
         confirmLoading={finalizing}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={finalizeForm} layout="vertical" onFinish={handleFinalize}>
           <Form.Item name="numbering_profile_id" label="Profil Penomoran">

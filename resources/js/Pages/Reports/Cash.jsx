@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { router, usePage } from "@inertiajs/react";
 import dayjs from "dayjs";
 import { FilePdfOutlined } from "@ant-design/icons";
-import { Button, Card, DatePicker, Select, Space, Switch } from "antd";
+import { Alert, Button, Card, DatePicker, Select, Space, Switch, Tag } from "antd";
 import {
     Bar,
     BarChart,
@@ -183,6 +183,7 @@ export default function CashReport() {
         filters,
         categories,
         methods,
+        period_status: periodStatus,
     } = props;
 
     const [filterState, setFilterState] = useState({
@@ -240,7 +241,7 @@ export default function CashReport() {
         <AppLayout title={t("menu.cashReport")}>
             <PageShell>
                 <PageHeader
-                    eyebrow="Cash Report"
+                    eyebrow={t("reports.cash.eyebrow")}
                     title={t("reports.cash.title")}
                     description={t("reports.cash.description")}
                     extra={
@@ -249,6 +250,26 @@ export default function CashReport() {
                         </Button>
                     }
                 />
+
+                {periodStatus ? (
+                    <Alert
+                        type={periodStatus.is_closed ? "warning" : "info"}
+                        showIcon
+                        title={
+                            <Space>
+                                <span>{t("reports.periodStatus")}</span>
+                                <Tag color={periodStatus.is_closed ? "red" : "green"}>
+                                    {periodStatus.label}
+                                </Tag>
+                            </Space>
+                        }
+                        description={
+                            periodStatus.is_closed
+                                ? t("reports.closedPeriodDescription")
+                                : t("reports.openPeriodDescription")
+                        }
+                    />
+                ) : null}
 
                 <div className="idi-grid">
                     <StatCard
@@ -352,16 +373,16 @@ export default function CashReport() {
                             emptyTitle={t("reports.cash.noPeriod")}
                             emptyDescription={t("reports.cash.noPeriodDesc")}
                             columns={[
-                                { title: "Periode", dataIndex: "period", key: "period" },
+                                { title: t("reports.cash.period"), dataIndex: "period", key: "period" },
                                 {
-                                    title: "Masuk",
+                                    title: t("reports.cash.income"),
                                     dataIndex: "total_in",
                                     key: "total_in",
                                     align: "right",
                                     render: (value) => <MoneyDisplay value={value} tone="success" />,
                                 },
                                 {
-                                    title: "Keluar",
+                                    title: t("reports.cash.expense"),
                                     dataIndex: "total_out",
                                     key: "total_out",
                                     align: "right",
@@ -395,16 +416,16 @@ export default function CashReport() {
                             emptyTitle={t("reports.cash.noCategory")}
                             emptyDescription={t("reports.cash.noCategoryDesc")}
                             columns={[
-                                { title: "Kategori", dataIndex: "name", key: "name" },
+                                { title: t("reports.cash.category"), dataIndex: "name", key: "name" },
                                 {
-                                    title: "Masuk",
+                                    title: t("reports.cash.income"),
                                     dataIndex: "total_in",
                                     key: "total_in",
                                     align: "right",
                                     render: (value) => <MoneyDisplay value={value} tone="success" />,
                                 },
                                 {
-                                    title: "Keluar",
+                                    title: t("reports.cash.expense"),
                                     dataIndex: "total_out",
                                     key: "total_out",
                                     align: "right",

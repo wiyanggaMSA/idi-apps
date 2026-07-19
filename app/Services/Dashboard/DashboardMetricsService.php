@@ -111,7 +111,7 @@ class DashboardMetricsService
     public function getCashMetrics(Carbon $startDate, Carbon $endDate): array
     {
         $monthTotals = CashTransaction::query()
-            ->whereNull('voided_at')
+            ->validForFinance()
             ->whereBetween('tx_date', [$startDate, $endDate])
             ->selectRaw("SUM(CASE WHEN type = 'in' THEN amount ELSE 0 END) as total_in")
             ->selectRaw("SUM(CASE WHEN type = 'out' THEN amount ELSE 0 END) as total_out")
@@ -119,7 +119,7 @@ class DashboardMetricsService
             ->first();
 
         $allTimeTotals = CashTransaction::query()
-            ->whereNull('voided_at')
+            ->validForFinance()
             ->selectRaw("SUM(CASE WHEN type = 'in' THEN amount ELSE 0 END) as total_in")
             ->selectRaw("SUM(CASE WHEN type = 'out' THEN amount ELSE 0 END) as total_out")
 
@@ -165,7 +165,7 @@ class DashboardMetricsService
     public function getCharts(Carbon $startDate, Carbon $endDate): array
     {
         $cashRows = CashTransaction::query()
-            ->whereNull('voided_at')
+            ->validForFinance()
             ->whereBetween('tx_date', [$startDate, $endDate])
             ->selectRaw('DATE(tx_date) as date')
             ->selectRaw("SUM(CASE WHEN `type` = 'in' THEN amount ELSE 0 END) as cash_in")
@@ -187,7 +187,7 @@ class DashboardMetricsService
             ->keyBy('date');
 
         $expenseCategories = CashTransaction::query()
-    ->whereNull('cash_transactions.voided_at')
+    ->validForFinance()
     ->whereBetween('cash_transactions.tx_date', [$startDate, $endDate])
     ->where('cash_transactions.type', 'out')
     ->join('cash_categories', 'cash_categories.id', '=', 'cash_transactions.category_id')
@@ -201,7 +201,7 @@ class DashboardMetricsService
     ->values();
 
         $incomeCategories = CashTransaction::query()
-    ->whereNull('cash_transactions.voided_at')
+    ->validForFinance()
     ->whereBetween('cash_transactions.tx_date', [$startDate, $endDate])
     ->where('cash_transactions.type', 'in')
     ->join('cash_categories', 'cash_categories.id', '=', 'cash_transactions.category_id')
@@ -235,7 +235,7 @@ class DashboardMetricsService
     {
         $recentTransactions = CashTransaction::query()
             ->with('category')
-            ->whereNull('voided_at')
+            ->validForFinance()
             ->whereBetween('tx_date', [$startDate, $endDate])
             ->orderByDesc('tx_date')
             ->limit(10)

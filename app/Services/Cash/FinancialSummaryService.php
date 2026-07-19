@@ -6,9 +6,14 @@ use App\Models\CashTransaction;
 use App\Models\DuesInvoice;
 use App\Models\DuesPayment;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class FinancialSummaryService
 {
+    public function __construct(private readonly TransactionQueryService $transactionQuery)
+    {
+    }
+
     public function build(array $filters): array
     {
         $startDate = $filters['start_date'] ?? null;
@@ -16,16 +21,16 @@ class FinancialSummaryService
         $divisionId = $filters['division_id'] ?? null;
         $includeDuesInCash = (bool) ($filters['include_dues_in_cash'] ?? true);
 
-        $cashQuery = CashTransaction::query()->whereNull('voided_at');
+        $cashQuery = CashTransaction::query()->validForFinance();
         if (! $includeDuesInCash) {
             $cashQuery->whereNull('dues_payment_id');
         }
 
         if ($startDate) {
-            $cashQuery->where('tx_date', '>=', Carbon::parse($startDate)->startOfDay());
+            $cashQuery->where('tx_date', '>=', $this->transactionQuery->startOfReportDay($startDate));
         }
         if ($endDate) {
-            $cashQuery->where('tx_date', '<=', Carbon::parse($endDate)->endOfDay());
+            $cashQuery->where('tx_date', '<=', $this->transactionQuery->endOfReportDay($endDate));
         }
 
         $cashTotals = $this->cashTotals($cashQuery);
@@ -75,13 +80,13 @@ class FinancialSummaryService
             return 0;
         }
 
-        $query = CashTransaction::query()->whereNull('voided_at');
+        $query = CashTransaction::query()->validForFinance();
         if (! $includeDues) {
             $query->whereNull('dues_payment_id');
         }
 
         $summary = $query
-            ->where('tx_date', '<', Carbon::parse($startDate)->startOfDay())
+            ->where('tx_date', '<', $this->transactionQuery->startOfReportDay($startDate))
             ->selectRaw('SUM(CASE WHEN type = "in" THEN amount ELSE 0 END) as total_in, SUM(CASE WHEN type = "out" THEN amount ELSE 0 END) as total_out')
             ->first();
 
@@ -97,25 +102,25 @@ class FinancialSummaryService
         }
 
         if ($startDate) {
-            $invoiceQuery->where('due_date', '>=', Carbon::parse($startDate)->startOfDay());
+            $invoiceQuery->where('due_date', '>=', $this->transactionQuery->startOfReportDay($startDate));
         }
         if ($endDate) {
-            $invoiceQuery->where('due_date', '<=', Carbon::parse($endDate)->endOfDay());
+            $invoiceQuery->where('due_date', '<=', $this->transactionQuery->endOfReportDay($endDate));
         }
 
         $invoiceSummary = (clone $invoiceQuery)
             ->selectRaw('SUM(amount_due) as total_due, SUM(amount_paid) as total_paid')
             ->first();
 
-        $paymentsQuery = DuesPayment::query();
+        $paymentsQuery = DuesPayment::query()->whereNull('voided_at');
         if ($divisionId) {
             $paymentsQuery->whereHas('member', fn ($query) => $query->where('division_id', $divisionId));
         }
         if ($startDate) {
-            $paymentsQuery->where('paid_at', '>=', Carbon::parse($startDate)->startOfDay());
+            $paymentsQuery->where('paid_at', '>=', $this->transactionQuery->startOfReportDay($startDate));
         }
         if ($endDate) {
-            $paymentsQuery->where('paid_at', '<=', Carbon::parse($endDate)->endOfDay());
+            $paymentsQuery->where('paid_at', '<=', $this->transactionQuery->endOfReportDay($endDate));
         }
 
         $collected = (int) $paymentsQuery->sum('amount');
@@ -137,8 +142,8 @@ class FinancialSummaryService
             return [];
         }
 
-        $start = Carbon::parse($startDate)->startOfMonth();
-        $end = Carbon::parse($endDate)->endOfMonth();
+        $start = Carbon::parse($startDate, $this->transactionQuery->reportTimezone())->startOfMonth();
+        $end = Carbon::parse($endDate, $this->transactionQuery->reportTimezone())->endOfMonth();
         $months = collect();
 
         $cursor = $start->copy();
@@ -148,18 +153,18 @@ class FinancialSummaryService
         }
 
         $cashMonthly = CashTransaction::query()
-            ->whereNull('voided_at')
+            ->validForFinance()
             ->whereBetween('tx_date', [$start, $end])
-            ->selectRaw("DATE_FORMAT(tx_date, '%Y-%m') as period")
+            ->selectRaw($this->monthPeriodExpression('tx_date').' as period')
             ->selectRaw('SUM(CASE WHEN type = "in" THEN amount ELSE 0 END) as total_in')
             ->selectRaw('SUM(CASE WHEN type = "out" THEN amount ELSE 0 END) as total_out')
             ->groupBy('period')
             ->pluck('total_in', 'period');
 
         $cashOutMonthly = CashTransaction::query()
-            ->whereNull('voided_at')
+            ->validForFinance()
             ->whereBetween('tx_date', [$start, $end])
-            ->selectRaw("DATE_FORMAT(tx_date, '%Y-%m') as period")
+            ->selectRaw($this->monthPeriodExpression('tx_date').' as period')
             ->selectRaw('SUM(CASE WHEN type = "out" THEN amount ELSE 0 END) as total_out')
             ->groupBy('period')
             ->pluck('total_out', 'period');
@@ -170,18 +175,19 @@ class FinancialSummaryService
             $invoiceQuery->whereHas('member', fn ($query) => $query->where('division_id', $divisionId));
         }
         $duesMonthly = $invoiceQuery
-            ->selectRaw("DATE_FORMAT(due_date, '%Y-%m') as period")
+            ->selectRaw($this->monthPeriodExpression('due_date').' as period')
             ->selectRaw('SUM(amount_due) as total_due')
             ->groupBy('period')
             ->pluck('total_due', 'period');
 
         $paymentsQuery = DuesPayment::query()
+            ->whereNull('voided_at')
             ->whereBetween('paid_at', [$start, $end]);
         if ($divisionId) {
             $paymentsQuery->whereHas('member', fn ($query) => $query->where('division_id', $divisionId));
         }
         $duesCollected = $paymentsQuery
-            ->selectRaw("DATE_FORMAT(paid_at, '%Y-%m') as period")
+            ->selectRaw($this->monthPeriodExpression('paid_at').' as period')
             ->selectRaw('SUM(amount) as total_paid')
             ->groupBy('period')
             ->pluck('total_paid', 'period');
@@ -208,14 +214,14 @@ class FinancialSummaryService
     {
         $query = CashTransaction::query()
             ->with('category')
-            ->whereNull('voided_at')
+            ->validForFinance()
             ->where('type', 'out');
 
         if ($startDate) {
-            $query->where('tx_date', '>=', Carbon::parse($startDate)->startOfDay());
+            $query->where('tx_date', '>=', $this->transactionQuery->startOfReportDay($startDate));
         }
         if ($endDate) {
-            $query->where('tx_date', '<=', Carbon::parse($endDate)->endOfDay());
+            $query->where('tx_date', '<=', $this->transactionQuery->endOfReportDay($endDate));
         }
 
         return $query->orderByDesc('amount')
@@ -245,10 +251,10 @@ class FinancialSummaryService
         }
 
         if ($startDate) {
-            $query->where('dues_invoices.due_date', '>=', Carbon::parse($startDate)->startOfDay());
+            $query->where('dues_invoices.due_date', '>=', $this->transactionQuery->startOfReportDay($startDate));
         }
         if ($endDate) {
-            $query->where('dues_invoices.due_date', '<=', Carbon::parse($endDate)->endOfDay());
+            $query->where('dues_invoices.due_date', '<=', $this->transactionQuery->endOfReportDay($endDate));
         }
 
         return $query->orderByDesc('outstanding')
@@ -262,5 +268,12 @@ class FinancialSummaryService
                 'outstanding' => (int) $row->outstanding,
             ])
             ->all();
+    }
+
+    private function monthPeriodExpression(string $column): string
+    {
+        return DB::connection()->getDriverName() === 'sqlite'
+            ? sprintf("strftime('%%Y-%%m', %s)", $column)
+            : sprintf("DATE_FORMAT(%s, '%%Y-%%m')", $column);
     }
 }

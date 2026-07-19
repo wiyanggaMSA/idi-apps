@@ -9,8 +9,15 @@ use App\Http\Controllers\Dashboard\DashboardController;
 use App\Http\Controllers\Dues\DuesController;
 use App\Http\Controllers\Dues\DuesRecapController;
 use App\Http\Controllers\Finance\AuditController;
+use App\Http\Controllers\Finance\FinancePeriodController;
 use App\Http\Controllers\Members\MemberController;
 use App\Http\Controllers\Members\MemberImportExportController;
+use App\Http\Controllers\Organization\OrganizationAssignmentController;
+use App\Http\Controllers\Organization\OrganizationMemberController;
+use App\Http\Controllers\Organization\OrganizationPageController;
+use App\Http\Controllers\Organization\OrganizationPeriodController;
+use App\Http\Controllers\Organization\OrganizationUnitController;
+use App\Http\Controllers\Organization\OrganizationUnitPositionController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PublicLetterSignatureController;
 use App\Http\Controllers\PublicVerifyLetterController;
@@ -37,8 +44,21 @@ use App\Http\Controllers\Settings\MasterData\DivisionsController;
 use App\Http\Controllers\Settings\MasterData\MemberStatusesController;
 use App\Http\Controllers\Settings\MasterData\PaymentStatusesController;
 use App\Http\Controllers\Settings\MasterData\PositionsController;
+use App\Http\Controllers\Settings\MasterData\WorkProgramPeriodsController;
 use App\Http\Controllers\Settings\OrganizationProfileController;
 use App\Http\Controllers\Settings\SettingsController;
+use App\Http\Controllers\WorkPrograms\WorkProgramBudgetController;
+use App\Http\Controllers\WorkPrograms\WorkProgramCollaboratorDivisionController;
+use App\Http\Controllers\WorkPrograms\WorkProgramController;
+use App\Http\Controllers\WorkPrograms\WorkProgramDocumentController;
+use App\Http\Controllers\WorkPrograms\WorkProgramEvaluationController;
+use App\Http\Controllers\WorkPrograms\WorkProgramGanttController;
+use App\Http\Controllers\WorkPrograms\WorkProgramMonitoringController;
+use App\Http\Controllers\WorkPrograms\WorkProgramReportController;
+use App\Http\Controllers\WorkPrograms\WorkProgramRiskController;
+use App\Http\Controllers\WorkPrograms\WorkProgramTaskController;
+use App\Http\Controllers\WorkPrograms\WorkProgramTaskDependencyController;
+use App\Http\Controllers\WorkPrograms\WorkProgramWorkflowController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -57,11 +77,52 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    Route::prefix('organization')
+        ->name('organization.')
+        ->middleware('permission:organization.view|organization.history.view')
+        ->group(function () {
+            Route::get('/periods', [OrganizationPeriodController::class, 'index'])->name('periods.index');
+            Route::post('/periods', [OrganizationPeriodController::class, 'store'])->name('periods.store');
+            Route::get('/periods/{organizationPeriod}/chart', [OrganizationPeriodController::class, 'chart'])->name('periods.chart');
+            Route::get('/periods/{organizationPeriod}/units', [OrganizationUnitController::class, 'index'])->name('periods.units.index');
+            Route::post('/periods/{organizationPeriod}/units', [OrganizationUnitController::class, 'store'])->name('periods.units.store');
+            Route::get('/periods/{organizationPeriod}/assignments', [OrganizationAssignmentController::class, 'index'])->name('periods.assignments.index');
+            Route::post('/periods/{organizationPeriod}/clone-structure', [OrganizationPeriodController::class, 'cloneStructure'])->name('periods.clone-structure');
+            Route::get('/periods/{organizationPeriod}/workflow-summary', [OrganizationPeriodController::class, 'workflowSummary'])->name('periods.workflow-summary');
+            Route::post('/periods/{organizationPeriod}/publish', [OrganizationPeriodController::class, 'publish'])->name('periods.publish');
+            Route::post('/periods/{organizationPeriod}/activate', [OrganizationPeriodController::class, 'activate'])->name('periods.activate');
+            Route::post('/periods/{organizationPeriod}/end', [OrganizationPeriodController::class, 'end'])->name('periods.end');
+            Route::get('/periods/{organizationPeriod}', [OrganizationPeriodController::class, 'show'])->name('periods.show');
+            Route::patch('/periods/{organizationPeriod}', [OrganizationPeriodController::class, 'update'])->name('periods.update');
+
+            Route::get('/units/{organizationUnit}/positions', [OrganizationUnitPositionController::class, 'index'])->name('units.positions.index');
+            Route::post('/units/{organizationUnit}/positions', [OrganizationUnitPositionController::class, 'store'])->name('units.positions.store');
+            Route::get('/units/{organizationUnit}', [OrganizationUnitController::class, 'show'])->name('units.show');
+            Route::patch('/units/{organizationUnit}', [OrganizationUnitController::class, 'update'])->name('units.update');
+            Route::post('/units/{organizationUnit}/move', [OrganizationUnitController::class, 'move'])->name('units.move');
+            Route::post('/units/{organizationUnit}/deactivate', [OrganizationUnitController::class, 'deactivate'])->name('units.deactivate');
+
+            Route::patch('/unit-positions/{unitPosition}', [OrganizationUnitPositionController::class, 'update'])->name('unit-positions.update');
+            Route::post('/unit-positions/{unitPosition}/deactivate', [OrganizationUnitPositionController::class, 'deactivate'])->name('unit-positions.deactivate');
+
+            Route::post('/assignments', [OrganizationAssignmentController::class, 'store'])->name('assignments.store');
+            Route::get('/assignments/{organizationAssignment}', [OrganizationAssignmentController::class, 'show'])->name('assignments.show');
+            Route::patch('/assignments/{organizationAssignment}', [OrganizationAssignmentController::class, 'update'])->name('assignments.update');
+            Route::post('/assignments/{organizationAssignment}/replace', [OrganizationAssignmentController::class, 'replace'])->name('assignments.replace');
+            Route::post('/assignments/{organizationAssignment}/end', [OrganizationAssignmentController::class, 'end'])->name('assignments.end');
+
+            Route::get('/members/search', [OrganizationMemberController::class, 'search'])->name('members.search');
+            Route::get('/members/{member}/eligibility', [OrganizationMemberController::class, 'eligibility'])->name('members.eligibility');
+            Route::get('/members/{member}/history', [OrganizationMemberController::class, 'history'])->name('members.history');
+        });
     // Secretariat
     Route::prefix('secretariat')->name('secretariat.')->group(function () {
         Route::get('/', [LettersController::class, 'dashboard'])
             ->middleware('permission:secretariat.view')
             ->name('dashboard');
+        Route::get('/organization', OrganizationPageController::class)
+            ->middleware('permission:organization.view|organization.history.view')
+            ->name('organization.index');
         Route::get('/letters', [LettersController::class, 'index'])
             ->middleware('permission:letters.view')
             ->name('letters.index');
@@ -216,6 +277,150 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->middleware('permission:members.export')
             ->name('export');
     });
+    // WORK PROGRAMS
+    Route::prefix('work-programs')->name('work-programs.')->group(function () {
+        Route::get('/', [WorkProgramController::class, 'index'])
+            ->middleware('permission:work_program.view|work_program.view_own_field|work_program.review')
+            ->name('index');
+        Route::post('/', [WorkProgramController::class, 'store'])
+            ->middleware('permission:work_program.create')
+            ->name('store');
+        Route::get('/report', [WorkProgramReportController::class, 'index'])
+            ->middleware('permission:work_program.view|work_program.view_own_field|work_program.review|work_program.update_progress')
+            ->name('report');
+        Route::get('/report/export', [WorkProgramReportController::class, 'export'])
+            ->middleware('permission:work_program.export')
+            ->name('report.export');
+        Route::get('/report/print', [WorkProgramReportController::class, 'print'])
+            ->middleware('permission:work_program.export')
+            ->name('report.print');
+        Route::post('/{workProgram}/submit', [WorkProgramWorkflowController::class, 'submit'])
+            ->middleware('permission:work_program.submit')
+            ->name('submit');
+        Route::post('/{workProgram}/withdraw', [WorkProgramWorkflowController::class, 'withdraw'])
+            ->middleware('permission:work_program.withdraw')
+            ->name('withdraw');
+        Route::post('/{workProgram}/start-review', [WorkProgramWorkflowController::class, 'startReview'])
+            ->middleware('permission:work_program.review')
+            ->name('start-review');
+        Route::post('/{workProgram}/request-revision', [WorkProgramWorkflowController::class, 'requestRevision'])
+            ->middleware('permission:work_program.request_revision')
+            ->name('request-revision');
+        Route::post('/{workProgram}/approve', [WorkProgramWorkflowController::class, 'approve'])
+            ->middleware('permission:work_program.approve')
+            ->name('approve');
+        Route::post('/{workProgram}/reject', [WorkProgramWorkflowController::class, 'reject'])
+            ->middleware('permission:work_program.reject')
+            ->name('reject');
+        Route::post('/{workProgram}/schedule', [WorkProgramWorkflowController::class, 'schedule'])
+            ->middleware('permission:work_program.manage_tasks')
+            ->name('schedule');
+        Route::post('/{workProgram}/start-execution', [WorkProgramWorkflowController::class, 'startExecution'])
+            ->middleware('permission:work_program.update_progress|work_program.manage_tasks')
+            ->name('start-execution');
+        Route::post('/{workProgram}/hold', [WorkProgramWorkflowController::class, 'hold'])
+            ->middleware('permission:work_program.update_progress|work_program.manage_tasks')
+            ->name('hold');
+        Route::post('/{workProgram}/resume', [WorkProgramWorkflowController::class, 'resume'])
+            ->middleware('permission:work_program.update_progress|work_program.manage_tasks')
+            ->name('resume');
+        Route::post('/{workProgram}/complete', [WorkProgramWorkflowController::class, 'complete'])
+            ->middleware('permission:work_program.update_progress|work_program.manage_tasks')
+            ->name('complete');
+        Route::post('/{workProgram}/archive', [WorkProgramWorkflowController::class, 'archive'])
+            ->middleware('permission:work_program.archive')
+            ->name('archive');
+        Route::get('/{workProgram}/tasks', [WorkProgramTaskController::class, 'index'])
+            ->middleware('permission:work_program.view|work_program.view_own_field|work_program.review|work_program.update_progress')
+            ->name('tasks.index');
+        Route::post('/{workProgram}/tasks', [WorkProgramTaskController::class, 'store'])
+            ->middleware('permission:work_program.manage_tasks')
+            ->name('tasks.store');
+        Route::patch('/{workProgram}/tasks/bulk-schedule', [WorkProgramTaskController::class, 'bulkSchedule'])
+            ->middleware('permission:work_program.manage_tasks')
+            ->name('tasks.bulk-schedule');
+        Route::patch('/{workProgram}/tasks/{task}', [WorkProgramTaskController::class, 'update'])
+            ->middleware('permission:work_program.manage_tasks')
+            ->name('tasks.update');
+        Route::patch('/{workProgram}/tasks/{task}/progress', [WorkProgramTaskController::class, 'updateProgress'])
+            ->middleware('permission:work_program.view|work_program.view_own_field|work_program.update_progress|work_program.manage_tasks')
+            ->name('tasks.progress');
+        Route::delete('/{workProgram}/tasks/{task}', [WorkProgramTaskController::class, 'destroy'])
+            ->middleware('permission:work_program.manage_tasks')
+            ->name('tasks.destroy');
+        Route::get('/{workProgram}/dependencies', [WorkProgramTaskDependencyController::class, 'index'])
+            ->middleware('permission:work_program.view|work_program.view_own_field|work_program.review')
+            ->name('dependencies.index');
+        Route::post('/{workProgram}/dependencies', [WorkProgramTaskDependencyController::class, 'store'])
+            ->middleware('permission:work_program.manage_tasks')
+            ->name('dependencies.store');
+        Route::delete('/{workProgram}/dependencies/{dependency}', [WorkProgramTaskDependencyController::class, 'destroy'])
+            ->middleware('permission:work_program.manage_tasks')
+            ->name('dependencies.destroy');
+        Route::post('/{workProgram}/collaborator-divisions', [WorkProgramCollaboratorDivisionController::class, 'store'])
+            ->middleware('permission:work_program.manage_tasks')
+            ->name('collaborator-divisions.store');
+        Route::delete('/{workProgram}/collaborator-divisions/{collaborator}', [WorkProgramCollaboratorDivisionController::class, 'destroy'])
+            ->middleware('permission:work_program.manage_tasks')
+            ->name('collaborator-divisions.destroy');
+        Route::get('/{workProgram}/gantt', [WorkProgramGanttController::class, 'show'])
+            ->middleware('permission:work_program.view|work_program.view_own_field|work_program.review|work_program.update_progress')
+            ->name('gantt');
+        Route::get('/{workProgram}/documents', [WorkProgramDocumentController::class, 'index'])
+            ->middleware('permission:work_program.view|work_program.view_own_field|work_program.review|work_program.update_progress')
+            ->name('documents.index');
+        Route::post('/{workProgram}/documents', [WorkProgramDocumentController::class, 'store'])
+            ->middleware('permission:work_program.upload_document')
+            ->name('documents.store');
+        Route::get('/{workProgram}/documents/{document}/preview', [WorkProgramDocumentController::class, 'preview'])
+            ->middleware('permission:work_program.view|work_program.view_own_field|work_program.review|work_program.update_progress')
+            ->name('documents.preview');
+        Route::get('/{workProgram}/documents/{document}/download', [WorkProgramDocumentController::class, 'download'])
+            ->middleware('permission:work_program.view|work_program.view_own_field|work_program.review|work_program.update_progress')
+            ->name('documents.download');
+        Route::delete('/{workProgram}/documents/{document}', [WorkProgramDocumentController::class, 'destroy'])
+            ->middleware('permission:work_program.upload_document')
+            ->name('documents.destroy');
+        Route::get('/{workProgram}/budget', [WorkProgramBudgetController::class, 'index'])
+            ->middleware('permission:work_program.view|work_program.view_own_field|work_program.review|work_program.update_progress')
+            ->name('budget.index');
+        Route::patch('/{workProgram}/budget', [WorkProgramBudgetController::class, 'update'])
+            ->middleware('permission:work_program.manage_budget')
+            ->name('budget.update');
+        Route::post('/{workProgram}/budget/items', [WorkProgramBudgetController::class, 'storeItem'])
+            ->middleware('permission:work_program.manage_budget')
+            ->name('budget-items.store');
+        Route::patch('/{workProgram}/budget/items/{item}', [WorkProgramBudgetController::class, 'updateItem'])
+            ->middleware('permission:work_program.manage_budget')
+            ->name('budget-items.update');
+        Route::delete('/{workProgram}/budget/items/{item}', [WorkProgramBudgetController::class, 'destroyItem'])
+            ->middleware('permission:work_program.manage_budget')
+            ->name('budget-items.destroy');
+        Route::post('/{workProgram}/evaluation', [WorkProgramEvaluationController::class, 'upsert'])
+            ->middleware('permission:work_program.evaluate')
+            ->name('evaluation.upsert');
+        Route::get('/{workProgram}/monitoring', [WorkProgramMonitoringController::class, 'show'])
+            ->middleware('permission:work_program.view|work_program.view_own_field|work_program.review|work_program.update_progress')
+            ->name('monitoring');
+        Route::post('/{workProgram}/risks', [WorkProgramRiskController::class, 'store'])
+            ->middleware('permission:work_program.manage_tasks')
+            ->name('risks.store');
+        Route::patch('/{workProgram}/risks/{risk}', [WorkProgramRiskController::class, 'update'])
+            ->middleware('permission:work_program.manage_tasks')
+            ->name('risks.update');
+        Route::delete('/{workProgram}/risks/{risk}', [WorkProgramRiskController::class, 'destroy'])
+            ->middleware('permission:work_program.manage_tasks')
+            ->name('risks.destroy');
+        Route::get('/{workProgram}', [WorkProgramController::class, 'show'])
+            ->middleware('permission:work_program.view|work_program.view_own_field|work_program.review|work_program.update_progress')
+            ->name('show');
+        Route::patch('/{workProgram}', [WorkProgramController::class, 'update'])
+            ->middleware('permission:work_program.update')
+            ->name('update');
+        Route::delete('/{workProgram}', [WorkProgramController::class, 'destroy'])
+            ->middleware('permission:work_program.delete')
+            ->name('destroy');
+    });
     // DUES
     Route::get('/dues', [DuesController::class, 'index'])
         ->middleware('permission:dues.view|dues.manage')
@@ -273,6 +478,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/audit/action-requests/{actionRequest}/reject', [AuditController::class, 'reject'])
         ->middleware('permission:dues.void.approve|transactions.void.approve')
         ->name('audit.action-requests.reject');
+
+    Route::get('/finance/periods', [FinancePeriodController::class, 'index'])
+        ->middleware('permission:finance.period.view')
+        ->name('finance.periods.index');
+    Route::post('/finance/periods/{year}/{month}/close', [FinancePeriodController::class, 'close'])
+        ->whereNumber('year')
+        ->whereNumber('month')
+        ->middleware('permission:finance.period.close')
+        ->name('finance.periods.close');
 
     // REPORTS
     Route::get('/reports', ReportsController::class)->name('reports.index');
@@ -332,10 +546,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::post('/payment-statuses', [PaymentStatusesController::class, 'store'])->name('payment-statuses.store');
             Route::patch('/payment-statuses/{paymentStatus}', [PaymentStatusesController::class, 'update'])->name('payment-statuses.update');
             Route::delete('/payment-statuses/{paymentStatus}', [PaymentStatusesController::class, 'destroy'])->name('payment-statuses.destroy');
+            Route::post('/work-program-periods', [WorkProgramPeriodsController::class, 'store'])->name('work-program-periods.store');
+            Route::patch('/work-program-periods/{workProgramPeriod}', [WorkProgramPeriodsController::class, 'update'])->name('work-program-periods.update');
+            Route::delete('/work-program-periods/{workProgramPeriod}', [WorkProgramPeriodsController::class, 'destroy'])->name('work-program-periods.destroy');
         });
         Route::prefix('settings/access')->name('settings.access.')->group(function () {
             Route::post('/users', [UsersController::class, 'store'])->name('users.store');
             Route::patch('/users/{user}', [UsersController::class, 'update'])->name('users.update');
+            Route::patch('/users/{user}/reset-password', [UsersController::class, 'resetPassword'])->name('users.reset-password');
             Route::patch('/users/{user}/disable', [UsersController::class, 'disable'])->name('users.disable');
             Route::patch('/users/{user}/assign-role', [UsersController::class, 'assignRole'])->name('users.assign-role');
             Route::patch('/users/{user}/sync-permissions', [UsersController::class, 'syncPermissions'])->name('users.sync-permissions');

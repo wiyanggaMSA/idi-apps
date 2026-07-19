@@ -294,7 +294,7 @@ export default function MembersImportExport() {
           const members = info.getValue() || [];
           if (!members.length) return "-";
           return (
-            <Space direction="vertical" size={0}>
+            <Space orientation="vertical" size={0}>
               {members.map((member) => (
                 <Text key={member.id}>
                   {member.full_name} ({member.npa || "-"} / {member.email || "-"})
@@ -316,7 +316,7 @@ export default function MembersImportExport() {
           const isResolved = Boolean(row.resolved_at);
 
           return (
-            <Space direction="vertical" size={6} style={{ width: "100%" }}>
+            <Space orientation="vertical" size={6} style={{ width: "100%" }}>
               <Select
                 value={actionValue}
                 onChange={(value) =>
@@ -397,7 +397,7 @@ export default function MembersImportExport() {
         <PageHeader title={copy.title} />
 
         <Card style={{ borderRadius: 12, marginBottom: 16 }}>
-          <Space direction="vertical" size={12} style={{ width: "100%" }}>
+          <Space orientation="vertical" size={12} style={{ width: "100%" }}>
             <Space wrap>
               <Button
                 icon={<FileExcelOutlined />}
@@ -459,7 +459,7 @@ export default function MembersImportExport() {
 
         {summary && (
           <Card style={{ borderRadius: 12, marginBottom: 16 }}>
-            <Space direction="vertical" size={6}>
+            <Space orientation="vertical" size={6}>
               <Text strong>{copy.importSummary}</Text>
               <Text>{copy.totalRows}: {summary.total_rows}</Text>
               <Text>{copy.createdCount}: {summary.created_count}</Text>

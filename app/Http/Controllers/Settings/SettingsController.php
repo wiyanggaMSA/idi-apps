@@ -3,20 +3,21 @@
 namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
+use App\Models\AppSetting;
+use App\Models\Backup;
 use App\Models\CashCategory;
+use App\Models\CashMethod;
 use App\Models\Division;
 use App\Models\DuesSetting;
 use App\Models\MemberStatus;
 use App\Models\PaymentStatus;
 use App\Models\Position;
-use App\Models\CashMethod;
 use App\Models\User;
-use App\Models\AppSetting;
-use App\Models\Backup;
-use Inertia\Inertia;
-use Inertia\Response;
+use App\Models\WorkProgramPeriod;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use Inertia\Inertia;
+use Inertia\Response;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
@@ -42,7 +43,7 @@ class SettingsController extends Controller
             ->orderBy('type')
             ->orderBy('name')
             ->get(['id', 'type', 'name', 'code', 'is_active']);
-        
+
         $cashMethods = CashMethod::query()
             ->orderBy('name')
             ->get(['id', 'name', 'is_active']);
@@ -55,6 +56,10 @@ class SettingsController extends Controller
         $paymentStatuses = PaymentStatus::query()
             ->orderBy('name')
             ->get(['id', 'code', 'name', 'color', 'is_active']);
+
+        $workProgramPeriods = WorkProgramPeriod::query()
+            ->orderByDesc('start_date')
+            ->get(['id', 'name', 'code', 'start_date', 'end_date', 'is_active', 'notes']);
 
         $duesSettings = DuesSetting::query()->first();
         $users = User::query()
@@ -118,6 +123,7 @@ class SettingsController extends Controller
                 'cash_methods' => $cashMethods->count(),
                 'member_statuses' => $memberStatuses->count(),
                 'payment_statuses' => $paymentStatuses->count(),
+                'work_program_periods' => $workProgramPeriods->count(),
             ],
             'masterData' => [
                 'divisions' => $divisions,
@@ -126,6 +132,7 @@ class SettingsController extends Controller
                 'cash_methods' => $cashMethods,
                 'member_statuses' => $memberStatuses,
                 'payment_statuses' => $paymentStatuses,
+                'work_program_periods' => $workProgramPeriods,
             ],
             'duesSettings' => [
                 'dues_amount' => $duesSettings?->dues_amount ?? 100000,

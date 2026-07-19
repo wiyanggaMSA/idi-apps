@@ -174,7 +174,7 @@ export default function LetterShow() {
           width={920}
           footer={null}
           onCancel={() => setPreviewDocument(null)}
-          destroyOnClose
+          destroyOnHidden
         >
           {previewDocument?.mime_type === "application/pdf" ? (
             <iframe title="Preview Lampiran" src={previewDocument.preview_url} className="h-[720px] w-full rounded border" loading="lazy" />

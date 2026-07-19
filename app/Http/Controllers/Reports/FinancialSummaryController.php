@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AppSetting;
 use App\Models\Division;
 use App\Services\Cash\FinancialSummaryService;
+use App\Services\Finance\FinancePeriodService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -13,7 +14,7 @@ use Inertia\Response;
 
 class FinancialSummaryController extends Controller
 {
-    public function index(Request $request, FinancialSummaryService $service): Response
+    public function index(Request $request, FinancialSummaryService $service, FinancePeriodService $financePeriodService): Response
     {
         $filters = [
             'start_date' => $request->input('start_date'),
@@ -26,12 +27,13 @@ class FinancialSummaryController extends Controller
 
         return Inertia::render('Reports/FinancialSummary', [
             'filters' => $filters,
+            'period_status' => $financePeriodService->statusForRange($filters['start_date'], $filters['end_date']),
             'summary' => $summary,
             'divisions' => Division::query()->active()->orderBy('name')->get(['id', 'name']),
         ]);
     }
 
-    public function pdf(Request $request, FinancialSummaryService $service)
+    public function pdf(Request $request, FinancialSummaryService $service, FinancePeriodService $financePeriodService)
     {
         $filters = [
             'start_date' => $request->input('start_date'),
@@ -45,6 +47,7 @@ class FinancialSummaryController extends Controller
         $pdf = Pdf::loadView('reports.financial-summary-pdf', [
             'org' => AppSetting::query()->first(),
             'filters' => $filters,
+            'period_status' => $financePeriodService->statusForRange($filters['start_date'], $filters['end_date']),
             'summary' => $summary,
         ]);
 

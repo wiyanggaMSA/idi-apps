@@ -6,15 +6,10 @@ import AppLayout from "@/Layouts/AppLayout";
 import PageHeader from "@/Components/App/PageHeader";
 import PageShell from "@/Components/App/PageShell";
 import SimpleRichTextEditor from "@/Components/SimpleRichTextEditor";
+import useBilingual from "@/Hooks/useBilingual";
 
 const defaultContent = `<p>Dengan hormat,</p><p>{isi_surat}</p>`;
 const defaultSigner = { member_id: undefined, name: "", title: "", position: "right", qr_enabled: true };
-const signerPositionOptions = [
-  { label: "Kiri", value: "left" },
-  { label: "Tengah", value: "center" },
-  { label: "Kanan", value: "right" },
-];
-
 const normalizeSigners = (record = {}) => {
   const source = Array.isArray(record.signers_json) && record.signers_json.length
     ? record.signers_json
@@ -31,6 +26,12 @@ const normalizeSigners = (record = {}) => {
 
 export default function TemplatesIndex() {
   const { templates = [], placeholders = [], signerMembers = [] } = usePage().props;
+  const { tx } = useBilingual();
+  const signerPositionOptions = [
+    { label: tx("Kiri", "Left"), value: "left" },
+    { label: tx("Tengah", "Center"), value: "center" },
+    { label: tx("Kanan", "Right"), value: "right" },
+  ];
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const form = useForm({
@@ -136,16 +137,16 @@ export default function TemplatesIndex() {
   };
 
   return (
-    <AppLayout title="Sekretariat - Template Surat">
+    <AppLayout title={tx("Sekretariat - Template Surat", "Secretariat - Letter Templates")}>
       <PageShell>
         <PageHeader
-          eyebrow="Template"
-          title="Template Surat"
-          description="Atur isi template, placeholder, format nomor otomatis, penandatangan, QR, dan status aktif."
+          eyebrow={tx("Template", "Templates")}
+          title={tx("Template Surat", "Letter Templates")}
+          description={tx("Atur isi template, placeholder, format nomor otomatis, penandatangan, QR, dan status aktif.", "Configure template content, placeholders, automatic numbering, signers, QR codes, and active status.")}
           extra={
             <Space>
-              <Link href={route("secretariat.letters.index")}><Button>Daftar Surat</Button></Link>
-              <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>Tambah Template</Button>
+              <Link href={route("secretariat.letters.index")}><Button>{tx("Daftar Surat", "Letter List")}</Button></Link>
+              <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>{tx("Tambah Template", "Add Template")}</Button>
             </Space>
           }
         />
@@ -157,7 +158,7 @@ export default function TemplatesIndex() {
             pagination={false}
             columns={[
               {
-                title: "Template",
+                title: tx("Template", "Template"),
                 dataIndex: "name",
                 render: (value, record) => (
                   <div>
@@ -166,26 +167,26 @@ export default function TemplatesIndex() {
                   </div>
                 ),
               },
-              { title: "Jenis", dataIndex: "classification", render: (value) => value || "-" },
-              { title: "Format Nomor", dataIndex: "number_format" },
+              { title: tx("Jenis", "Type"), dataIndex: "classification", render: (value) => value || "-" },
+              { title: tx("Format Nomor", "Number Format"), dataIndex: "number_format" },
               {
-                title: "Kop",
+                title: tx("Kop", "Letterhead"),
                 dataIndex: "header_image_url",
-                render: (value) => value ? <Tag color="blue">Gambar resmi</Tag> : <Tag>Otomatis</Tag>,
+                render: (value) => value ? <Tag color="blue">{tx("Gambar resmi", "Official image")}</Tag> : <Tag>{tx("Otomatis", "Automatic")}</Tag>,
               },
-              { title: "Counter", dataIndex: "last_number", align: "center" },
+              { title: tx("Nomor Terakhir", "Last Number"), dataIndex: "last_number", align: "center" },
               {
-                title: "Status",
+                title: tx("Status", "Status"),
                 dataIndex: "is_active",
-                render: (value) => <Tag color={value ? "green" : "default"}>{value ? "Aktif" : "Nonaktif"}</Tag>,
+                render: (value) => <Tag color={value ? "green" : "default"}>{value ? tx("Aktif", "Active") : tx("Nonaktif", "Inactive")}</Tag>,
               },
               {
-                title: "Aksi",
+                title: tx("Aksi", "Actions"),
                 render: (_, record) => (
                   <Space>
-                    <Button size="small" onClick={() => openEdit(record)}>Edit</Button>
-                    <Link href={route("secretariat.templates.builder", record.id)}>Layout</Link>
-                    <Button size="small" danger onClick={() => router.delete(route("secretariat.templates.destroy", record.id))}>Hapus</Button>
+                    <Button size="small" onClick={() => openEdit(record)}>{tx("Edit", "Edit")}</Button>
+                    <Link href={route("secretariat.templates.builder", record.id)}>{tx("Tata Letak", "Layout")}</Link>
+                    <Button size="small" danger onClick={() => router.delete(route("secretariat.templates.destroy", record.id))}>{tx("Hapus", "Delete")}</Button>
                   </Space>
                 ),
               },
@@ -206,45 +207,45 @@ export default function TemplatesIndex() {
         `}</style>
 
         <Drawer
-          title={editing ? "Edit Template" : "Tambah Template"}
+          title={editing ? tx("Edit Template", "Edit Template") : tx("Tambah Template", "Add Template")}
           open={open}
           onClose={() => setOpen(false)}
           rootClassName="secretariat-template-drawer"
           size="large"
-          destroyOnClose
+          destroyOnHidden
         >
           <Form layout="vertical" onFinish={submit}>
             <div className="grid grid-cols-2 gap-3">
-              <Form.Item label="Nama template" required>
+              <Form.Item label={tx("Nama template", "Template name")} required>
                 <Input value={form.data.name} onChange={(event) => form.setData("name", event.target.value)} />
               </Form.Item>
-              <Form.Item label="Kode">
+              <Form.Item label={tx("Kode", "Code")}>
                 <Input value={form.data.code} onChange={(event) => form.setData("code", event.target.value)} />
               </Form.Item>
-              <Form.Item label="Jenis surat">
+              <Form.Item label={tx("Jenis surat", "Letter type")}>
                 <Input value={form.data.classification} onChange={(event) => form.setData("classification", event.target.value)} placeholder="SEK, UND, REK..." />
               </Form.Item>
-              <Form.Item label="Counter terakhir">
+              <Form.Item label={tx("Nomor terakhir", "Last number")}>
                 <InputNumber className="w-full" min={0} value={form.data.last_number} onChange={(value) => form.setData("last_number", value || 0)} />
               </Form.Item>
             </div>
 
-            <Form.Item label="Format nomor surat" required>
+            <Form.Item label={tx("Format nomor surat", "Letter number format")} required>
               <Input value={form.data.number_format} onChange={(event) => form.setData("number_format", event.target.value)} />
             </Form.Item>
-            <Form.Item label="Reset counter">
+            <Form.Item label={tx("Reset penomoran", "Number reset")}>
               <Select
                 value={form.data.number_reset_policy}
                 onChange={(value) => form.setData("number_reset_policy", value)}
                 options={[
-                  { label: "Tahunan", value: "yearly" },
-                  { label: "Bulanan", value: "monthly" },
-                  { label: "Tidak pernah", value: "never" },
+                  { label: tx("Tahunan", "Yearly"), value: "yearly" },
+                  { label: tx("Bulanan", "Monthly"), value: "monthly" },
+                  { label: tx("Tidak pernah", "Never"), value: "never" },
                 ]}
               />
             </Form.Item>
 
-            <Card size="small" className="mb-6 bg-zinc-50" title="Kop Surat Resmi">
+            <Card size="small" className="mb-6 bg-zinc-50" title={tx("Kop Surat Resmi", "Official Letterhead")}>
               <div className="grid grid-cols-[minmax(0,1fr)_190px] gap-5">
                 <Upload.Dragger
                   accept="image/png,image/jpeg,image/webp"
@@ -258,42 +259,42 @@ export default function TemplatesIndex() {
                   className="min-h-[156px]"
                 >
                   <p className="ant-upload-drag-icon"><InboxOutlined /></p>
-                  <p className="ant-upload-text">Upload gambar kop surat</p>
-                  <p className="ant-upload-hint">PNG/JPG/WEBP, disarankan rasio lebar A4 dan tinggi 120-160px.</p>
+                  <p className="ant-upload-text">{tx("Unggah gambar kop surat", "Upload letterhead image")}</p>
+                  <p className="ant-upload-hint">{tx("PNG/JPG/WEBP, disarankan rasio lebar A4 dan tinggi 120-160px.", "PNG/JPG/WEBP; an A4-width ratio and 120-160px height are recommended.")}</p>
                 </Upload.Dragger>
                 <div className="rounded-xl border border-zinc-200 bg-white p-3">
                   {form.data.header_image_url ? (
-                    <Image src={form.data.header_image_url} alt="Preview kop surat" height={132} className="object-contain" />
+                    <Image src={form.data.header_image_url} alt={tx("Pratinjau kop surat", "Letterhead preview")} height={132} className="object-contain" />
                   ) : (
                     <div className="flex h-[132px] items-center justify-center text-center text-xs text-zinc-400">
-                      Belum ada gambar kop resmi
+                      {tx("Belum ada gambar kop resmi", "No official letterhead image yet")}
                     </div>
                   )}
                 </div>
               </div>
 
               <div className="mt-5 grid grid-cols-2 gap-4 border-t border-zinc-200 pt-4">
-                <Form.Item label="Tinggi kop di PDF" className="mb-0">
+                <Form.Item label={tx("Tinggi kop di PDF", "Letterhead height in PDF")} className="mb-0">
                   <InputNumber className="w-full" min={80} max={260} value={form.data.header_height_px} onChange={(value) => form.setData("header_height_px", value || 132)} />
                 </Form.Item>
-                <Form.Item label="Mode dokumen" className="mb-0">
+                <Form.Item label={tx("Mode dokumen", "Document mode")} className="mb-0">
                   <Select
                     value={form.data.document_mode}
                     onChange={(value) => form.setData("document_mode", value)}
                     options={[
-                      { label: "Flow seperti Word", value: "flow" },
-                      { label: "Grid lanjutan", value: "grid" },
+                      { label: tx("Alur seperti Word", "Word-like flow"), value: "flow" },
+                      { label: tx("Grid lanjutan", "Advanced grid"), value: "grid" },
                     ]}
                   />
                 </Form.Item>
               </div>
             </Card>
 
-            <Card size="small" className="mb-6 bg-white" title="Isi template surat">
+            <Card size="small" className="mb-6 bg-white" title={tx("Isi template surat", "Letter template content")}>
               <SimpleRichTextEditor value={form.data.content_text} onChange={(value) => form.setData("content_text", value)} />
             </Card>
 
-            <Card size="small" className="mb-4 bg-zinc-50" title="Placeholder">
+            <Card size="small" className="mb-4 bg-zinc-50" title={tx("Placeholder", "Placeholders")}>
               <Space wrap>
                 {placeholders.map((placeholder) => (
                   <Typography.Text code copyable key={placeholder}>{placeholder}</Typography.Text>
@@ -304,7 +305,7 @@ export default function TemplatesIndex() {
             <Card
               size="small"
               className="mb-4 bg-zinc-50"
-              title="Penandatangan & QR"
+              title={tx("Penandatangan & QR", "Signers & QR")}
               extra={
                 <Button
                   size="small"
@@ -312,14 +313,14 @@ export default function TemplatesIndex() {
                   disabled={(form.data.signers || []).length >= 3}
                   onClick={() => form.setData("signers", [...(form.data.signers || []), { ...defaultSigner, position: "left" }])}
                 >
-                  Tambah
+                  {tx("Tambah", "Add")}
                 </Button>
               }
             >
               <div className="space-y-3">
                 {(form.data.signers || []).map((signer, index) => (
                   <div key={index} className="rounded-xl border border-zinc-200 bg-white p-3">
-                    <Form.Item label={`Anggota database ${index + 1}`} className="mb-3">
+                    <Form.Item label={`${tx("Anggota database", "Database member")} ${index + 1}`} className="mb-3">
                       <Select
                         allowClear
                         showSearch
@@ -343,7 +344,7 @@ export default function TemplatesIndex() {
                       />
                     </Form.Item>
                     <div className="grid grid-cols-[1fr_1fr_140px_100px_40px] items-end gap-3">
-                      <Form.Item label={`Nama ${index + 1}`} className="mb-0">
+                      <Form.Item label={`${tx("Nama", "Name")} ${index + 1}`} className="mb-0">
                         <Input
                           value={signer.name}
                           onChange={(event) => {
@@ -353,7 +354,7 @@ export default function TemplatesIndex() {
                           }}
                         />
                       </Form.Item>
-                      <Form.Item label="Jabatan" className="mb-0">
+                      <Form.Item label={tx("Jabatan", "Position")} className="mb-0">
                         <Input
                           value={signer.title}
                           onChange={(event) => {
@@ -363,7 +364,7 @@ export default function TemplatesIndex() {
                           }}
                         />
                       </Form.Item>
-                      <Form.Item label="Posisi" className="mb-0">
+                      <Form.Item label={tx("Posisi", "Alignment")} className="mb-0">
                         <Select
                           value={signer.position}
                           onChange={(value) => {
@@ -374,7 +375,7 @@ export default function TemplatesIndex() {
                           options={signerPositionOptions}
                         />
                       </Form.Item>
-                      <Form.Item label="QR pribadi" className="mb-0">
+                      <Form.Item label={tx("QR pribadi", "Personal QR")} className="mb-0">
                         <Switch
                           checked={signer.qr_enabled !== false}
                           onChange={(value) => {
@@ -386,6 +387,7 @@ export default function TemplatesIndex() {
                       </Form.Item>
                       <Button
                         icon={<DeleteOutlined />}
+                        aria-label={tx("Hapus penandatangan", "Remove signer")}
                         disabled={(form.data.signers || []).length <= 1}
                         onClick={() => form.setData("signers", form.data.signers.filter((_, itemIndex) => itemIndex !== index))}
                       />
@@ -396,14 +398,14 @@ export default function TemplatesIndex() {
             </Card>
 
             <Space size="large" className="mb-6">
-              <span>Tanda tangan <Switch checked={form.data.signature_enabled} onChange={(value) => form.setData("signature_enabled", value)} /></span>
+              <span>{tx("Tanda tangan", "Signature")} <Switch checked={form.data.signature_enabled} onChange={(value) => form.setData("signature_enabled", value)} /></span>
               <span>QR Code <Switch checked={form.data.qr_enabled} onChange={(value) => form.setData("qr_enabled", value)} /></span>
-              <span>Aktif <Switch checked={form.data.is_active} onChange={(value) => form.setData("is_active", value)} /></span>
+              <span>{tx("Aktif", "Active")} <Switch checked={form.data.is_active} onChange={(value) => form.setData("is_active", value)} /></span>
             </Space>
 
             <div className="flex justify-end gap-2">
-              <Button onClick={() => setOpen(false)}>Batal</Button>
-              <Button type="primary" htmlType="submit" loading={form.processing}>Simpan</Button>
+              <Button onClick={() => setOpen(false)}>{tx("Batal", "Cancel")}</Button>
+              <Button type="primary" htmlType="submit" loading={form.processing}>{tx("Simpan", "Save")}</Button>
             </div>
           </Form>
         </Drawer>

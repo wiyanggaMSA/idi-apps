@@ -147,6 +147,9 @@ export default function DuesIndex() {
     const [detailData, setDetailData] = useState(null);
     const [editingPayment, setEditingPayment] = useState(null);
     const [voidingPayment, setVoidingPayment] = useState(null);
+    const [paymentSubmitting, setPaymentSubmitting] = useState(false);
+    const [editSubmitting, setEditSubmitting] = useState(false);
+    const [voidSubmitting, setVoidSubmitting] = useState(false);
 
     const [paymentForm] = Form.useForm();
     const [editForm] = Form.useForm();
@@ -213,6 +216,8 @@ export default function DuesIndex() {
     };
 
     const submitPayment = async () => {
+        if (paymentSubmitting) return;
+
         try {
             const values = await paymentForm.validateFields();
             const payload = {
@@ -225,6 +230,7 @@ export default function DuesIndex() {
                 notes: values.notes,
             };
 
+            setPaymentSubmitting(true);
             router.post(route("dues.payments.store"), payload, {
                 preserveScroll: true,
                 onSuccess: () => {
@@ -235,6 +241,7 @@ export default function DuesIndex() {
                 onError: (errors) => {
                     if (errors?.payment) message.error(errors.payment);
                 },
+                onFinish: () => setPaymentSubmitting(false),
             });
         } catch {}
     };
@@ -277,8 +284,11 @@ export default function DuesIndex() {
     };
 
     const submitEdit = async () => {
+        if (editSubmitting) return;
+
         try {
             const values = await editForm.validateFields();
+            setEditSubmitting(true);
             router.patch(
                 route("dues.payments.update", editingPayment.id),
                 {
@@ -299,6 +309,7 @@ export default function DuesIndex() {
                     onError: (errors) => {
                         if (errors?.payment) message.error(errors.payment);
                     },
+                    onFinish: () => setEditSubmitting(false),
                 },
             );
         } catch {}
@@ -310,8 +321,11 @@ export default function DuesIndex() {
     };
 
     const submitVoid = async () => {
+        if (voidSubmitting) return;
+
         try {
             const values = await voidForm.validateFields();
+            setVoidSubmitting(true);
             router.post(
                 route("dues.payments.void", voidingPayment.id),
                 { reason: values.reason },
@@ -326,6 +340,7 @@ export default function DuesIndex() {
                     onError: (errors) => {
                         if (errors?.payment) message.error(errors.payment);
                     },
+                    onFinish: () => setVoidSubmitting(false),
                 },
             );
         } catch {}
@@ -504,7 +519,7 @@ export default function DuesIndex() {
                 <Alert
                     type="info"
                     showIcon
-                    message={t("dues.activePeriod", { period: activePeriodLabel })}
+                    title={t("dues.activePeriod", { period: activePeriodLabel })}
                     description={t("dues.activePeriodDesc")}
                     className="!rounded-[24px] !border-zinc-200"
                 />
@@ -602,6 +617,7 @@ export default function DuesIndex() {
                 }
                 className="dues-payment-drawer"
                 onClose={() => {
+                    if (paymentSubmitting) return;
                     setPaymentOpen(false);
                     paymentForm.resetFields();
                 }}
@@ -620,8 +636,15 @@ export default function DuesIndex() {
                 }}
                 footer={
                     <Space style={{ display: "flex", justifyContent: "flex-end" }}>
-                        <Button onClick={() => setPaymentOpen(false)}>{copy.cancel}</Button>
-                        <Button type="primary" onClick={submitPayment} disabled={!canCreate}>
+                        <Button onClick={() => setPaymentOpen(false)} disabled={paymentSubmitting}>
+                            {copy.cancel}
+                        </Button>
+                        <Button
+                            type="primary"
+                            onClick={submitPayment}
+                            disabled={!canCreate || paymentSubmitting}
+                            loading={paymentSubmitting}
+                        >
                             {copy.save}
                         </Button>
                     </Space>
@@ -784,7 +807,7 @@ export default function DuesIndex() {
 
             <Drawer
                 open={detailOpen}
-                width="min(1280px, 78vw)"
+                size="min(1280px, 78vw)"
                 title={copy.paymentDetail}
                 onClose={() => setDetailOpen(false)}
             >
@@ -817,7 +840,7 @@ export default function DuesIndex() {
                         <Alert
                             type="info"
                             showIcon
-                            message={copy.correctionHint}
+                            title={copy.correctionHint}
                             className="!rounded-[16px] !border-zinc-200"
                         />
 
@@ -959,9 +982,16 @@ export default function DuesIndex() {
             <Modal
                 open={!!editingPayment}
                 title={copy.editPayment}
-                onCancel={() => setEditingPayment(null)}
+                onCancel={() => {
+                    if (!editSubmitting) {
+                        setEditingPayment(null);
+                    }
+                }}
                 onOk={submitEdit}
                 okText={copy.save}
+                confirmLoading={editSubmitting}
+                okButtonProps={{ disabled: editSubmitting }}
+                cancelButtonProps={{ disabled: editSubmitting }}
             >
                 <Form form={editForm} layout="vertical" requiredMark={false}>
                     <Form.Item
@@ -1002,10 +1032,16 @@ export default function DuesIndex() {
             <Modal
                 open={!!voidingPayment}
                 title={copy.voidPayment}
-                onCancel={() => setVoidingPayment(null)}
+                onCancel={() => {
+                    if (!voidSubmitting) {
+                        setVoidingPayment(null);
+                    }
+                }}
                 onOk={submitVoid}
                 okText={copy.requestVoid}
-                okButtonProps={{ danger: true }}
+                confirmLoading={voidSubmitting}
+                okButtonProps={{ danger: true, disabled: voidSubmitting }}
+                cancelButtonProps={{ disabled: voidSubmitting }}
             >
                 <Form form={voidForm} layout="vertical" requiredMark={false}>
                     <Form.Item

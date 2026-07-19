@@ -11,23 +11,35 @@ use Illuminate\Support\Facades\DB;
 
 class FinancialActionRequestService
 {
+    public function __construct(private readonly FinancePeriodService $financePeriodService)
+    {
+    }
+
     public function requestVoid(Model $target, string $reason, User $actor): FinancialActionRequest
     {
-        if ($this->isVoided($target)) {
-            throw new \RuntimeException('Data sudah dibatalkan.');
-        }
-
-        $pending = FinancialActionRequest::query()
-            ->whereMorphedTo('actionable', $target)
-            ->where('action', FinancialActionRequest::ACTION_VOID)
-            ->where('status', FinancialActionRequest::STATUS_PENDING)
-            ->first();
-
-        if ($pending) {
-            throw new \RuntimeException('Request void masih menunggu approval.');
-        }
-
         return DB::transaction(function () use ($target, $reason, $actor) {
+            $target = $target->newQuery()
+                ->whereKey($target->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($this->isVoided($target)) {
+                throw new \RuntimeException('Data sudah dibatalkan.');
+            }
+
+            $this->ensureTargetPeriodOpen($target, 'Periode target sudah closed. Request void tidak dapat dibuat pada periode tutup buku.');
+
+            $pending = FinancialActionRequest::query()
+                ->whereMorphedTo('actionable', $target)
+                ->where('action', FinancialActionRequest::ACTION_VOID)
+                ->where('status', FinancialActionRequest::STATUS_PENDING)
+                ->lockForUpdate()
+                ->first();
+
+            if ($pending) {
+                throw new \RuntimeException('Request void masih menunggu approval.');
+            }
+
             $request = FinancialActionRequest::query()->create([
                 'actionable_type' => $target->getMorphClass(),
                 'actionable_id' => $target->getKey(),
@@ -76,6 +88,8 @@ class FinancialActionRequestService
             if ($this->isVoided($target)) {
                 throw new \RuntimeException('Data target sudah dibatalkan.');
             }
+
+            $this->ensureTargetPeriodOpen($target, 'Periode target sudah closed. Approval void tidak dapat dilakukan pada periode tutup buku.');
 
             $before = $this->targetSnapshot($target);
             $this->applyVoid($target, $request->reason, $actor);
@@ -193,6 +207,17 @@ class FinancialActionRequestService
         return $target instanceof DuesPayment || $target instanceof CashTransaction
             ? $target->voided_at !== null
             : false;
+    }
+
+    private function ensureTargetPeriodOpen(Model $target, string $message): void
+    {
+        if ($target instanceof DuesPayment) {
+            $this->financePeriodService->ensureOpen($target->paid_at, $message);
+        }
+
+        if ($target instanceof CashTransaction) {
+            $this->financePeriodService->ensureOpen($target->tx_date, $message);
+        }
     }
 
     private function applyVoid(Model $target, string $reason, User $actor): void

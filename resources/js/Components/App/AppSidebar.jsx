@@ -1,30 +1,44 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, usePage } from "@inertiajs/react";
-import { appMenu } from "@/config/menu";
+import { appMenu } from "@/Config/Menu";
 import { useI18n } from "@/Contexts/I18nContext";
 
 function hasPermission(userPermissions, required) {
     if (!required) return true;
-    return Array.isArray(userPermissions) && userPermissions.includes(required);
+    const requiredPermissions = String(required)
+        .split("|")
+        .map((permission) => permission.trim())
+        .filter(Boolean);
+
+    return (
+        Array.isArray(userPermissions) &&
+        requiredPermissions.some((permission) => userPermissions.includes(permission))
+    );
 }
 
 function filterMenu(menu, userPermissions) {
     return menu
         .filter((item) => hasPermission(userPermissions, item.permission))
         .map((item) => {
-            const children = item.children?.filter((child) =>
-                hasPermission(userPermissions, child.permission),
-            );
+            const children = item.children
+                ?.filter((child) => hasPermission(userPermissions, child.permission))
+                .filter((child) => child.routeName);
 
             return {
                 ...item,
                 children,
             };
         })
-        .filter((item) => item.routeName || (item.children?.length ?? 0) > 0);
+        .filter((item) => (item.children?.length ?? 0) > 0 || item.routeName);
 }
 
-export default function AppSidebar({ collapsed, onCollapse, orgName }) {
+export default function AppSidebar({
+    collapsed,
+    onCollapse,
+    orgName,
+    mobileOpen = false,
+    onMobileClose = () => {},
+}) {
     const { t } = useI18n();
     const { props, url } = usePage();
     const permissions = props?.auth?.permissions || [];
@@ -38,6 +52,14 @@ export default function AppSidebar({ collapsed, onCollapse, orgName }) {
         .toUpperCase();
 
     const items = useMemo(() => filterMenu(appMenu, permissions), [permissions]);
+    const closeButtonRef = useRef(null);
+    const isCollapsed = collapsed && !mobileOpen;
+
+    useEffect(() => {
+        if (mobileOpen) {
+            closeButtonRef.current?.focus();
+        }
+    }, [mobileOpen]);
 
     const selectedKey = useMemo(() => {
         if (route().current("dashboard")) return "dashboard";
@@ -45,6 +67,8 @@ export default function AppSidebar({ collapsed, onCollapse, orgName }) {
         // ✅ Sekretariat child highlight
         if (route().current("secretariat.dashboard"))
             return "secretariat.board";
+        if (route().current("secretariat.organization.*"))
+            return "secretariat.organization";
         if (route().current("secretariat.letters.index"))
             return "secretariat.letters";
         if (route().current("secretariat.signatures.*"))
@@ -62,6 +86,9 @@ export default function AppSidebar({ collapsed, onCollapse, orgName }) {
         if (route().current("members.index")) return "members.center";
         if (route().current("members.import-export")) return "members.import";
         if (route().current("members.*")) return "members.center";
+        // ✅ Work programs child highlight
+        if (route().current("work-programs.report")) return "work-programs.report";
+        if (route().current("work-programs.*")) return "work-programs.list";
         // ✅ Dues child highlight
         if (route().current("dues.index")) return "dues.payments";
         if (route().current("dues.recap")) return "dues.recap";
@@ -73,6 +100,7 @@ export default function AppSidebar({ collapsed, onCollapse, orgName }) {
         if (route().current("reports.cash")) return "reports.main";
         if (route().current("reports.financial-summary"))
             return "reports.resume";
+        if (route().current("finance.periods.*")) return "reports.periods";
         if (route().current("settings.*")) return "settings";
 
         return "dashboard";
@@ -89,6 +117,11 @@ export default function AppSidebar({ collapsed, onCollapse, orgName }) {
         if (selectedKey.startsWith("members.")) {
             setOpenKeys((prev) =>
                 prev.includes("members") ? prev : ["members", ...prev],
+            );
+        }
+        if (selectedKey.startsWith("work-programs.")) {
+            setOpenKeys((prev) =>
+                prev.includes("work-programs") ? prev : ["work-programs", ...prev],
             );
         }
         if (selectedKey.startsWith("dues.")) {
@@ -109,14 +142,27 @@ export default function AppSidebar({ collapsed, onCollapse, orgName }) {
     }, [selectedKey]);
 
     return (
+        <>
+        {mobileOpen ? (
+            <button
+                type="button"
+                aria-label="Tutup menu navigasi"
+                onClick={onMobileClose}
+                className="fixed inset-0 z-[39] bg-zinc-950/55 backdrop-blur-sm xl:hidden"
+            />
+        ) : null}
         <aside
-            className={`fixed inset-y-0 left-0 z-40 hidden border-r border-white/60 bg-gradient-to-b from-zinc-950 via-zinc-900 to-red-950 text-white shadow-[24px_0_60px_-36px_rgba(15,23,42,0.9)] xl:block ${
-                collapsed ? "w-[88px]" : "w-[268px]"
+            id="app-sidebar"
+            aria-label="Navigasi utama"
+            className={`fixed inset-y-0 left-0 z-40 w-[min(86vw,268px)] border-r border-white/60 bg-gradient-to-b from-zinc-950 via-zinc-900 to-red-950 text-white shadow-[24px_0_60px_-36px_rgba(15,23,42,0.9)] transition-transform duration-200 xl:translate-x-0 ${
+                mobileOpen ? "translate-x-0" : "-translate-x-full"
+            } ${
+                isCollapsed ? "xl:w-[88px]" : "xl:w-[268px]"
             }`}
         >
             <div className="flex h-full flex-col overflow-y-auto overflow-x-hidden px-3 py-4">
                 <div className="mb-5 flex items-center justify-between gap-2 px-1">
-                    {collapsed ? (
+                    {isCollapsed ? (
                         <div
                             className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-sm font-bold tracking-wide text-white"
                             title={resolvedOrgName}
@@ -134,15 +180,26 @@ export default function AppSidebar({ collapsed, onCollapse, orgName }) {
                         </div>
                     )}
 
-                    {!collapsed ? (
+                    {!isCollapsed ? (
                         <button
                             type="button"
                             onClick={() => onCollapse(true)}
-                            className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-xs text-white/70 transition hover:bg-white/10 hover:text-white"
+                            aria-label="Ringkas menu navigasi"
+                            className="hidden h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-xs text-white/70 transition hover:bg-white/10 hover:text-white xl:flex"
                         >
                             {collapsedLabel || "AK"}
                         </button>
                     ) : null}
+
+                    <button
+                        ref={closeButtonRef}
+                        type="button"
+                        onClick={onMobileClose}
+                        aria-label="Tutup menu navigasi"
+                        className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-lg text-white/80 transition hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white xl:hidden"
+                    >
+                        ×
+                    </button>
                 </div>
 
                 <nav className="space-y-2">
@@ -151,11 +208,12 @@ export default function AppSidebar({ collapsed, onCollapse, orgName }) {
                         const isOpen = openKeys.includes(item.key);
                         const isActive = selectedKey === item.key;
 
-                        if (!hasChildren) {
+                        if (!hasChildren && item.routeName) {
                             return (
                                 <Link
                                     key={item.key}
                                     href={route(item.routeName, item.routeParams || {})}
+                                    onClick={onMobileClose}
                                     className={`group flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-[13px] font-medium leading-5 transition ${
                                         isActive
                                             ? "bg-white text-zinc-950 shadow-lg shadow-black/20"
@@ -163,7 +221,7 @@ export default function AppSidebar({ collapsed, onCollapse, orgName }) {
                                     }`}
                                 >
                                     <span className="text-[15px] leading-none">{item.icon}</span>
-                                    {!collapsed ? <span>{t(item.labelKey, {}, item.label)}</span> : null}
+                                    {!isCollapsed ? <span>{t(item.labelKey, {}, item.label)}</span> : null}
                                 </Link>
                             );
                         }
@@ -175,6 +233,8 @@ export default function AppSidebar({ collapsed, onCollapse, orgName }) {
                             >
                                 <button
                                     type="button"
+                                    aria-expanded={isOpen}
+                                    aria-controls={`sidebar-group-${item.key}`}
                                     onClick={() =>
                                         setOpenKeys((prev) =>
                                             prev.includes(item.key)
@@ -186,23 +246,24 @@ export default function AppSidebar({ collapsed, onCollapse, orgName }) {
                                 >
                                     <span className="flex items-center gap-2.5">
                                         <span className="text-[15px] leading-none">{item.icon}</span>
-                                        {!collapsed ? <span>{t(item.labelKey, {}, item.label)}</span> : null}
+                                        {!isCollapsed ? <span>{t(item.labelKey, {}, item.label)}</span> : null}
                                     </span>
-                                    {!collapsed ? (
+                                    {!isCollapsed ? (
                                         <span className="min-w-4 text-center text-base font-medium leading-none text-white/55">
                                             {isOpen ? "−" : "+"}
                                         </span>
                                     ) : null}
                                 </button>
 
-                                {!collapsed && isOpen ? (
-                                    <div className="mt-1 space-y-0.5">
+                                {!isCollapsed && isOpen ? (
+                                    <div id={`sidebar-group-${item.key}`} className="mt-1 space-y-0.5">
                                         {item.children.map((child) => {
                                             const childActive = selectedKey === child.key;
 
                                             return (
                                                 <Link
                                                     key={child.key}
+                                                    onClick={onMobileClose}
                                                     href={route(
                                                         child.routeName,
                                                         child.routeParams || {},
@@ -225,7 +286,7 @@ export default function AppSidebar({ collapsed, onCollapse, orgName }) {
                     })}
                 </nav>
 
-                {collapsed ? (
+                {isCollapsed ? (
                     <div
                         className="mt-auto flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-[11px] font-bold uppercase tracking-wide text-white/80"
                         title={`${t("common.workspace")} - ${t("common.roleBasedAccess")}`}
@@ -244,5 +305,6 @@ export default function AppSidebar({ collapsed, onCollapse, orgName }) {
                 )}
             </div>
         </aside>
+        </>
     );
 }

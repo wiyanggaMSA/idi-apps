@@ -12,6 +12,7 @@ import {
     PlusOutlined,
 } from "@ant-design/icons";
 import {
+    Alert,
     Button,
     Card,
     DatePicker,
@@ -84,6 +85,8 @@ export default function TransactionsIndex() {
     const [fileList, setFileList] = useState([]);
     const [previewOpen, setPreviewOpen] = useState(false);
     const [attachmentPreview, setAttachmentPreview] = useState(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isVoidSubmitting, setIsVoidSubmitting] = useState(false);
     const maxAttachmentKb = 500;
     const acceptedAttachmentTypes = [
         "image/jpeg",
@@ -94,7 +97,6 @@ export default function TransactionsIndex() {
     const permissions = props.auth?.permissions || [];
     const canCreate = permissions.includes("transactions.create");
     const canUpdate = permissions.includes("transactions.update");
-    const canAdjustAmount = permissions.includes("transactions.adjust.amount");
     const canVoid = permissions.includes("transactions.void.request") || permissions.includes("transactions.delete");
 
     const [filterState, setFilterState] = useState({
@@ -357,6 +359,7 @@ export default function TransactionsIndex() {
     const submitVoid = async () => {
         const values = await voidForm.validateFields();
 
+        setIsVoidSubmitting(true);
         router.delete(route("transactions.destroy", voiding.id), {
             data: { reason: values.reason.trim() },
             preserveScroll: true,
@@ -364,17 +367,20 @@ export default function TransactionsIndex() {
                 setVoiding(null);
                 voidForm.resetFields();
             },
+            onFinish: () => setIsVoidSubmitting(false),
         });
     };
 
     const submitForm = async () => {
         const values = await form.validateFields();
         const payload = new FormData();
-        payload.append("tx_date", values.tx_date.format("YYYY-MM-DD HH:mm:ss"));
-        payload.append("type", values.type);
-        payload.append("category_id", values.category_id);
-        payload.append("method_id", values.method_id);
-        payload.append("amount", values.amount);
+        if (!editing) {
+            payload.append("tx_date", values.tx_date.format("YYYY-MM-DD HH:mm:ss"));
+            payload.append("type", values.type);
+            payload.append("category_id", values.category_id);
+            payload.append("method_id", values.method_id);
+            payload.append("amount", values.amount);
+        }
         if (values.description) payload.append("description", values.description);
         if (values.reference_no) payload.append("reference_no", values.reference_no);
         if (fileList[0]?.originFileObj) {
@@ -387,22 +393,31 @@ export default function TransactionsIndex() {
             payload.append("reason", values.reason);
         }
 
+        setIsSubmitting(true);
         if (editing) {
             payload.append("_method", "patch");
             router.post(route("transactions.update", editing.id), payload, {
                 forceFormData: true,
                 preserveScroll: true,
+                onSuccess: () => {
+                    setIsModalOpen(false);
+                    form.resetFields();
+                    setFileList([]);
+                },
+                onFinish: () => setIsSubmitting(false),
             });
         } else {
             router.post(route("transactions.store"), payload, {
                 forceFormData: true,
                 preserveScroll: true,
+                onSuccess: () => {
+                    setIsModalOpen(false);
+                    form.resetFields();
+                    setFileList([]);
+                },
+                onFinish: () => setIsSubmitting(false),
             });
         }
-
-        setIsModalOpen(false);
-        form.resetFields();
-        setFileList([]);
     };
 
     const visibleColumns = table
@@ -623,9 +638,16 @@ export default function TransactionsIndex() {
                     </div>
                 }
                 open={isModalOpen}
-                onCancel={() => setIsModalOpen(false)}
+                onCancel={() => {
+                    if (!isSubmitting) {
+                        setIsModalOpen(false);
+                    }
+                }}
                 onOk={submitForm}
                 okText={editing ? t("common.save") : t("common.add")}
+                confirmLoading={isSubmitting}
+                okButtonProps={{ disabled: isSubmitting }}
+                cancelButtonProps={{ disabled: isSubmitting }}
                 width={760}
                 className="transaction-form-modal"
                 styles={{
@@ -648,6 +670,15 @@ export default function TransactionsIndex() {
                     description={t("transactions.transactionInfoDesc")}
                 >
                     <Form layout="vertical" form={form} className="transaction-form-grid">
+                        {editing ? (
+                            <Alert
+                                className="mb-4"
+                                type="warning"
+                                showIcon
+                                title={t("transactions.immutableEditTitle")}
+                                description={t("transactions.immutableEditDescription")}
+                            />
+                        ) : null}
                         <section className="rounded-[22px] border border-zinc-200/80 bg-zinc-50/75 p-4">
                             <div className="grid gap-4 md:grid-cols-2">
                             <Form.Item
@@ -662,7 +693,7 @@ export default function TransactionsIndex() {
                                     },
                                 ]}
                             >
-                                <DatePicker showTime style={{ width: "100%" }} />
+                                <DatePicker showTime style={{ width: "100%" }} disabled={!!editing} />
                             </Form.Item>
 
                             <Form.Item
@@ -678,7 +709,7 @@ export default function TransactionsIndex() {
                                 ]}
                             >
                                 <Select
-                                    disabled={editing && !canAdjustAmount}
+                                    disabled={!!editing}
                                     onChange={() => form.setFieldsValue({ category_id: null })}
                                     options={[
                                         { value: "in", label: t("transactions.typeIn") },
@@ -702,7 +733,7 @@ export default function TransactionsIndex() {
                                         ]}
                                     >
                                         <Select
-                                            disabled={editing && !canAdjustAmount}
+                                            disabled={!!editing}
                                             options={categoryOptions
                                                 .filter((option) => {
                                                     const type = form.getFieldValue("type");
@@ -729,7 +760,7 @@ export default function TransactionsIndex() {
                                     },
                                 ]}
                             >
-                                <Select options={methodOptions} />
+                                <Select options={methodOptions} disabled={!!editing} />
                             </Form.Item>
 
                             <div className="md:col-span-2">
@@ -744,9 +775,9 @@ export default function TransactionsIndex() {
                                             }),
                                         },
                                     ]}
-                                >
+                                    >
                                     <InputNumber
-                                        disabled={editing && !canAdjustAmount}
+                                        disabled={!!editing}
                                         style={{ width: "100%" }}
                                         min={1}
                                         inputMode="numeric"
@@ -901,9 +932,14 @@ export default function TransactionsIndex() {
                 title={t("transactions.requestVoidTitle")}
                 open={!!voiding}
                 okText={t("transactions.requestVoid")}
-                okButtonProps={{ danger: true }}
+                okButtonProps={{ danger: true, disabled: isVoidSubmitting }}
+                confirmLoading={isVoidSubmitting}
                 onOk={submitVoid}
-                onCancel={() => setVoiding(null)}
+                onCancel={() => {
+                    if (!isVoidSubmitting) {
+                        setVoiding(null);
+                    }
+                }}
             >
                 <div className="mb-4 rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-700">
                     <p className="mb-1 font-semibold">{voiding?.description || "-"}</p>
@@ -938,7 +974,7 @@ export default function TransactionsIndex() {
                 }}
                 footer={null}
                 width={860}
-                destroyOnClose
+                destroyOnHidden
             >
                 {attachmentPreview?.url ? (
                     attachmentPreviewMeta.isImage ? (

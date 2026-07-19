@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { router, usePage } from "@inertiajs/react";
 import dayjs from "dayjs";
 import { FilePdfOutlined } from "@ant-design/icons";
-import { Button, Card, DatePicker, Select, Space, Switch } from "antd";
+import { Alert, Button, Card, DatePicker, Select, Space, Switch, Tag } from "antd";
 import AppLayout from "@/Layouts/AppLayout";
 import PageShell from "@/Components/App/PageShell";
 import PageHeader from "@/Components/App/PageHeader";
@@ -58,7 +58,7 @@ function SimpleLine({ title, series, color }) {
 export default function FinancialSummary() {
     const { t } = useI18n();
     const { props } = usePage();
-    const { summary, filters, divisions } = props;
+    const { summary, filters, divisions, period_status: periodStatus } = props;
 
     const [filterState, setFilterState] = useState({
         range:
@@ -118,7 +118,7 @@ export default function FinancialSummary() {
         <AppLayout title={t("menu.financialSummary")}>
             <PageShell>
                 <PageHeader
-                    eyebrow="Financial Summary"
+                    eyebrow={t("reports.summary.eyebrow")}
                     title={t("reports.summary.title")}
                     description={t("reports.summary.description")}
                     extra={
@@ -127,6 +127,26 @@ export default function FinancialSummary() {
                         </Button>
                     }
                 />
+
+                {periodStatus ? (
+                    <Alert
+                        type={periodStatus.is_closed ? "warning" : "info"}
+                        showIcon
+                        title={
+                            <Space>
+                                <span>{t("reports.periodStatus")}</span>
+                                <Tag color={periodStatus.is_closed ? "red" : "green"}>
+                                    {periodStatus.label}
+                                </Tag>
+                            </Space>
+                        }
+                        description={
+                            periodStatus.is_closed
+                                ? t("reports.closedPeriodDescription")
+                                : t("reports.openPeriodDescription")
+                        }
+                    />
+                ) : null}
 
                 <div className="idi-grid">
                     <StatCard
@@ -229,11 +249,11 @@ export default function FinancialSummary() {
                             emptyTitle={t("reports.summary.noExpenses")}
                             emptyDescription={t("reports.summary.noExpensesDesc")}
                             columns={[
-                                { title: "Tanggal", dataIndex: "date", key: "date", width: 120 },
-                                { title: "Kategori", dataIndex: "category", key: "category" },
-                                { title: "Keterangan", dataIndex: "description", key: "description" },
+                                { title: t("common.date"), dataIndex: "date", key: "date", width: 120 },
+                                { title: t("common.category"), dataIndex: "category", key: "category" },
+                                { title: t("common.description"), dataIndex: "description", key: "description" },
                                 {
-                                    title: "Jumlah",
+                                    title: t("common.amount"),
                                     dataIndex: "amount",
                                     key: "amount",
                                     align: "right",
@@ -252,10 +272,10 @@ export default function FinancialSummary() {
                             emptyTitle={t("reports.summary.noArrears")}
                             emptyDescription={t("reports.summary.noArrearsDesc")}
                             columns={[
-                                { title: "Nama", dataIndex: "name", key: "name" },
+                                { title: t("common.member"), dataIndex: "name", key: "name" },
                                 { title: "NPA", dataIndex: "npa", key: "npa", width: 120 },
                                 {
-                                    title: "Outstanding",
+                                    title: t("common.outstanding"),
                                     dataIndex: "outstanding",
                                     key: "outstanding",
                                     align: "right",
@@ -275,16 +295,16 @@ export default function FinancialSummary() {
                         emptyTitle={t("reports.summary.noCombined")}
                         emptyDescription={t("reports.summary.noCombinedDesc")}
                         columns={[
-                            { title: "Periode", dataIndex: "period", key: "period", width: 110 },
+                            { title: t("common.period"), dataIndex: "period", key: "period", width: 110 },
                             {
-                                title: "Kas Masuk",
+                                title: t("reports.summary.cashInColumn"),
                                 dataIndex: "cash_in",
                                 key: "cash_in",
                                 align: "right",
                                 render: (value) => <MoneyDisplay value={value} tone="success" />,
                             },
                             {
-                                title: "Kas Keluar",
+                                title: t("reports.summary.cashOutColumn"),
                                 dataIndex: "cash_out",
                                 key: "cash_out",
                                 align: "right",
@@ -298,21 +318,21 @@ export default function FinancialSummary() {
                                 render: (value) => <MoneyDisplay value={value} />,
                             },
                             {
-                                title: "Iuran Ditagih",
+                                title: t("reports.summary.duesBilled"),
                                 dataIndex: "dues_billed",
                                 key: "dues_billed",
                                 align: "right",
                                 render: (value) => <MoneyDisplay value={value} />,
                             },
                             {
-                                title: "Iuran Diterima",
+                                title: t("reports.summary.duesCollected"),
                                 dataIndex: "dues_collected",
                                 key: "dues_collected",
                                 align: "right",
                                 render: (value) => <MoneyDisplay value={value} tone="success" />,
                             },
                             {
-                                title: "Outstanding",
+                                title: t("common.outstanding"),
                                 dataIndex: "dues_outstanding",
                                 key: "dues_outstanding",
                                 align: "right",

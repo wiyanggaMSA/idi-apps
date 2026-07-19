@@ -17,6 +17,8 @@ class AuditController extends Controller
 {
     public function index(Request $request): Response
     {
+        $this->authorize('viewAny', FinancialActionRequest::class);
+
         $activities = Activity::query()
             ->with('causer')
             ->when($request->input('event'), fn ($query, $event) => $query->where('description', $event))
@@ -69,7 +71,7 @@ class AuditController extends Controller
 
     public function approve(Request $request, FinancialActionRequest $actionRequest, FinancialActionRequestService $service): RedirectResponse
     {
-        abort_unless($this->canReview($request, $actionRequest), 403);
+        $this->authorize('approve', $actionRequest);
 
         $data = $request->validate([
             'note' => ['nullable', 'string', 'max:500'],
@@ -86,7 +88,7 @@ class AuditController extends Controller
 
     public function reject(Request $request, FinancialActionRequest $actionRequest, FinancialActionRequestService $service): RedirectResponse
     {
-        abort_unless($this->canReview($request, $actionRequest), 403);
+        $this->authorize('reject', $actionRequest);
 
         $data = $request->validate([
             'note' => ['required', 'string', 'max:500'],
@@ -99,21 +101,6 @@ class AuditController extends Controller
         }
 
         return back()->with('success', 'Request void ditolak.');
-    }
-
-    private function canReview(Request $request, FinancialActionRequest $actionRequest): bool
-    {
-        $target = $actionRequest->actionable;
-
-        if ($target instanceof DuesPayment) {
-            return $request->user()?->can('dues.void.approve') ?? false;
-        }
-
-        if ($target instanceof CashTransaction) {
-            return $request->user()?->can('transactions.void.approve') ?? false;
-        }
-
-        return false;
     }
 
     private function mapRequest(FinancialActionRequest $actionRequest): array

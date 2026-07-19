@@ -135,8 +135,8 @@ export default function NumberingSettings() {
                         setOpen(false);
                         setEditing(null);
                     }}
-                    width={520}
-                    destroyOnClose
+                    size={520}
+                    destroyOnHidden
                 >
                     <Form layout="vertical" form={form} onFinish={onSubmit}>
                         <Form.Item name="name" label={copy.name} rules={[{ required: true }]}>
