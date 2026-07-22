@@ -8,7 +8,7 @@ use App\Models\CashCategory;
 use App\Models\CashMethod;
 use App\Services\Cash\CashReportService;
 use App\Services\Finance\FinancePeriodService;
-use Barryvdh\DomPDF\Facade\Pdf;
+use App\Services\Pdf\MpdfRenderer;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -45,8 +45,12 @@ class CashReportController extends Controller
         ]);
     }
 
-    public function pdf(Request $request, CashReportService $service, FinancePeriodService $financePeriodService)
-    {
+    public function pdf(
+        Request $request,
+        CashReportService $service,
+        FinancePeriodService $financePeriodService,
+        MpdfRenderer $pdfRenderer
+    ) {
         $filters = [
             'start_date' => $request->input('start_date'),
             'end_date' => $request->input('end_date'),
@@ -57,7 +61,7 @@ class CashReportController extends Controller
 
         $report = $service->build($filters);
 
-        $pdf = Pdf::loadView('reports.cash-pdf', [
+        return $pdfRenderer->inlineView('reports.cash-pdf', [
             'org' => AppSetting::query()->first(),
             'filters' => $filters,
             'period_status' => $financePeriodService->statusForRange($filters['start_date'], $filters['end_date']),
@@ -71,8 +75,6 @@ class CashReportController extends Controller
             'monthly' => $report['monthly'],
             'by_category' => $report['by_category'],
             'by_method' => $report['by_method'],
-        ]);
-
-        return $pdf->stream('laporan-kas.pdf');
+        ], 'laporan-kas.pdf');
     }
 }

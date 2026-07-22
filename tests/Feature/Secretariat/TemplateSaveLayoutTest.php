@@ -39,6 +39,13 @@ class TemplateSaveLayoutTest extends TestCase
                 'line_height' => 1.45,
                 'paragraph_spacing' => 8,
                 'repeat_header' => true,
+                'paper_format' => 'Letter',
+                'orientation' => 'L',
+                'margin_top_mm' => 15,
+                'margin_right_mm' => 16,
+                'margin_bottom_mm' => 17,
+                'margin_left_mm' => 18,
+                'content_top_gap_mm' => 7,
             ],
         ];
 
@@ -51,5 +58,10 @@ class TemplateSaveLayoutTest extends TestCase
         $this->assertSame('Times New Roman', $template->margin_json['font_family'] ?? null);
         $this->assertSame(16.0, (float) ($template->margin_json['font_size'] ?? 0));
         $this->assertTrue((bool) ($template->margin_json['repeat_header'] ?? false));
+        $this->assertSame('Letter', $template->paper);
+        $this->assertSame('L', $template->margin_json['orientation'] ?? null);
+        $this->assertSame(15.0, (float) ($template->margin_json['margin_top_mm'] ?? 0));
+        $this->assertSame(18.0, (float) ($template->margin_json['margin_left_mm'] ?? 0));
+        $this->assertSame(7.0, (float) ($template->margin_json['content_top_gap_mm'] ?? 0));
     }
 }

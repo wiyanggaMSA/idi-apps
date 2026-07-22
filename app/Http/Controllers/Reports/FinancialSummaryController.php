@@ -7,7 +7,7 @@ use App\Models\AppSetting;
 use App\Models\Division;
 use App\Services\Cash\FinancialSummaryService;
 use App\Services\Finance\FinancePeriodService;
-use Barryvdh\DomPDF\Facade\Pdf;
+use App\Services\Pdf\MpdfRenderer;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -33,8 +33,12 @@ class FinancialSummaryController extends Controller
         ]);
     }
 
-    public function pdf(Request $request, FinancialSummaryService $service, FinancePeriodService $financePeriodService)
-    {
+    public function pdf(
+        Request $request,
+        FinancialSummaryService $service,
+        FinancePeriodService $financePeriodService,
+        MpdfRenderer $pdfRenderer
+    ) {
         $filters = [
             'start_date' => $request->input('start_date'),
             'end_date' => $request->input('end_date'),
@@ -44,13 +48,11 @@ class FinancialSummaryController extends Controller
 
         $summary = $service->build($filters);
 
-        $pdf = Pdf::loadView('reports.financial-summary-pdf', [
+        return $pdfRenderer->inlineView('reports.financial-summary-pdf', [
             'org' => AppSetting::query()->first(),
             'filters' => $filters,
             'period_status' => $financePeriodService->statusForRange($filters['start_date'], $filters['end_date']),
             'summary' => $summary,
-        ]);
-
-        return $pdf->stream('resume-keuangan.pdf');
+        ], 'resume-keuangan.pdf');
     }
 }

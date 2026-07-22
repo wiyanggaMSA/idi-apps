@@ -337,10 +337,9 @@ class LettersController extends Controller
 
         $path = $letter->pdf_path ?: "letters/{$letter->id}/v".max(1, (int) $letter->versions()->max('version')).'.pdf';
         Storage::disk('public')->makeDirectory("letters/{$letter->id}");
-        $html = view('letters.render', [
-            'renderData' => $renderDataService->build($letter),
-        ])->render();
-        $pdfService->generateFromHtml($html, storage_path('app/public/'.$path));
+        $renderData = $renderDataService->build($letter);
+        $html = view('letters.render-mpdf', compact('renderData'))->render();
+        $pdfService->generateFromHtml($html, storage_path('app/public/'.$path), $renderData);
         $letter->update(['pdf_path' => $path]);
 
         return redirect()->back()->with('success', 'PDF berhasil dibuat ulang.');
@@ -402,10 +401,9 @@ class LettersController extends Controller
         }
 
         try {
-            $html = view('letters.render', [
-                'renderData' => $renderDataService->build($letter),
-            ])->render();
-            $pdfContent = $pdfService->generateFromHtmlContent($html);
+            $renderData = $renderDataService->build($letter);
+            $html = view('letters.render-mpdf', compact('renderData'))->render();
+            $pdfContent = $pdfService->generateFromHtmlContent($html, $renderData);
         } catch (\Throwable $e) {
             report($e);
             abort(503, $this->pdfGenerationErrorMessage($e));
@@ -435,11 +433,15 @@ class LettersController extends Controller
             return 'PDF timeout. Jika memakai "php artisan serve", jalankan dengan worker > 1 (contoh: PHP_CLI_SERVER_WORKERS=4 php artisan serve) atau gunakan web server (Nginx/Apache).';
         }
 
-        if (str_contains($message, "Cannot find module 'puppeteer'")) {
-            return 'Puppeteer belum tersedia di server. Jalankan: PUPPETEER_SKIP_DOWNLOAD=1 npm install puppeteer --save.';
+        if (str_contains($message, 'temporary files directory') || str_contains($message, 'is not writable')) {
+            return 'Gagal membuat PDF. Pastikan folder storage/framework dapat ditulis oleh aplikasi.';
         }
 
-        return 'Gagal membuat PDF. Periksa konfigurasi Puppeteer/Chrome pada server.';
+        if (str_contains($message, 'pcre.backtrack_limit')) {
+            return 'Gagal membuat PDF. HTML surat terlalu besar untuk batas pcre.backtrack_limit server.';
+        }
+
+        return 'Gagal membuat PDF. Periksa format HTML surat dan konfigurasi mPDF pada server.';
     }
 
     private function signerMembersOptions()

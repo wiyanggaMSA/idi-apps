@@ -25,6 +25,15 @@ const fontFamilyMap = {
   Calibri: 'Calibri, Carlito, "Segoe UI", Arial, sans-serif',
 };
 
+const paperSizeMap = {
+  A4: [794, 1123],
+  A5: [559, 794],
+  Letter: [816, 1056],
+  Legal: [816, 1344],
+};
+
+const mmToPx = (value) => (Number(value) * 96) / 25.4;
+
 export default function DocumentRenderer({
   blocks = [],
   layout = [],
@@ -37,9 +46,19 @@ export default function DocumentRenderer({
   const selectedFont = rawStyle?.font_family || "Times New Roman";
   const documentStyle = {
     fontFamily: fontFamilyMap[selectedFont] || fontFamilyMap["Times New Roman"],
-    fontSize: Number(rawStyle?.font_size ?? 12),
-    lineHeight: Number(rawStyle?.line_height ?? 1.5),
-    paragraphSpacing: Number(rawStyle?.paragraph_spacing ?? 8),
+    fontSize: Number(rawStyle?.font_size ?? 11),
+    lineHeight: Number(rawStyle?.line_height ?? 1.25),
+    paragraphSpacing: Number(rawStyle?.paragraph_spacing ?? 2),
+  };
+  const selectedPaper = paperSizeMap[rawStyle?.paper_format] || [paper.width, paper.minHeight];
+  const isLandscape = rawStyle?.orientation === "L";
+  const pageWidth = isLandscape ? selectedPaper[1] : selectedPaper[0];
+  const pageHeight = isLandscape ? selectedPaper[0] : selectedPaper[1];
+  const pagePadding = {
+    top: mmToPx(rawStyle?.margin_top_mm ?? 10),
+    right: mmToPx(rawStyle?.margin_right_mm ?? 18),
+    bottom: mmToPx(rawStyle?.margin_bottom_mm ?? 20),
+    left: mmToPx(rawStyle?.margin_left_mm ?? 18),
   };
 
   const layoutMap = useMemo(() => new Map(layout.map((item) => [item.i, item])), [layout]);
@@ -58,7 +77,7 @@ export default function DocumentRenderer({
     });
   }, [blocks, layoutMap, layoutMode]);
 
-  const innerWidth = paper.width - paper.padding * 2;
+  const innerWidth = pageWidth - pagePadding.left - pagePadding.right;
   const marginX = gridConfig.margin?.[0] ?? 0;
   const marginY = gridConfig.margin?.[1] ?? 0;
   const paddingX = gridConfig.containerPadding?.[0] ?? 0;
@@ -69,9 +88,10 @@ export default function DocumentRenderer({
     <div
       className={`letter-paper${layoutMode === "flow" ? " letter-paper--flow" : ""}`}
       style={{
-        width: paper.width,
-        minHeight: paper.minHeight,
-        padding: paper.padding,
+        boxSizing: "border-box",
+        width: pageWidth,
+        minHeight: pageHeight,
+        padding: `${pagePadding.top}px ${pagePadding.right}px ${pagePadding.bottom}px ${pagePadding.left}px`,
         fontFamily: documentStyle.fontFamily,
         fontSize: `${documentStyle.fontSize}pt`,
         lineHeight: documentStyle.lineHeight,

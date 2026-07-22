@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 
@@ -18,10 +18,13 @@ const modules = {
 
 const documentModules = {
   toolbar: [
-    ["bold", "italic", "underline"],
+    [{ header: [2, 3, false] }],
+    ["bold", "italic", "underline", "strike"],
+    [{ color: [] }, { background: [] }],
     [{ align: [] }],
     [{ list: "ordered" }, { list: "bullet" }],
-    ["blockquote"],
+    [{ indent: "-1" }, { indent: "+1" }],
+    ["blockquote", "link"],
     ["clean"],
   ],
   clipboard: {
@@ -35,33 +38,15 @@ const formats = [
   "italic",
   "underline",
   "strike",
+  "color",
+  "background",
   "align",
   "list",
   "bullet",
+  "indent",
   "blockquote",
   "link",
 ];
-
-const normalizeColonRows = (html) => String(html ?? "").replace(
-  /<(p|div)([^>]*)>(.*?)<\/\1>/gis,
-  (full, tag, attributes = "", inner = "") => {
-    if (/\bcolon-row\b/.test(attributes) || /\bcolon-label\b/.test(inner)) {
-      return full;
-    }
-
-    const plain = inner.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim();
-    const match = plain.match(/^([^:]{2,42})\s*:\s*(.+)$/u);
-
-    if (!match || /<span\b/i.test(inner)) {
-      return full;
-    }
-
-    const label = match[1].trim();
-    const value = inner.replace(new RegExp(`^\\s*${label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*:\\s*`, "u"), "");
-
-    return `<p${attributes} class="colon-row"><span class="colon-label">${label}</span><span class="colon-separator">:</span><span class="colon-value">${value}</span></p>`;
-  },
-);
 
 const toHtml = (value) => {
   const text = String(value ?? "");
@@ -82,6 +67,7 @@ const cleanClipboardText = (value) => String(value ?? "")
 
 export default function SimpleRichTextEditor({ value, onChange, minHeight = 180, documentMode = false }) {
   const quillRef = useRef(null);
+  const wrapperRef = useRef(null);
   const normalizedValue = useMemo(() => toHtml(value), [value]);
   const selectedModules = useMemo(() => (documentMode ? documentModules : modules), [documentMode]);
 
@@ -110,8 +96,41 @@ export default function SimpleRichTextEditor({ value, onChange, minHeight = 180,
     editor.setSelection(range.index + text.length, 0, "silent");
   }, []);
 
+  useEffect(() => {
+    const toolbar = wrapperRef.current?.querySelector(".ql-toolbar");
+    if (!toolbar) {
+      return;
+    }
+
+    const controlLabels = {
+      "ql-header": "Gaya paragraf",
+      "ql-bold": "Tebal",
+      "ql-italic": "Miring",
+      "ql-underline": "Garis bawah",
+      "ql-strike": "Coret",
+      "ql-color": "Warna teks",
+      "ql-background": "Warna sorotan",
+      "ql-align": "Perataan",
+      "ql-list": "Daftar",
+      "ql-indent": "Indentasi",
+      "ql-blockquote": "Kutipan",
+      "ql-link": "Tautan",
+      "ql-clean": "Hapus format",
+    };
+
+    Object.entries(controlLabels).forEach(([className, label]) => {
+      toolbar.querySelectorAll(`.${className}`).forEach((control) => {
+        control.setAttribute("title", label);
+        if (!control.getAttribute("aria-label")) {
+          control.setAttribute("aria-label", label);
+        }
+      });
+    });
+  }, [documentMode]);
+
   return (
     <div
+      ref={wrapperRef}
       className={`richtext-editor ${documentMode ? "richtext-editor-document" : ""}`}
       onPasteCapture={handlePaste}
     >
@@ -119,10 +138,7 @@ export default function SimpleRichTextEditor({ value, onChange, minHeight = 180,
         ref={quillRef}
         theme="snow"
         value={normalizedValue}
-        onChange={(html, _delta, source) => {
-          const nextHtml = documentMode && source === "user" ? normalizeColonRows(html) : html;
-          onChange?.(nextHtml);
-        }}
+        onChange={(html) => onChange?.(html)}
         modules={selectedModules}
         formats={formats}
       />
@@ -131,6 +147,16 @@ export default function SimpleRichTextEditor({ value, onChange, minHeight = 180,
           min-height: ${minHeight}px;
           font-size: 14px;
           line-height: 1.5;
+        }
+        .richtext-editor .ql-toolbar {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 4px;
+        }
+        .richtext-editor .ql-toolbar .ql-formats {
+          display: inline-flex;
+          align-items: center;
+          margin-right: 4px;
         }
         .richtext-editor-document .ql-editor {
           font-family: "Times New Roman", Times, serif;

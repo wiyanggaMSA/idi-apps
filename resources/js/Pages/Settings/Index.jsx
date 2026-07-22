@@ -49,6 +49,7 @@ const { Text } = Typography;
 export default function SettingsIndex() {
     const { t, language } = useI18n();
     const isEn = language === "en";
+    const tx = (indonesian, english) => (isEn ? english : indonesian);
     const { props } = usePage();
     const access = props.access || { users: [], roles: [], permissions: [] };
     const profile = props.profile || {};
@@ -171,7 +172,7 @@ export default function SettingsIndex() {
 
     const defaultOrgProfile = {
         org_name: "IDI Cabang Purwakarta",
-        address: "Alamat sekretariat...",
+        address: tx("Alamat sekretariat...", "Secretariat address..."),
         phone: "",
         email: "",
         currency: "IDR",
@@ -206,7 +207,7 @@ export default function SettingsIndex() {
                 preserveScroll: true,
                 // forceFormData boleh, tapi kalau sudah FormData manual biasanya tidak perlu
                 onSuccess: () =>
-                    message.success("Profil organisasi tersimpan."),
+                    message.success(tx("Profil organisasi tersimpan.", "Organization profile saved.")),
             });
         } catch (e) {
             console.error(e);
@@ -225,7 +226,7 @@ export default function SettingsIndex() {
 
             router.patch(route("settings.dues.update"), payload, {
                 onSuccess: () => {
-                    message.success("Pengaturan iuran tersimpan.");
+                    message.success(tx("Pengaturan iuran tersimpan.", "Dues settings saved."));
                 },
             });
         } catch {}
@@ -237,7 +238,7 @@ export default function SettingsIndex() {
             router.post(route("settings.access.users.store"), v, {
                 onSuccess: () => {
                     userForm.resetFields();
-                    message.success("User berhasil ditambahkan.");
+                    message.success(tx("User berhasil ditambahkan.", "User added successfully."));
                 },
             });
         } catch {}
@@ -249,7 +250,7 @@ export default function SettingsIndex() {
             router.post(route("settings.access.roles.store"), v, {
                 onSuccess: () => {
                     roleForm.resetFields();
-                    message.success("Role berhasil ditambahkan.");
+                    message.success(tx("Role berhasil ditambahkan.", "Role added successfully."));
                 },
             });
         } catch {}
@@ -261,7 +262,7 @@ export default function SettingsIndex() {
             router.post(route("settings.access.permissions.store"), v, {
                 onSuccess: () => {
                     permissionForm.resetFields();
-                    message.success("Permission berhasil ditambahkan.");
+                    message.success(tx("Permission berhasil ditambahkan.", "Permission added successfully."));
                 },
             });
         } catch {}
@@ -275,7 +276,7 @@ export default function SettingsIndex() {
                 onSuccess: () => {
                     divisionForm.resetFields();
                     setDivisionModalOpen(false);
-                    message.success("Divisi berhasil ditambahkan.");
+                    message.success(tx("Divisi berhasil ditambahkan.", "Division added successfully."));
                 },
             });
         } catch {}
@@ -289,7 +290,7 @@ export default function SettingsIndex() {
                 onSuccess: () => {
                     positionForm.resetFields();
                     setPositionModalOpen(false);
-                    message.success("Jabatan berhasil ditambahkan.");
+                    message.success(tx("Jabatan berhasil ditambahkan.", "Position added successfully."));
                 },
             });
         } catch {}
@@ -307,7 +308,7 @@ export default function SettingsIndex() {
                         cashCategoryForm.resetFields();
                         setCashCategoryModalOpen(false);
                         message.success(
-                            "Kategori cashflow berhasil ditambahkan.",
+                            tx("Kategori cashflow berhasil ditambahkan.", "Cashflow category added successfully."),
                         );
                     },
                 },
@@ -323,7 +324,7 @@ export default function SettingsIndex() {
                 onSuccess: () => {
                     cashMethodForm.resetFields();
                     setCashMethodModalOpen(false);
-                    message.success("Metode bayar berhasil ditambahkan.");
+                    message.success(tx("Metode bayar berhasil ditambahkan.", "Payment method added successfully."));
                 },
             });
         } catch {}
@@ -337,7 +338,7 @@ export default function SettingsIndex() {
                 onSuccess: () => {
                     memberStatusForm.resetFields();
                     setMemberStatusModalOpen(false);
-                    message.success("Status anggota berhasil ditambahkan.");
+                    message.success(tx("Status anggota berhasil ditambahkan.", "Member status added successfully."));
                 },
             });
         } catch {}
@@ -354,7 +355,7 @@ export default function SettingsIndex() {
                     onSuccess: () => {
                         paymentStatusForm.resetFields();
                         setPaymentStatusModalOpen(false);
-                        message.success("Status bayar berhasil ditambahkan.");
+                        message.success(tx("Status bayar berhasil ditambahkan.", "Payment status added successfully."));
                     },
                 },
             );
@@ -378,7 +379,7 @@ export default function SettingsIndex() {
                     onSuccess: () => {
                         workProgramPeriodForm.resetFields();
                         setWorkProgramPeriodModalOpen(false);
-                        message.success("Periode program kerja berhasil ditambahkan.");
+                        message.success(tx("Periode program kerja berhasil ditambahkan.", "Work program period added successfully."));
                     },
                 },
             );
@@ -396,13 +397,13 @@ export default function SettingsIndex() {
     };
 
     const masterLabels = {
-        divisions: "Divisi",
-        positions: "Jabatan",
-        cash_categories: "Kategori Cashflow",
-        cash_methods: "Metode Bayar",
-        member_statuses: "Status Anggota",
-        payment_statuses: "Status Bayar",
-        work_program_periods: "Periode Program Kerja",
+        divisions: tx("Divisi", "Division"),
+        positions: tx("Jabatan", "Position"),
+        cash_categories: tx("Kategori Cashflow", "Cashflow Category"),
+        cash_methods: tx("Metode Bayar", "Payment Method"),
+        member_statuses: tx("Status Anggota", "Member Status"),
+        payment_statuses: tx("Status Bayar", "Payment Status"),
+        work_program_periods: tx("Periode Program Kerja", "Work Program Period"),
     };
 
     const openEditMaster = (type, record) => {
@@ -435,7 +436,7 @@ export default function SettingsIndex() {
             router.patch(route(masterUpdateRoutes[type], record.id), payload, {
                 preserveScroll: true,
                 onSuccess: () => {
-                    message.success(`${masterLabels[type]} berhasil diperbarui.`);
+                    message.success(tx(`${masterLabels[type]} berhasil diperbarui.`, `${masterLabels[type]} updated successfully.`));
                     closeEditMaster();
                 },
             });
@@ -460,11 +461,11 @@ export default function SettingsIndex() {
 
     const confirmDeleteDivision = (division) => {
         Modal.confirm({
-            title: "Hapus divisi?",
-            content: `${division.name} akan dihapus.`,
-            okText: "Hapus",
+            title: tx("Hapus divisi?", "Remove division?"),
+            content: tx(`${division.name} akan dihapus.`, `${division.name} will be removed.`),
+            okText: tx("Hapus", "Remove"),
             okButtonProps: { danger: true },
-            cancelText: "Batal",
+            cancelText: tx("Batal", "Cancel"),
             onOk: () =>
                 router.delete(
                     route(
@@ -474,7 +475,7 @@ export default function SettingsIndex() {
                     {
                         preserveScroll: true,
                         onSuccess: () =>
-                            message.success("Divisi berhasil dihapus."),
+                            message.success(tx("Divisi berhasil dihapus.", "Division removed successfully.")),
                     },
                 ),
         });
@@ -482,11 +483,11 @@ export default function SettingsIndex() {
 
     const confirmDeletePosition = (position) => {
         Modal.confirm({
-            title: "Hapus jabatan?",
-            content: `${position.name} akan dihapus.`,
-            okText: "Hapus",
+            title: tx("Hapus jabatan?", "Remove position?"),
+            content: tx(`${position.name} akan dihapus.`, `${position.name} will be removed.`),
+            okText: tx("Hapus", "Remove"),
             okButtonProps: { danger: true },
-            cancelText: "Batal",
+            cancelText: tx("Batal", "Cancel"),
             onOk: () =>
                 router.delete(
                     route(
@@ -496,7 +497,7 @@ export default function SettingsIndex() {
                     {
                         preserveScroll: true,
                         onSuccess: () =>
-                            message.success("Jabatan berhasil dihapus."),
+                            message.success(tx("Jabatan berhasil dihapus.", "Position removed successfully.")),
                     },
                 ),
         });
@@ -504,11 +505,11 @@ export default function SettingsIndex() {
 
     const confirmDeleteCashCategory = (category) => {
         Modal.confirm({
-            title: "Hapus kategori cashflow?",
-            content: `${category.name} akan dihapus.`,
-            okText: "Hapus",
+            title: tx("Hapus kategori cashflow?", "Remove cashflow category?"),
+            content: tx(`${category.name} akan dihapus.`, `${category.name} will be removed.`),
+            okText: tx("Hapus", "Remove"),
             okButtonProps: { danger: true },
-            cancelText: "Batal",
+            cancelText: tx("Batal", "Cancel"),
             onOk: () =>
                 router.delete(
                     route(
@@ -519,7 +520,7 @@ export default function SettingsIndex() {
                         preserveScroll: true,
                         onSuccess: () =>
                             message.success(
-                                "Kategori cashflow berhasil dihapus.",
+                                tx("Kategori cashflow berhasil dihapus.", "Cashflow category removed successfully."),
                             ),
                     },
                 ),
@@ -528,11 +529,11 @@ export default function SettingsIndex() {
 
     const confirmDeleteCashMethod = (method) => {
         Modal.confirm({
-            title: "Hapus metode bayar?",
-            content: `${method.name} akan dihapus.`,
-            okText: "Hapus",
+            title: tx("Hapus metode bayar?", "Remove payment method?"),
+            content: tx(`${method.name} akan dihapus.`, `${method.name} will be removed.`),
+            okText: tx("Hapus", "Remove"),
             okButtonProps: { danger: true },
-            cancelText: "Batal",
+            cancelText: tx("Batal", "Cancel"),
             onOk: () =>
                 router.delete(
                     route(
@@ -542,7 +543,7 @@ export default function SettingsIndex() {
                     {
                         preserveScroll: true,
                         onSuccess: () =>
-                            message.success("Metode bayar berhasil dihapus."),
+                            message.success(tx("Metode bayar berhasil dihapus.", "Payment method removed successfully.")),
                     },
                 ),
         });
@@ -550,11 +551,11 @@ export default function SettingsIndex() {
 
     const confirmDeletePaymentStatus = (status) => {
         Modal.confirm({
-            title: "Hapus status bayar?",
-            content: `${status.name} akan dihapus.`,
-            okText: "Hapus",
+            title: tx("Hapus status bayar?", "Remove payment status?"),
+            content: tx(`${status.name} akan dihapus.`, `${status.name} will be removed.`),
+            okText: tx("Hapus", "Remove"),
             okButtonProps: { danger: true },
-            cancelText: "Batal",
+            cancelText: tx("Batal", "Cancel"),
             onOk: () =>
                 router.delete(
                     route(
@@ -564,7 +565,7 @@ export default function SettingsIndex() {
                     {
                         preserveScroll: true,
                         onSuccess: () =>
-                            message.success("Status bayar berhasil dihapus."),
+                            message.success(tx("Status bayar berhasil dihapus.", "Payment status removed successfully.")),
                     },
                 ),
         });
@@ -572,11 +573,11 @@ export default function SettingsIndex() {
 
     const confirmDeleteMemberStatus = (status) => {
         Modal.confirm({
-            title: "Hapus status anggota?",
-            content: `${status.name} akan dihapus.`,
-            okText: "Hapus",
+            title: tx("Hapus status anggota?", "Remove member status?"),
+            content: tx(`${status.name} akan dihapus.`, `${status.name} will be removed.`),
+            okText: tx("Hapus", "Remove"),
             okButtonProps: { danger: true },
-            cancelText: "Batal",
+            cancelText: tx("Batal", "Cancel"),
             onOk: () =>
                 router.delete(
                     route(
@@ -586,7 +587,7 @@ export default function SettingsIndex() {
                     {
                         preserveScroll: true,
                         onSuccess: () =>
-                            message.success("Status anggota berhasil dihapus."),
+                            message.success(tx("Status anggota berhasil dihapus.", "Member status removed successfully.")),
                     },
                 ),
         });
@@ -594,11 +595,11 @@ export default function SettingsIndex() {
 
     const confirmDeleteWorkProgramPeriod = (period) => {
         Modal.confirm({
-            title: "Hapus periode program kerja?",
-            content: `${period.name} akan dihapus jika belum dipakai oleh program.`,
-            okText: "Hapus",
+            title: tx("Hapus periode program kerja?", "Remove work program period?"),
+            content: tx(`${period.name} akan dihapus jika belum dipakai oleh program.`, `${period.name} will be removed if it is not used by a program.`),
+            okText: tx("Hapus", "Remove"),
             okButtonProps: { danger: true },
-            cancelText: "Batal",
+            cancelText: tx("Batal", "Cancel"),
             onOk: () =>
                 router.delete(
                     route(
@@ -608,7 +609,7 @@ export default function SettingsIndex() {
                     {
                         preserveScroll: true,
                         onSuccess: () =>
-                            message.success("Periode program kerja berhasil dihapus."),
+                            message.success(tx("Periode program kerja berhasil dihapus.", "Work program period removed successfully.")),
                     },
                 ),
         });
@@ -616,11 +617,11 @@ export default function SettingsIndex() {
 
     const confirmDisableUser = (user) => {
         Modal.confirm({
-            title: "Nonaktifkan user?",
-            content: `${user.name} akan dinonaktifkan.`,
-            okText: "Nonaktifkan",
+            title: tx("Nonaktifkan user?", "Deactivate user?"),
+            content: tx(`${user.name} akan dinonaktifkan.`, `${user.name} will be deactivated.`),
+            okText: tx("Nonaktifkan", "Deactivate"),
             okButtonProps: { danger: true },
-            cancelText: "Batal",
+            cancelText: tx("Batal", "Cancel"),
             onOk: () =>
                 router.patch(route("settings.access.users.disable", user.id)),
         });
@@ -641,7 +642,7 @@ export default function SettingsIndex() {
                     onSuccess: () => {
                         setEditUserModal({ open: false, user: null });
                         editUserForm.resetFields();
-                        message.success("User berhasil diperbarui.");
+                        message.success(tx("User berhasil diperbarui.", "User updated successfully."));
                     },
                 },
             );
@@ -670,7 +671,7 @@ export default function SettingsIndex() {
                 {
                     onSuccess: () => {
                         closeResetPassword();
-                        message.success("Password user berhasil direset.");
+                        message.success(tx("Password user berhasil direset.", "User password reset successfully."));
                     },
                 },
             );
@@ -695,7 +696,7 @@ export default function SettingsIndex() {
                     onSuccess: () => {
                         setAssignRoleModal({ open: false, user: null });
                         assignRoleForm.resetFields();
-                        message.success("Role user diperbarui.");
+                        message.success(tx("Role user diperbarui.", "User role updated."));
                     },
                 },
             );
@@ -722,7 +723,7 @@ export default function SettingsIndex() {
                     onSuccess: () => {
                         setEditRoleModal({ open: false, role: null });
                         editRoleForm.resetFields();
-                        message.success("Role berhasil diperbarui.");
+                        message.success(tx("Role berhasil diperbarui.", "Role updated successfully."));
                     },
                 },
             );
@@ -731,11 +732,11 @@ export default function SettingsIndex() {
 
     const confirmDeleteRole = (role) => {
         Modal.confirm({
-            title: "Hapus role?",
-            content: `Role ${role.name} akan dihapus.`,
-            okText: "Hapus",
+            title: tx("Hapus role?", "Remove role?"),
+            content: tx(`Role ${role.name} akan dihapus.`, `Role ${role.name} will be removed.`),
+            okText: tx("Hapus", "Remove"),
             okButtonProps: { danger: true },
-            cancelText: "Batal",
+            cancelText: tx("Batal", "Cancel"),
             onOk: () =>
                 router.delete(route("settings.access.roles.destroy", role.id)),
         });
@@ -751,7 +752,7 @@ export default function SettingsIndex() {
             {
                 onSuccess: () => {
                     setSyncRoleModal({ open: false, role: null });
-                    message.success("Permission role diperbarui.");
+                    message.success(tx("Permission role diperbarui.", "Role permissions updated."));
                 },
             },
         );
@@ -783,7 +784,7 @@ export default function SettingsIndex() {
                             permission: null,
                         });
                         editPermissionForm.resetFields();
-                        message.success("Permission berhasil diperbarui.");
+                        message.success(tx("Permission berhasil diperbarui.", "Permission updated successfully."));
                     },
                 },
             );
@@ -792,11 +793,11 @@ export default function SettingsIndex() {
 
     const confirmDeletePermission = (permission) => {
         Modal.confirm({
-            title: "Hapus permission?",
-            content: `${permission.name} akan dihapus.`,
-            okText: "Hapus",
+            title: tx("Hapus permission?", "Remove permission?"),
+            content: tx(`${permission.name} akan dihapus.`, `${permission.name} will be removed.`),
+            okText: tx("Hapus", "Remove"),
             okButtonProps: { danger: true },
-            cancelText: "Batal",
+            cancelText: tx("Batal", "Cancel"),
             onOk: () =>
                 router.delete(
                     route("settings.access.permissions.destroy", permission.id),
@@ -814,7 +815,7 @@ export default function SettingsIndex() {
             {
                 onSuccess: () => {
                     setSyncUserModal({ open: false, user: null });
-                    message.success("Permission user diperbarui.");
+                    message.success(tx("Permission user diperbarui.", "User permissions updated."));
                 },
             },
         );
@@ -859,18 +860,22 @@ export default function SettingsIndex() {
             { key: "sessions", label: "sessions", note: "Session login" },
             { key: "password_reset_tokens", label: "password_reset_tokens", note: "Token reset password" },
             { key: "users", label: "users", note: "User aplikasi" },
-        ],
-        [],
+        ].map((option) => ({
+            ...option,
+            note: isEn
+                ? option.key.replaceAll("_", " ")
+                : option.note,
+        })),
+        [isEn],
     );
 
     const confirmHardReset = () => {
         Modal.confirm({
             title: "Hard Reset",
-            content:
-                "Aksi ini akan menghapus semua data dan membuat akun admin baru. Lanjutkan?",
-            okText: "Ya, Reset",
+            content: tx("Aksi ini akan menghapus semua data dan membuat akun admin baru. Lanjutkan?", "This action will delete all data and create a new administrator account. Continue?"),
+            okText: tx("Ya, Reset", "Yes, Reset"),
             okType: "danger",
-            cancelText: "Batal",
+            cancelText: tx("Batal", "Cancel"),
             onOk: () =>
                 router.post(route("settings.factory-reset.hard"), {}, { preserveScroll: true }),
         });
@@ -878,11 +883,11 @@ export default function SettingsIndex() {
 
     const confirmFinanceReset = () => {
         Modal.confirm({
-            title: "Reset Data Iuran & Kas",
-            content: "Aksi ini menghapus transaksi iuran dan kas saja. Lanjutkan?",
-            okText: "Ya, Reset",
+            title: tx("Reset Data Iuran & Kas", "Reset Dues & Cash Data"),
+            content: tx("Aksi ini menghapus transaksi iuran dan kas saja. Lanjutkan?", "This action deletes dues and cash transactions only. Continue?"),
+            okText: tx("Ya, Reset", "Yes, Reset"),
             okType: "danger",
-            cancelText: "Batal",
+            cancelText: tx("Batal", "Cancel"),
             onOk: () =>
                 router.post(route("settings.factory-reset.finance"), {}, { preserveScroll: true }),
         });
@@ -890,11 +895,11 @@ export default function SettingsIndex() {
 
     const submitCustomReset = () => {
         Modal.confirm({
-            title: "Hapus Tabel Terpilih",
-            content: "Tabel yang dipilih akan dikosongkan sesuai urutan. Lanjutkan?",
-            okText: "Ya, Hapus",
+            title: tx("Hapus Tabel Terpilih", "Clear Selected Tables"),
+            content: tx("Tabel yang dipilih akan dikosongkan sesuai urutan. Lanjutkan?", "The selected tables will be cleared in order. Continue?"),
+            okText: tx("Ya, Hapus", "Yes, Clear"),
             okType: "danger",
-            cancelText: "Batal",
+            cancelText: tx("Batal", "Cancel"),
             onOk: () =>
                 router.post(
                     route("settings.factory-reset.custom"),
@@ -907,10 +912,9 @@ export default function SettingsIndex() {
     const createFullBackup = () => {
         Modal.confirm({
             title: "Backup Full Database",
-            content:
-                "Sistem akan membuat file ZIP berisi database.sql untuk seluruh tabel database. File ini bisa digunakan untuk restore database nanti.",
-            okText: "Buat Backup",
-            cancelText: "Batal",
+            content: tx("Sistem akan membuat file ZIP berisi database.sql untuk seluruh tabel database. File ini bisa digunakan untuk restore database nanti.", "The system will create a ZIP file containing database.sql for all database tables. This file can be used to restore the database later."),
+            okText: tx("Buat Backup", "Create Backup"),
+            cancelText: tx("Batal", "Cancel"),
             onOk: () =>
                 router.post(
                     route("settings.backups.store"),
@@ -919,11 +923,11 @@ export default function SettingsIndex() {
                         preserveScroll: true,
                         onStart: () => setBackupProcessing(true),
                         onSuccess: () =>
-                            message.success("Backup full database dibuat."),
+                            message.success(tx("Backup full database dibuat.", "Full database backup created.")),
                         onError: (errors) =>
                             message.error(
                                 errors.backup ||
-                                    "Backup database gagal dibuat.",
+                                    tx("Backup database gagal dibuat.", "Database backup could not be created."),
                             ),
                         onFinish: () => setBackupProcessing(false),
                     },
@@ -935,12 +939,12 @@ export default function SettingsIndex() {
         const file = restoreFileList[0]?.originFileObj || restoreFileList[0];
 
         if (!file) {
-            message.warning("Pilih file backup ZIP terlebih dahulu.");
+            message.warning(tx("Pilih file backup ZIP terlebih dahulu.", "Select a backup ZIP file first."));
             return;
         }
 
         if (restoreConfirmation !== "RESTORE DATABASE") {
-            message.warning('Ketik "RESTORE DATABASE" untuk konfirmasi.');
+            message.warning(tx('Ketik "RESTORE DATABASE" untuk konfirmasi.', 'Type "RESTORE DATABASE" to confirm.'));
             return;
         }
 
@@ -956,11 +960,11 @@ export default function SettingsIndex() {
                 setRestoreModalOpen(false);
                 setRestoreFileList([]);
                 setRestoreConfirmation("");
-                message.success("Restore database berhasil.");
+                message.success(tx("Restore database berhasil.", "Database restored successfully."));
             },
             onError: (errors) =>
                 message.error(
-                    errors.backup_file || "Restore database gagal diproses.",
+                    errors.backup_file || tx("Restore database gagal diproses.", "Database restoration could not be processed."),
                 ),
             onFinish: () => setRestoreProcessing(false),
         });
@@ -975,7 +979,7 @@ export default function SettingsIndex() {
                 label: (
                     <Space>
                         <ApartmentOutlined />
-                        Profil Organisasi
+                        {tx("Profil Organisasi", "Organization Profile")}
                     </Space>
                 ),
                 children: (
@@ -983,7 +987,7 @@ export default function SettingsIndex() {
                         <Col xs={24} lg={14}>
                             <Card
                                 style={{ borderRadius: 12 }}
-                                title={<Text strong>Profil Organisasi</Text>}
+                                title={<Text strong>{tx("Profil Organisasi", "Organization Profile")}</Text>}
                             >
                                 <Form
                                     form={orgForm}
@@ -994,13 +998,13 @@ export default function SettingsIndex() {
                                     <Row gutter={[12, 12]}>
                                         <Col xs={24} md={12}>
                                             <Form.Item
-                                                label="Nama Organisasi"
+                                                label={tx("Nama Organisasi", "Organization Name")}
                                                 name="org_name"
                                                 rules={[
                                                     {
                                                         required: true,
                                                         message:
-                                                            "Nama organisasi wajib",
+                                                            tx("Nama organisasi wajib", "Organization name is required"),
                                                     },
                                                 ]}
                                             >
@@ -1010,7 +1014,7 @@ export default function SettingsIndex() {
 
                                         <Col xs={24} md={12}>
                                             <Form.Item
-                                                label="Telepon"
+                                                label={tx("Telepon", "Phone")}
                                                 name="phone"
                                             >
                                                 <Input />
@@ -1028,7 +1032,7 @@ export default function SettingsIndex() {
 
                                         <Col xs={24}>
                                             <Form.Item
-                                                label="Alamat"
+                                                label={tx("Alamat", "Address")}
                                                 name="address"
                                             >
                                                 <Input.TextArea rows={3} />
@@ -1037,7 +1041,7 @@ export default function SettingsIndex() {
 
                                         <Col xs={24} md={12}>
                                             <Form.Item
-                                                label="Mata Uang"
+                                                label={tx("Mata Uang", "Currency")}
                                                 name="currency"
                                             >
                                                 <Select
@@ -1076,7 +1080,7 @@ export default function SettingsIndex() {
                                         </Col>
 
                                         <Col xs={24} md={12}>
-                                            <Form.Item label="Logo Organisasi">
+                                            <Form.Item label={tx("Logo Organisasi", "Organization Logo")}>
                                                 <Space
                                                     orientation="vertical"
                                                     size={8}
@@ -1087,7 +1091,7 @@ export default function SettingsIndex() {
                                                             src={
                                                                 profile.logo_url
                                                             }
-                                                            alt="Logo organisasi"
+                                                            alt={tx("Logo organisasi", "Organization logo")}
                                                             style={{
                                                                 width: 64,
                                                                 height: 64,
@@ -1120,7 +1124,7 @@ export default function SettingsIndex() {
                                                                 <CloudDownloadOutlined />
                                                             }
                                                         >
-                                                            Pilih Logo
+                                                            {tx("Pilih Logo", "Choose Logo")}
                                                         </Button>
                                                     </Upload>
 
@@ -1143,7 +1147,7 @@ export default function SettingsIndex() {
                                                 icon={<SaveOutlined />}
                                                 onClick={saveOrg}
                                             >
-                                                Simpan
+                                                {tx("Simpan", "Save")}
                                             </Button>
                                         </Col>
                                     </Row>
@@ -1157,24 +1161,21 @@ export default function SettingsIndex() {
                                     borderRadius: 12,
                                     background: "#f5f7fb",
                                 }}
-                                title={<Text strong>Catatan</Text>}
+                                title={<Text strong>{tx("Catatan", "Notes")}</Text>}
                             >
                                 <li>
-                                    Profil organisasi disimpan ke{" "}
-                                    <code>app_settings</code> dan dipakai oleh
-                                    tampilan aplikasi, surat, dan verifikasi.
+                                    {tx("Profil organisasi disimpan ke", "The organization profile is stored in")}{" "}
+                                    <code>app_settings</code>{" "}
+                                    {tx("dan dipakai oleh tampilan aplikasi, surat, dan verifikasi.", "and used by the application UI, letters, and verification pages.")}
                                 </li>
                                 <li>
-                                    Nama organisasi tampil di header & sidebar
-                                    sebagai identitas.
+                                    {tx("Nama organisasi tampil di header & sidebar sebagai identitas.", "The organization name appears in the header and sidebar as its identity.")}
                                 </li>
                                 <li>
-                                    Logo, alamat, telepon, dan email dipakai
-                                    untuk kop surat dan halaman verifikasi.
+                                    {tx("Logo, alamat, telepon, dan email dipakai untuk kop surat dan halaman verifikasi.", "The logo, address, phone, and email are used for letterheads and verification pages.")}
                                 </li>
                                 <li>
-                                    Timezone dipakai untuk tanggal transaksi &
-                                    surat.
+                                    {tx("Timezone dipakai untuk tanggal transaksi & surat.", "The timezone is used for transaction and letter dates.")}
                                 </li>
                             </Card>
                         </Col>
@@ -1200,7 +1201,7 @@ export default function SettingsIndex() {
                             items={[
                                 {
                                     key: "divisions",
-                                    label: "Divisi",
+                                    label: tx("Divisi", "Divisions"),
                                     children: (
                                         <Table
                                             size="small"
@@ -1209,7 +1210,7 @@ export default function SettingsIndex() {
                                             rowKey="id"
                                             title={() => (
                                                 <Space>
-                                                    <Text strong>Divisi</Text>
+                                                    <Text strong>{tx("Divisi", "Divisions")}</Text>
                                                     <Button
                                                         size="small"
                                                         icon={<PlusOutlined />}
@@ -1219,18 +1220,18 @@ export default function SettingsIndex() {
                                                             )
                                                         }
                                                     >
-                                                        Tambah
+                                                        {tx("Tambah", "Add")}
                                                     </Button>
                                                 </Space>
                                             )}
                                             columns={[
                                                 {
-                                                    title: "Nama Divisi",
+                                                    title: tx("Nama Divisi", "Division Name"),
                                                     dataIndex: "name",
                                                     key: "name",
                                                 },
                                                 {
-                                                    title: "Aksi",
+                                                    title: tx("Aksi", "Actions"),
                                                     key: "aksi",
                                                     width: 110,
                                                     align: "right",
@@ -1247,7 +1248,7 @@ export default function SettingsIndex() {
                                 },
                                 {
                                     key: "positions",
-                                    label: "Jabatan",
+                                    label: tx("Jabatan", "Positions"),
                                     children: (
                                         <Table
                                             size="small"
@@ -1256,7 +1257,7 @@ export default function SettingsIndex() {
                                             rowKey="id"
                                             title={() => (
                                                 <Space>
-                                                    <Text strong>Jabatan</Text>
+                                                    <Text strong>{tx("Jabatan", "Positions")}</Text>
                                                     <Button
                                                         size="small"
                                                         icon={<PlusOutlined />}
@@ -1266,18 +1267,18 @@ export default function SettingsIndex() {
                                                             )
                                                         }
                                                     >
-                                                        Tambah
+                                                        {tx("Tambah", "Add")}
                                                     </Button>
                                                 </Space>
                                             )}
                                             columns={[
                                                 {
-                                                    title: "Nama Jabatan",
+                                                    title: tx("Nama Jabatan", "Position Name"),
                                                     dataIndex: "name",
                                                     key: "name",
                                                 },
                                                 {
-                                                    title: "Aksi",
+                                                    title: tx("Aksi", "Actions"),
                                                     key: "aksi",
                                                     width: 110,
                                                     align: "right",
@@ -1294,7 +1295,7 @@ export default function SettingsIndex() {
                                 },
                                 {
                                     key: "cash_categories",
-                                    label: "Kategori Cashflow",
+                                    label: tx("Kategori Cashflow", "Cashflow Categories"),
                                     children: (
                                         <Table
                                             size="small"
@@ -1304,7 +1305,7 @@ export default function SettingsIndex() {
                                             title={() => (
                                                 <Space>
                                                     <Text strong>
-                                                        Kategori Cashflow
+                                                        {tx("Kategori Cashflow", "Cashflow Categories")}
                                                     </Text>
                                                     <Button
                                                         size="small"
@@ -1315,34 +1316,34 @@ export default function SettingsIndex() {
                                                             )
                                                         }
                                                     >
-                                                        Tambah
+                                                        {tx("Tambah", "Add")}
                                                     </Button>
                                                 </Space>
                                             )}
                                             columns={[
                                                 {
-                                                    title: "Tipe",
+                                                    title: tx("Tipe", "Type"),
                                                     dataIndex: "type",
                                                     key: "type",
                                                     width: 110,
                                                     render: (v) =>
                                                         v === "in" ? (
                                                             <Tag color="green">
-                                                                MASUK
+                                                                {tx("MASUK", "INCOME")}
                                                             </Tag>
                                                         ) : (
                                                             <Tag color="red">
-                                                                KELUAR
+                                                                {tx("KELUAR", "EXPENSE")}
                                                             </Tag>
                                                         ),
                                                 },
                                                 {
-                                                    title: "Nama Kategori",
+                                                    title: tx("Nama Kategori", "Category Name"),
                                                     dataIndex: "name",
                                                     key: "name",
                                                 },
                                                 {
-                                                    title: "Aksi",
+                                                    title: tx("Aksi", "Actions"),
                                                     key: "aksi",
                                                     width: 110,
                                                     align: "right",
@@ -1359,7 +1360,7 @@ export default function SettingsIndex() {
                                 },
                                 {
                                     key: "cash_methods",
-                                    label: "Metode Bayar",
+                                    label: tx("Metode Bayar", "Payment Methods"),
                                     children: (
                                         <Table
                                             size="small"
@@ -1369,7 +1370,7 @@ export default function SettingsIndex() {
                                             title={() => (
                                                 <Space>
                                                     <Text strong>
-                                                        Metode Bayar
+                                                        {tx("Metode Bayar", "Payment Methods")}
                                                     </Text>
                                                     <Button
                                                         size="small"
@@ -1380,18 +1381,18 @@ export default function SettingsIndex() {
                                                             )
                                                         }
                                                     >
-                                                        Tambah
+                                                        {tx("Tambah", "Add")}
                                                     </Button>
                                                 </Space>
                                             )}
                                             columns={[
                                                 {
-                                                    title: "Nama Metode",
+                                                    title: tx("Nama Metode", "Method Name"),
                                                     dataIndex: "name",
                                                     key: "name",
                                                 },
                                                 {
-                                                    title: "Aksi",
+                                                    title: tx("Aksi", "Actions"),
                                                     key: "aksi",
                                                     width: 110,
                                                     align: "right",
@@ -1408,7 +1409,7 @@ export default function SettingsIndex() {
                                 },
                                 {
                                     key: "member_statuses",
-                                    label: "Status Anggota",
+                                    label: tx("Status Anggota", "Member Statuses"),
                                     children: (
                                         <Table
                                             size="small"
@@ -1418,7 +1419,7 @@ export default function SettingsIndex() {
                                             title={() => (
                                                 <Space>
                                                     <Text strong>
-                                                        Status Anggota
+                                                        {tx("Status Anggota", "Member Statuses")}
                                                     </Text>
                                                     <Button
                                                         size="small"
@@ -1429,19 +1430,19 @@ export default function SettingsIndex() {
                                                             )
                                                         }
                                                     >
-                                                        Tambah
+                                                        {tx("Tambah", "Add")}
                                                     </Button>
                                                 </Space>
                                             )}
                                             columns={[
                                                 {
-                                                    title: "Code",
+                                                    title: tx("Kode", "Code"),
                                                     dataIndex: "code",
                                                     key: "code",
                                                     width: 120,
                                                 },
                                                 {
-                                                    title: "Nama",
+                                                    title: tx("Nama", "Name"),
                                                     dataIndex: "name",
                                                     key: "name",
                                                 },
@@ -1451,28 +1452,28 @@ export default function SettingsIndex() {
                                                     render: (_, r) => (
                                                         <Space wrap>
                                                             {r.is_active_member ? (
-                                                                <Tag color="green">Active Member</Tag>
+                                                                <Tag color="green">{tx("Anggota Aktif", "Active Member")}</Tag>
                                                             ) : null}
                                                             {r.is_billable ? (
-                                                                <Tag color="blue">Billable</Tag>
+                                                                <Tag color="blue">{tx("Ditagih", "Billable")}</Tag>
                                                             ) : null}
                                                             {r.is_deceased ? (
-                                                                <Tag color="red">Deceased</Tag>
+                                                                <Tag color="red">{tx("Meninggal", "Deceased")}</Tag>
                                                             ) : null}
                                                             {!r.is_active ? (
-                                                                <Tag>Inactive</Tag>
+                                                                <Tag>{tx("Tidak Aktif", "Inactive")}</Tag>
                                                             ) : null}
                                                         </Space>
                                                     ),
                                                 },
                                                 {
-                                                    title: "Urutan",
+                                                    title: tx("Urutan", "Order"),
                                                     dataIndex: "sort_order",
                                                     key: "sort_order",
                                                     width: 90,
                                                 },
                                                 {
-                                                    title: "Aksi",
+                                                    title: tx("Aksi", "Actions"),
                                                     key: "aksi",
                                                     width: 110,
                                                     align: "right",
@@ -1489,7 +1490,7 @@ export default function SettingsIndex() {
                                 },
                                 {
                                     key: "payment_statuses",
-                                    label: "Status Bayar",
+                                    label: tx("Status Bayar", "Payment Statuses"),
                                     children: (
                                         <Table
                                             size="small"
@@ -1499,7 +1500,7 @@ export default function SettingsIndex() {
                                             title={() => (
                                                 <Space>
                                                     <Text strong>
-                                                        Status Bayar
+                                                        {tx("Status Bayar", "Payment Statuses")}
                                                     </Text>
                                                     <Button
                                                         size="small"
@@ -1510,19 +1511,19 @@ export default function SettingsIndex() {
                                                             )
                                                         }
                                                     >
-                                                        Tambah
+                                                        {tx("Tambah", "Add")}
                                                     </Button>
                                                 </Space>
                                             )}
                                             columns={[
                                                 {
-                                                    title: "Code",
+                                                    title: tx("Kode", "Code"),
                                                     dataIndex: "code",
                                                     key: "code",
                                                     width: 120,
                                                 },
                                                 {
-                                                    title: "Nama",
+                                                    title: tx("Nama", "Name"),
                                                     dataIndex: "name",
                                                     key: "name",
                                                 },
@@ -1540,7 +1541,7 @@ export default function SettingsIndex() {
                                                     ),
                                                 },
                                                 {
-                                                    title: "Aksi",
+                                                    title: tx("Aksi", "Actions"),
                                                     key: "aksi",
                                                     width: 110,
                                                     align: "right",
@@ -1557,7 +1558,7 @@ export default function SettingsIndex() {
                                 },
                                 {
                                     key: "work_program_periods",
-                                    label: "Periode Program Kerja",
+                                    label: tx("Periode Program Kerja", "Work Program Periods"),
                                     children: (
                                         <Table
                                             size="small"
@@ -1567,7 +1568,7 @@ export default function SettingsIndex() {
                                             title={() => (
                                                 <Space>
                                                     <Text strong>
-                                                        Periode Program Kerja
+                                                        {tx("Periode Program Kerja", "Work Program Periods")}
                                                     </Text>
                                                     <Button
                                                         size="small"
@@ -1578,7 +1579,7 @@ export default function SettingsIndex() {
                                                             )
                                                         }
                                                     >
-                                                        Tambah
+                                                        {tx("Tambah", "Add")}
                                                     </Button>
                                                 </Space>
                                             )}
@@ -1591,38 +1592,38 @@ export default function SettingsIndex() {
                                                     render: (value) => value || "-",
                                                 },
                                                 {
-                                                    title: "Nama",
+                                                    title: tx("Nama", "Name"),
                                                     dataIndex: "name",
                                                     key: "name",
                                                 },
                                                 {
-                                                    title: "Tanggal",
+                                                    title: tx("Tanggal", "Dates"),
                                                     key: "date_range",
                                                     width: 230,
                                                     render: (_, record) =>
                                                         `${dayjs(record.start_date).format("DD MMM YYYY")} - ${dayjs(record.end_date).format("DD MMM YYYY")}`,
                                                 },
                                                 {
-                                                    title: "Status",
+                                                    title: tx("Status", "Status"),
                                                     dataIndex: "is_active",
                                                     key: "is_active",
                                                     width: 110,
                                                     render: (value) =>
                                                         value ? (
-                                                            <Tag color="green">Aktif</Tag>
+                                                            <Tag color="green">{tx("Aktif", "Active")}</Tag>
                                                         ) : (
-                                                            <Tag>Inactive</Tag>
+                                                            <Tag>{tx("Tidak Aktif", "Inactive")}</Tag>
                                                         ),
                                                 },
                                                 {
-                                                    title: "Catatan",
+                                                    title: tx("Catatan", "Notes"),
                                                     dataIndex: "notes",
                                                     key: "notes",
                                                     ellipsis: true,
                                                     render: (value) => value || "-",
                                                 },
                                                 {
-                                                    title: "Aksi",
+                                                    title: tx("Aksi", "Actions"),
                                                     key: "aksi",
                                                     width: 110,
                                                     align: "right",
@@ -1639,7 +1640,7 @@ export default function SettingsIndex() {
                                 },
                                 {
                                     key: "dues_settings",
-                                    label: "Pengaturan Iuran",
+                                    label: tx("Pengaturan Iuran", "Dues Settings"),
                                     children: (
                                         <Card style={{ borderRadius: 12 }}>
                                             <Form
@@ -1651,13 +1652,13 @@ export default function SettingsIndex() {
                                                 <Row gutter={[12, 12]}>
                                                     <Col xs={24} md={12}>
                                                         <Form.Item
-                                                            label="Nominal Iuran (default)"
+                                                            label={tx("Nominal Iuran (default)", "Default Dues Amount")}
                                                             name="dues_amount"
                                                             rules={[
                                                                 {
                                                                     required: true,
                                                                     message:
-                                                                        "Nominal wajib",
+                                                                        tx("Nominal wajib", "Amount is required"),
                                                                 },
                                                             ]}
                                                         >
@@ -1705,7 +1706,7 @@ export default function SettingsIndex() {
 
                                                     <Col xs={24} md={12}>
                                                         <Form.Item
-                                                            label="Jatuh Tempo (tanggal setiap bulan)"
+                                                            label={tx("Jatuh Tempo (tanggal setiap bulan)", "Due Date (day of each month)")}
                                                             name="due_day"
                                                             rules={[
                                                                 {
@@ -1727,7 +1728,7 @@ export default function SettingsIndex() {
 
                                                     <Col xs={24} md={12}>
                                                         <Form.Item
-                                                            label="Masa Tenggang (hari)"
+                                                            label={tx("Masa Tenggang (hari)", "Grace Period (days)")}
                                                             name="grace_days"
                                                         >
                                                             <InputNumber
@@ -1742,7 +1743,7 @@ export default function SettingsIndex() {
 
                                                     <Col xs={24} md={12}>
                                                         <Form.Item
-                                                            label="Auto tandai menunggak"
+                                                            label={tx("Auto tandai menunggak", "Automatically mark as overdue")}
                                                             name="auto_mark_arrears"
                                                             valuePropName="checked"
                                                         >
@@ -1765,7 +1766,7 @@ export default function SettingsIndex() {
                                                             }
                                                             onClick={saveDues}
                                                         >
-                                                            Simpan
+                                                            {tx("Simpan", "Save")}
                                                         </Button>
                                                     </Col>
                                                 </Row>
@@ -1785,7 +1786,7 @@ export default function SettingsIndex() {
                 label: (
                     <Space>
                         <SafetyCertificateOutlined />
-                        User & Permission
+                        {tx("User & Permission", "Users & Permissions")}
                     </Space>
                 ),
                 children: (
@@ -1803,7 +1804,7 @@ export default function SettingsIndex() {
                                                     style={{ borderRadius: 12 }}
                                                     title={
                                                         <Text strong>
-                                                            Tambah User
+                                                            {tx("Tambah User", "Add User")}
                                                         </Text>
                                                     }
                                                 >
@@ -1819,16 +1820,16 @@ export default function SettingsIndex() {
                                                             >
                                                                 <Form.Item
                                                                     name="name"
-                                                                    label="Nama"
+                                                                    label={tx("Nama", "Name")}
                                                                     rules={[
                                                                         {
                                                                             required: true,
                                                                             message:
-                                                                                "Nama wajib",
+                                                                                tx("Nama wajib", "Name is required"),
                                                                         },
                                                                     ]}
                                                                 >
-                                                                    <Input placeholder="Nama user..." />
+                                                                    <Input placeholder={tx("Nama user...", "User name...")} />
                                                                 </Form.Item>
                                                             </Col>
                                                             <Col
@@ -1842,7 +1843,7 @@ export default function SettingsIndex() {
                                                                         {
                                                                             required: true,
                                                                             message:
-                                                                                "Email wajib",
+                                                                                tx("Email wajib", "Email is required"),
                                                                         },
                                                                     ]}
                                                                 >
@@ -1860,12 +1861,12 @@ export default function SettingsIndex() {
                                                                         {
                                                                             required: true,
                                                                             message:
-                                                                                "Role wajib",
+                                                                                tx("Role wajib", "Role is required"),
                                                                         },
                                                                     ]}
                                                                 >
                                                                     <Select
-                                                                        placeholder="Pilih role"
+                                                                        placeholder={tx("Pilih role", "Select role")}
                                                                         options={roles.map(
                                                                             (
                                                                                 role,
@@ -1888,16 +1889,16 @@ export default function SettingsIndex() {
                                                                         {
                                                                             required: true,
                                                                             message:
-                                                                                "Password wajib",
+                                                                                tx("Password wajib", "Password is required"),
                                                                         },
                                                                         {
                                                                             min: 8,
                                                                             message:
-                                                                                "Minimal 8 karakter",
+                                                                                tx("Minimal 8 karakter", "At least 8 characters"),
                                                                         },
                                                                     ]}
                                                                 >
-                                                                    <Input.Password placeholder="Password sementara..." />
+                                                                    <Input.Password placeholder={tx("Password sementara...", "Temporary password...")} />
                                                                 </Form.Item>
                                                             </Col>
 
@@ -1919,7 +1920,7 @@ export default function SettingsIndex() {
                                                                         addUser
                                                                     }
                                                                 >
-                                                                    Tambah
+                                                        {tx("Tambah", "Add")}
                                                                 </Button>
                                                             </Col>
                                                         </Row>
@@ -1932,7 +1933,7 @@ export default function SettingsIndex() {
                                                     style={{ borderRadius: 12 }}
                                                     title={
                                                         <Text strong>
-                                                            Daftar User
+                                                            {tx("Daftar User", "User List")}
                                                         </Text>
                                                     }
                                                 >
@@ -1944,7 +1945,7 @@ export default function SettingsIndex() {
                                                         scroll={{ x: 940 }}
                                                         columns={[
                                                             {
-                                                                title: "Nama",
+                                                                title: tx("Nama", "Name"),
                                                                 dataIndex:
                                                                     "name",
                                                                 key: "name",
@@ -1987,8 +1988,7 @@ export default function SettingsIndex() {
                                                                         </Space>
                                                                     ) : (
                                                                         <Tag color="default">
-                                                                            Tanpa
-                                                                            Role
+                                                                            {tx("Tanpa Role", "No Role")}
                                                                         </Tag>
                                                                     ),
                                                             },
@@ -2007,13 +2007,13 @@ export default function SettingsIndex() {
                                                                         }
                                                                     >
                                                                         {v
-                                                                            ? "AKTIF"
-                                                                            : "NONAKTIF"}
+                                                                            ? tx("AKTIF", "ACTIVE")
+                                                                            : tx("NONAKTIF", "INACTIVE")}
                                                                     </Tag>
                                                                 ),
                                                             },
                                                             {
-                                                                title: "Aksi",
+                                                                title: tx("Aksi", "Actions"),
                                                                 key: "aksi",
                                                                 width: 380,
                                                                 align: "right",
@@ -2040,8 +2040,7 @@ export default function SettingsIndex() {
                                                                                 )
                                                                             }
                                                                         >
-                                                                            Assign
-                                                                            Role
+                                                                            {tx("Tetapkan Role", "Assign Role")}
                                                                         </Button>
                                                                         <Button
                                                                             size="small"
@@ -2051,8 +2050,7 @@ export default function SettingsIndex() {
                                                                                 )
                                                                             }
                                                                         >
-                                                                            Sync
-                                                                            Permission
+                                                                            {tx("Sinkronisasi Permission", "Sync Permissions")}
                                                                         </Button>
                                                                         {canResetPassword && (
                                                                             <Button
@@ -2093,9 +2091,7 @@ export default function SettingsIndex() {
                                                             marginTop: 8,
                                                         }}
                                                     >
-                                                        *Data diambil dari
-                                                        Spatie Permission
-                                                        (roles/permissions).
+                                                        {tx("*Data diambil dari Spatie Permission (roles/permissions).", "*Data is loaded from Spatie Permission (roles/permissions).")}
                                                     </Text>
                                                 </Card>
                                             </Col>
@@ -2112,7 +2108,7 @@ export default function SettingsIndex() {
                                                     style={{ borderRadius: 12 }}
                                                     title={
                                                         <Text strong>
-                                                            Tambah Role
+                                                            {tx("Tambah Role", "Add Role")}
                                                         </Text>
                                                     }
                                                 >
@@ -2123,16 +2119,16 @@ export default function SettingsIndex() {
                                                     >
                                                         <Form.Item
                                                             name="name"
-                                                            label="Nama Role"
+                                                            label={tx("Nama Role", "Role Name")}
                                                             rules={[
                                                                 {
                                                                     required: true,
                                                                     message:
-                                                                        "Nama role wajib",
+                                                                        tx("Nama role wajib", "Role name is required"),
                                                                 },
                                                             ]}
                                                         >
-                                                            <Input placeholder="Contoh: Admin" />
+                                                            <Input placeholder={tx("Contoh: Admin", "Example: Admin")} />
                                                         </Form.Item>
                                                         <Button
                                                             type="primary"
@@ -2141,7 +2137,7 @@ export default function SettingsIndex() {
                                                             }
                                                             onClick={addRole}
                                                         >
-                                                            Tambah Role
+                                                            {tx("Tambah Role", "Add Role")}
                                                         </Button>
                                                     </Form>
                                                 </Card>
@@ -2151,7 +2147,7 @@ export default function SettingsIndex() {
                                                     style={{ borderRadius: 12 }}
                                                     title={
                                                         <Text strong>
-                                                            Daftar Role
+                                                            {tx("Daftar Role", "Role List")}
                                                         </Text>
                                                     }
                                                 >
@@ -2162,7 +2158,7 @@ export default function SettingsIndex() {
                                                         pagination={false}
                                                         columns={[
                                                             {
-                                                                title: "Nama",
+                                                                title: tx("Nama", "Name"),
                                                                 dataIndex:
                                                                     "name",
                                                                 key: "name",
@@ -2198,7 +2194,7 @@ export default function SettingsIndex() {
                                                                 ),
                                                             },
                                                             {
-                                                                title: "Aksi",
+                                                                title: tx("Aksi", "Actions"),
                                                                 key: "aksi",
                                                                 width: 220,
                                                                 align: "right",
@@ -2260,7 +2256,7 @@ export default function SettingsIndex() {
                                                     style={{ borderRadius: 12 }}
                                                     title={
                                                         <Text strong>
-                                                            Tambah Permission
+                                                            {tx("Tambah Permission", "Add Permission")}
                                                         </Text>
                                                     }
                                                 >
@@ -2271,16 +2267,16 @@ export default function SettingsIndex() {
                                                     >
                                                         <Form.Item
                                                             name="name"
-                                                            label="Nama Permission"
+                                                            label={tx("Nama Permission", "Permission Name")}
                                                             rules={[
                                                                 {
                                                                     required: true,
                                                                     message:
-                                                                        "Nama permission wajib",
+                                                                        tx("Nama permission wajib", "Permission name is required"),
                                                                 },
                                                             ]}
                                                         >
-                                                            <Input placeholder="Contoh: users.view" />
+                                                            <Input placeholder={tx("Contoh: users.view", "Example: users.view")} />
                                                         </Form.Item>
                                                         <Button
                                                             type="primary"
@@ -2291,7 +2287,7 @@ export default function SettingsIndex() {
                                                                 addPermission
                                                             }
                                                         >
-                                                            Tambah Permission
+                                                            {tx("Tambah Permission", "Add Permission")}
                                                         </Button>
                                                     </Form>
                                                 </Card>
@@ -2301,7 +2297,7 @@ export default function SettingsIndex() {
                                                     style={{ borderRadius: 12 }}
                                                     title={
                                                         <Text strong>
-                                                            Daftar Permission
+                                                            {tx("Daftar Permission", "Permission List")}
                                                         </Text>
                                                     }
                                                 >
@@ -2312,13 +2308,13 @@ export default function SettingsIndex() {
                                                         pagination={false}
                                                         columns={[
                                                             {
-                                                                title: "Nama",
+                                                                title: tx("Nama", "Name"),
                                                                 dataIndex:
                                                                     "name",
                                                                 key: "name",
                                                             },
                                                             {
-                                                                title: "Aksi",
+                                                                title: tx("Aksi", "Actions"),
                                                                 key: "aksi",
                                                                 width: 140,
                                                                 align: "right",
@@ -2371,7 +2367,7 @@ export default function SettingsIndex() {
                 label: (
                     <Space>
                         <CloudDownloadOutlined />
-                        Backup & Export Data
+                        {tx("Backup & Export Data", "Backup & Data Export")}
                     </Space>
                 ),
                 children: (
@@ -2379,13 +2375,10 @@ export default function SettingsIndex() {
                         <Col xs={24} lg={15}>
                             <Card
                                 style={{ borderRadius: 12 }}
-                                title={<Text strong>Backup Sistem</Text>}
+                                title={<Text strong>{tx("Backup Sistem", "System Backup")}</Text>}
                             >
                                 <Text type="secondary">
-                                    Backup seluruh tabel database ke file ZIP
-                                    berisi database.sql untuk migrasi,
-                                    pemulihan sistem, atau reimport oleh admin.
-                                    File ini bukan laporan harian.
+                                    {tx("Backup seluruh tabel database ke file ZIP berisi database.sql untuk migrasi, pemulihan sistem, atau reimport oleh admin. File ini bukan laporan harian.", "Back up all database tables to a ZIP file containing database.sql for migration, system recovery, or administrator reimport. This file is not a daily report.")}
                                 </Text>
 
                                 <div style={{ marginTop: 12 }}>
@@ -2411,7 +2404,7 @@ export default function SettingsIndex() {
                                             color="red"
                                             style={{ padding: "4px 10px" }}
                                         >
-                                            Khusus Admin Sistem
+                                            {tx("Khusus Admin Sistem", "System Administrators Only")}
                                         </Tag>
                                     </Space>
                                 </div>
@@ -2419,12 +2412,10 @@ export default function SettingsIndex() {
 
                             <Card
                                 style={{ borderRadius: 12, marginTop: 12 }}
-                                title={<Text strong>Export Data Siap Pakai</Text>}
+                                title={<Text strong>{tx("Export Data Siap Pakai", "Ready-to-Use Data Export")}</Text>}
                             >
                                 <Text type="secondary">
-                                    Export untuk arsip dan laporan yang mudah
-                                    dibuka oleh pengurus non-teknis. File ini
-                                    tidak ditujukan untuk restore database.
+                                    {tx("Export untuk arsip dan laporan yang mudah dibuka oleh pengurus non-teknis. File ini tidak ditujukan untuk restore database.", "Export archives and reports that non-technical board members can open easily. These files are not intended for database restoration.")}
                                 </Text>
 
                                 <div style={{ marginTop: 12 }}>
@@ -2438,7 +2429,7 @@ export default function SettingsIndex() {
                                             }
                                             icon={<FileExcelOutlined />}
                                         >
-                                            Export Anggota
+                                            {tx("Export Anggota", "Export Members")}
                                         </Button>
                                         <Button
                                             onClick={() =>
@@ -2448,7 +2439,7 @@ export default function SettingsIndex() {
                                             }
                                             icon={<FileExcelOutlined />}
                                         >
-                                            Export Rekap Iuran
+                                            {tx("Export Rekap Iuran", "Export Dues Recap")}
                                         </Button>
                                         <Button
                                             onClick={() =>
@@ -2458,7 +2449,7 @@ export default function SettingsIndex() {
                                             }
                                             icon={<CloudDownloadOutlined />}
                                         >
-                                            Buka Pusat Export
+                                            {tx("Buka Pusat Export", "Open Export Center")}
                                         </Button>
                                     </Space>
                                 </div>
@@ -2474,7 +2465,7 @@ export default function SettingsIndex() {
                                 title={
                                     <Space>
                                         <HistoryOutlined />
-                                        <Text strong>Riwayat Backup Sistem</Text>
+                                        <Text strong>{tx("Riwayat Backup Sistem", "System Backup History")}</Text>
                                     </Space>
                                 }
                             >
@@ -2506,11 +2497,11 @@ export default function SettingsIndex() {
                                                         <Text strong>
                                                             {backup.scope ===
                                                             "finance"
-                                                                ? "Backup Keuangan"
+                                                                ? tx("Backup Keuangan", "Financial Backup")
                                                                 : backup.scope ===
                                                                     "all"
                                                                   ? "Backup Full Database"
-                                                                  : "Backup Anggota"}
+                                                                  : tx("Backup Anggota", "Member Backup")}
                                                         </Text>
                                                         <br />
                                                         <Text type="secondary">
@@ -2520,7 +2511,7 @@ export default function SettingsIndex() {
                                                             <>
                                                                 <br />
                                                                 <Text type="secondary">
-                                                                    Oleh{" "}
+                                                                    {tx("Oleh", "By")}{" "}
                                                                     {
                                                                         backup.created_by
                                                                     }
@@ -2534,7 +2525,7 @@ export default function SettingsIndex() {
                                                     </div>
                                                     <Space orientation="vertical" align="end">
                                                         <Tag color="green">
-                                                            Berhasil
+                                                            {tx("Berhasil", "Successful")}
                                                         </Tag>
                                                         {backup.download_url ? (
                                                             <Button
@@ -2556,7 +2547,7 @@ export default function SettingsIndex() {
                                         ))
                                     ) : (
                                         <Text type="secondary">
-                                            Belum ada riwayat backup sistem.
+                                            {tx("Belum ada riwayat backup sistem.", "No system backup history yet.")}
                                         </Text>
                                     )}
                                 </Space>
@@ -2564,10 +2555,8 @@ export default function SettingsIndex() {
                                 <Divider style={{ margin: "16px 0" }} />
 
                                 <Text type="secondary">
-                                    Backup baru berisi <code>database.sql</code>{" "}
-                                    untuk restore database. Backup format lama
-                                    tetap bisa di-restore bila ZIP masih memuat
-                                    <code>database.json</code>.
+                                    {tx("Backup baru berisi", "New backups contain")} <code>database.sql</code>{" "}
+                                    {tx("untuk restore database. Backup format lama tetap bisa di-restore bila ZIP masih memuat", "for database restoration. Legacy backups can still be restored if the ZIP contains")} <code>database.json</code>.
                                 </Text>
                             </Card>
                         </Col>
@@ -2588,11 +2577,11 @@ export default function SettingsIndex() {
                         <Col xs={24} lg={10}>
                             <Card
                                 style={{ borderRadius: 12, background: "#fff7e6" }}
-                                title={<Text strong>Peringatan</Text>}
+                                title={<Text strong>{tx("Peringatan", "Warning")}</Text>}
                             >
                                 <ul style={{ paddingLeft: 18, margin: 0 }}>
-                                    <li>Gunakan hanya jika benar-benar diperlukan.</li>
-                                    <li>Hard reset akan membuat akun admin baru.</li>
+                                    <li>{tx("Gunakan hanya jika benar-benar diperlukan.", "Use only when absolutely necessary.")}</li>
+                                    <li>{tx("Hard reset akan membuat akun admin baru.", "A hard reset will create a new administrator account.")}</li>
                                     <li>Password default: <code>admin123</code>.</li>
                                     <li>Email admin: <code>admin@local.test</code>.</li>
                                 </ul>
@@ -2606,7 +2595,7 @@ export default function SettingsIndex() {
                                 >
                                     <Space orientation="vertical">
                                         <Text>
-                                            Menghapus semua data dan membuat ulang admin + permission default.
+                                            {tx("Menghapus semua data dan membuat ulang admin + permission default.", "Deletes all data and recreates the administrator account and default permissions.")}
                                         </Text>
                                         <Button danger icon={<ReloadOutlined />} onClick={confirmHardReset}>
                                             Hard Reset
@@ -2616,24 +2605,24 @@ export default function SettingsIndex() {
 
                                 <Card
                                     style={{ borderRadius: 12 }}
-                                    title={<Text strong>Reset Data Iuran & Kas</Text>}
+                                    title={<Text strong>{tx("Reset Data Iuran & Kas", "Reset Dues & Cash Data")}</Text>}
                                 >
                                     <Space orientation="vertical">
                                         <Text>
-                                            Hanya menghapus data transaksi iuran dan kas, master data tetap.
+                                            {tx("Hanya menghapus data transaksi iuran dan kas, master data tetap.", "Deletes dues and cash transactions only; master data remains intact.")}
                                         </Text>
                                         <Button danger icon={<ReloadOutlined />} onClick={confirmFinanceReset}>
-                                            Reset Iuran & Kas
+                                            {tx("Reset Iuran & Kas", "Reset Dues & Cash")}
                                         </Button>
                                     </Space>
                                 </Card>
 
                                 <Card
                                     style={{ borderRadius: 12 }}
-                                    title={<Text strong>Hapus per Tabel (Opsional)</Text>}
+                                    title={<Text strong>{tx("Hapus per Tabel (Opsional)", "Clear Individual Tables (Optional)")}</Text>}
                                 >
                                     <Text type="secondary">
-                                        Urutan tabel sudah disesuaikan dengan relasi antar data.
+                                        {tx("Urutan tabel sudah disesuaikan dengan relasi antar data.", "The table order has been adjusted for data relationships.")}
                                     </Text>
                                     <Divider />
                                     <Checkbox.Group
@@ -2661,7 +2650,7 @@ export default function SettingsIndex() {
                                         disabled={!selectedResetTables.length}
                                         onClick={submitCustomReset}
                                     >
-                                        Hapus Tabel Terpilih
+                                        {tx("Hapus Tabel Terpilih", "Clear Selected Tables")}
                                     </Button>
                                 </Card>
                             </Space>
@@ -2672,9 +2661,14 @@ export default function SettingsIndex() {
         ];
     }, [
         cashCategories,
+        cashMethods,
         divisions,
+        duesSettings,
+        isEn,
+        memberStatuses,
         positions,
         paymentStatuses,
+        workProgramPeriods,
         users,
         roles,
         permissions,
@@ -2703,7 +2697,7 @@ export default function SettingsIndex() {
                     />
                 </div>
                 <Modal
-                    title="Import / Restore Database"
+                    title={tx("Import / Restore Database", "Import / Restore Database")}
                     open={restoreModalOpen}
                     onCancel={() => {
                         if (!restoreProcessing) {
@@ -2716,14 +2710,12 @@ export default function SettingsIndex() {
                         danger: true,
                         loading: restoreProcessing,
                     }}
-                    cancelText="Batal"
+                    cancelText={tx("Batal", "Cancel")}
                     destroyOnHidden
                 >
                     <Space orientation="vertical" size={12} style={{ width: "100%" }}>
                         <Text type="danger">
-                            Restore akan menghapus data aktif lalu mengisi ulang
-                            database dari file backup SQL. Pastikan Anda sudah
-                            membuat backup terbaru sebelum melanjutkan.
+                            {tx("Restore akan menghapus data aktif lalu mengisi ulang database dari file backup SQL. Pastikan Anda sudah membuat backup terbaru sebelum melanjutkan.", "Restoring will delete active data and reload the database from the SQL backup file. Make sure you have created a recent backup before continuing.")}
                         </Text>
 
                         <Upload.Dragger
@@ -2742,10 +2734,10 @@ export default function SettingsIndex() {
                                 <CloudUploadOutlined />
                             </p>
                             <p className="ant-upload-text">
-                                Pilih file backup ZIP
+                                {tx("Pilih file backup ZIP", "Select a backup ZIP file")}
                             </p>
                             <p className="ant-upload-hint">
-                                Gunakan file dari tombol Backup Full Database.
+                                {tx("Gunakan file dari tombol Backup Full Database.", "Use a file created by the Full Database Backup button.")}
                             </p>
                         </Upload.Dragger>
 
@@ -2754,27 +2746,27 @@ export default function SettingsIndex() {
                             onChange={(event) =>
                                 setRestoreConfirmation(event.target.value)
                             }
-                            placeholder='Ketik "RESTORE DATABASE"'
+                            placeholder={tx('Ketik "RESTORE DATABASE"', 'Type "RESTORE DATABASE"')}
                         />
                     </Space>
                 </Modal>
                 <Modal
-                    title={`Assign Role: ${assignRoleModal.user?.name || ""}`}
+                    title={`${tx("Tetapkan Role", "Assign Role")}: ${assignRoleModal.user?.name || ""}`}
                     open={assignRoleModal.open}
                     onCancel={() =>
                         setAssignRoleModal({ open: false, user: null })
                     }
                     onOk={submitAssignRole}
-                    okText="Simpan"
+                    okText={tx("Simpan", "Save")}
                 >
                     <Form form={assignRoleForm} layout="vertical">
                         <Form.Item
                             name="role"
                             label="Role"
-                            rules={[{ required: true, message: "Role wajib" }]}
+                            rules={[{ required: true, message: tx("Role wajib", "Role is required") }]}
                         >
                             <Select
-                                placeholder="Pilih role"
+                                placeholder={tx("Pilih role", "Select role")}
                                 options={roles.map((role) => ({
                                     value: role.name,
                                     label: role.name,
@@ -2785,26 +2777,26 @@ export default function SettingsIndex() {
                 </Modal>
 
                 <Modal
-                    title={`Edit User: ${editUserModal.user?.name || ""}`}
+                    title={`${tx("Edit User", "Edit User")}: ${editUserModal.user?.name || ""}`}
                     open={editUserModal.open}
                     onCancel={() =>
                         setEditUserModal({ open: false, user: null })
                     }
                     onOk={submitEditUser}
-                    okText="Simpan"
+                    okText={tx("Simpan", "Save")}
                 >
                     <Form form={editUserForm} layout="vertical">
                         <Form.Item
                             name="name"
-                            label="Nama"
-                            rules={[{ required: true, message: "Nama wajib" }]}
+                            label={tx("Nama", "Name")}
+                            rules={[{ required: true, message: tx("Nama wajib", "Name is required") }]}
                         >
                             <Input />
                         </Form.Item>
                         <Form.Item
                             name="email"
                             label="Email"
-                            rules={[{ required: true, message: "Email wajib" }]}
+                            rules={[{ required: true, message: tx("Email wajib", "Email is required") }]}
                         >
                             <Input />
                         </Form.Item>
@@ -2812,11 +2804,11 @@ export default function SettingsIndex() {
                 </Modal>
 
                 <Modal
-                    title={`Reset Password: ${resetPasswordModal.user?.name || ""}`}
+                    title={`${tx("Reset Kata Sandi", "Reset Password")}: ${resetPasswordModal.user?.name || ""}`}
                     open={resetPasswordModal.open}
                     onCancel={closeResetPassword}
                     onOk={submitResetPassword}
-                    okText="Reset Password"
+                    okText={tx("Reset Kata Sandi", "Reset Password")}
                     okButtonProps={{ danger: true }}
                 >
                     <Form
@@ -2826,11 +2818,11 @@ export default function SettingsIndex() {
                     >
                         <Form.Item
                             name="password"
-                            label="Password Baru"
+                            label={tx("Password Baru", "New Password")}
                             rules={[
                                 {
                                     required: true,
-                                    message: "Password baru wajib",
+                                    message: tx("Password baru wajib", "New password is required"),
                                 },
                                 {
                                     min: 8,
@@ -2840,12 +2832,12 @@ export default function SettingsIndex() {
                         >
                             <Input.Password
                                 autoComplete="new-password"
-                                placeholder="Password sementara baru..."
+                                placeholder={tx("Password sementara baru...", "New temporary password...")}
                             />
                         </Form.Item>
                         <Form.Item
                             name="password_confirmation"
-                            label="Konfirmasi Password"
+                            label={tx("Konfirmasi Password", "Confirm Password")}
                             dependencies={["password"]}
                             rules={[
                                 {
@@ -2870,20 +2862,20 @@ export default function SettingsIndex() {
                         >
                             <Input.Password
                                 autoComplete="new-password"
-                                placeholder="Ulangi password baru..."
+                                placeholder={tx("Ulangi password baru...", "Repeat the new password...")}
                             />
                         </Form.Item>
                     </Form>
                 </Modal>
 
                 <Modal
-                    title={`Sync Permission Role: ${syncRoleModal.role?.name || ""}`}
+                    title={`${tx("Sinkronisasi Permission Role", "Sync Role Permissions")}: ${syncRoleModal.role?.name || ""}`}
                     open={syncRoleModal.open}
                     onCancel={() =>
                         setSyncRoleModal({ open: false, role: null })
                     }
                     onOk={submitSyncRolePermissions}
-                    okText="Simpan"
+                    okText={tx("Simpan", "Save")}
                     width={640}
                 >
                     <Text type="secondary">
@@ -2908,20 +2900,20 @@ export default function SettingsIndex() {
                 </Modal>
 
                 <Modal
-                    title={`Edit Role: ${editRoleModal.role?.name || ""}`}
+                    title={`${tx("Edit Role", "Edit Role")}: ${editRoleModal.role?.name || ""}`}
                     open={editRoleModal.open}
                     onCancel={() =>
                         setEditRoleModal({ open: false, role: null })
                     }
                     onOk={submitEditRole}
-                    okText="Simpan"
+                    okText={tx("Simpan", "Save")}
                 >
                     <Form form={editRoleForm} layout="vertical">
                         <Form.Item
                             name="name"
-                            label="Nama Role"
+                            label={tx("Nama Role", "Role Name")}
                             rules={[
-                                { required: true, message: "Nama role wajib" },
+                                { required: true, message: tx("Nama role wajib", "Role name is required") },
                             ]}
                         >
                             <Input />
@@ -2930,14 +2922,14 @@ export default function SettingsIndex() {
                 </Modal>
 
                 <Modal
-                    title="Tambah Divisi"
+                    title={tx("Tambah Divisi", "Add Division")}
                     open={divisionModalOpen}
                     onCancel={() => {
                         setDivisionModalOpen(false);
                         divisionForm.resetFields();
                     }}
                     onOk={submitDivision}
-                    okText="Simpan"
+                    okText={tx("Simpan", "Save")}
                 >
                     <Form
                         form={divisionForm}
@@ -2946,22 +2938,22 @@ export default function SettingsIndex() {
                     >
                         <Form.Item
                             name="name"
-                            label="Nama Divisi"
+                            label={tx("Nama Divisi", "Division Name")}
                             rules={[
                                 {
                                     required: true,
-                                    message: "Nama divisi wajib",
+                                    message: tx("Nama divisi wajib", "Division name is required"),
                                 },
                             ]}
                         >
-                            <Input placeholder="Contoh: Keuangan" />
+                            <Input placeholder={tx("Contoh: Keuangan", "Example: Finance")} />
                         </Form.Item>
-                        <Form.Item name="code" label="Kode (opsional)">
+                        <Form.Item name="code" label={tx("Kode (opsional)", "Code (optional)")}>
                             <Input placeholder="DIV-KEU" />
                         </Form.Item>
                         <Form.Item
                             name="is_active"
-                            label="Aktif"
+                            label={tx("Aktif", "Active")}
                             valuePropName="checked"
                         >
                             <Switch />
@@ -2970,14 +2962,14 @@ export default function SettingsIndex() {
                 </Modal>
 
                 <Modal
-                    title="Tambah Jabatan"
+                    title={tx("Tambah Jabatan", "Add Position")}
                     open={positionModalOpen}
                     onCancel={() => {
                         setPositionModalOpen(false);
                         positionForm.resetFields();
                     }}
                     onOk={submitPosition}
-                    okText="Simpan"
+                    okText={tx("Simpan", "Save")}
                 >
                     <Form
                         form={positionForm}
@@ -2986,22 +2978,22 @@ export default function SettingsIndex() {
                     >
                         <Form.Item
                             name="name"
-                            label="Nama Jabatan"
+                            label={tx("Nama Jabatan", "Position Name")}
                             rules={[
                                 {
                                     required: true,
-                                    message: "Nama jabatan wajib",
+                                    message: tx("Nama jabatan wajib", "Position name is required"),
                                 },
                             ]}
                         >
-                            <Input placeholder="Contoh: Ketua" />
+                            <Input placeholder={tx("Contoh: Ketua", "Example: Chair") } />
                         </Form.Item>
-                        <Form.Item name="code" label="Kode (opsional)">
+                        <Form.Item name="code" label={tx("Kode (opsional)", "Code (optional)")}>
                             <Input placeholder="JBT-KETUA" />
                         </Form.Item>
                         <Form.Item
                             name="is_active"
-                            label="Aktif"
+                            label={tx("Aktif", "Active")}
                             valuePropName="checked"
                         >
                             <Switch />
@@ -3010,14 +3002,14 @@ export default function SettingsIndex() {
                 </Modal>
 
                 <Modal
-                    title="Tambah Kategori Cashflow"
+                    title={tx("Tambah Kategori Cashflow", "Add Cashflow Category")}
                     open={cashCategoryModalOpen}
                     onCancel={() => {
                         setCashCategoryModalOpen(false);
                         cashCategoryForm.resetFields();
                     }}
                     onOk={submitCashCategory}
-                    okText="Simpan"
+                    okText={tx("Simpan", "Save")}
                 >
                     <Form
                         form={cashCategoryForm}
@@ -3026,34 +3018,34 @@ export default function SettingsIndex() {
                     >
                         <Form.Item
                             name="type"
-                            label="Tipe"
-                            rules={[{ required: true, message: "Tipe wajib" }]}
+                            label={tx("Tipe", "Type")}
+                            rules={[{ required: true, message: tx("Tipe wajib", "Type is required") }]}
                         >
                             <Select
                                 options={[
-                                    { value: "in", label: "Masuk" },
-                                    { value: "out", label: "Keluar" },
+                                    { value: "in", label: tx("Masuk", "Income") },
+                                    { value: "out", label: tx("Keluar", "Expense") },
                                 ]}
                             />
                         </Form.Item>
                         <Form.Item
                             name="name"
-                            label="Nama Kategori"
+                            label={tx("Nama Kategori", "Category Name")}
                             rules={[
                                 {
                                     required: true,
-                                    message: "Nama kategori wajib",
+                                    message: tx("Nama kategori wajib", "Category name is required"),
                                 },
                             ]}
                         >
-                            <Input placeholder="Contoh: Operasional" />
+                            <Input placeholder={tx("Contoh: Operasional", "Example: Operations")} />
                         </Form.Item>
-                        <Form.Item name="code" label="Kode (opsional)">
+                        <Form.Item name="code" label={tx("Kode (opsional)", "Code (optional)")}>
                             <Input placeholder="CASH-OPS" />
                         </Form.Item>
                         <Form.Item
                             name="is_active"
-                            label="Aktif"
+                            label={tx("Aktif", "Active")}
                             valuePropName="checked"
                         >
                             <Switch />
@@ -3062,14 +3054,14 @@ export default function SettingsIndex() {
                 </Modal>
 
                 <Modal
-                    title="Tambah Metode Bayar"
+                    title={tx("Tambah Metode Bayar", "Add Payment Method")}
                     open={cashMethodModalOpen}
                     onCancel={() => {
                         setCashMethodModalOpen(false);
                         cashMethodForm.resetFields();
                     }}
                     onOk={submitCashMethod}
-                    okText="Simpan"
+                    okText={tx("Simpan", "Save")}
                 >
                     <Form
                         form={cashMethodForm}
@@ -3078,19 +3070,19 @@ export default function SettingsIndex() {
                     >
                         <Form.Item
                             name="name"
-                            label="Nama Metode"
+                            label={tx("Nama Metode", "Method Name")}
                             rules={[
                                 {
                                     required: true,
-                                    message: "Nama metode wajib",
+                                    message: tx("Nama metode wajib", "Method name is required"),
                                 },
                             ]}
                         >
-                            <Input placeholder="Contoh: Transfer Bank" />
+                            <Input placeholder={tx("Contoh: Transfer Bank", "Example: Bank Transfer")} />
                         </Form.Item>
                         <Form.Item
                             name="is_active"
-                            label="Aktif"
+                            label={tx("Aktif", "Active")}
                             valuePropName="checked"
                         >
                             <Switch />
@@ -3099,14 +3091,14 @@ export default function SettingsIndex() {
                 </Modal>
 
                 <Modal
-                    title="Tambah Status Anggota"
+                    title={tx("Tambah Status Anggota", "Add Member Status")}
                     open={memberStatusModalOpen}
                     onCancel={() => {
                         setMemberStatusModalOpen(false);
                         memberStatusForm.resetFields();
                     }}
                     onOk={submitMemberStatus}
-                    okText="Simpan"
+                    okText={tx("Simpan", "Save")}
                 >
                     <Form
                         form={memberStatusForm}
@@ -3122,49 +3114,49 @@ export default function SettingsIndex() {
                         <Form.Item
                             name="code"
                             label="Kode"
-                            rules={[{ required: true, message: "Kode wajib" }]}
+                            rules={[{ required: true, message: tx("Kode wajib", "Code is required") }]}
                         >
                             <Input placeholder="aktif" />
                         </Form.Item>
                         <Form.Item
                             name="name"
-                            label="Nama Status"
+                            label={tx("Nama Status", "Status Name")}
                             rules={[
                                 {
                                     required: true,
-                                    message: "Nama status wajib",
+                                    message: tx("Nama status wajib", "Status name is required"),
                                 },
                             ]}
                         >
-                            <Input placeholder="Aktif" />
+                            <Input placeholder={tx("Aktif", "Active")} />
                         </Form.Item>
-                        <Form.Item name="sort_order" label="Urutan">
+                        <Form.Item name="sort_order" label={tx("Urutan", "Order")}>
                             <InputNumber min={0} style={{ width: "100%" }} />
                         </Form.Item>
                         <Form.Item
                             name="is_active_member"
-                            label="Anggota Aktif"
+                            label={tx("Anggota Aktif", "Active Member")}
                             valuePropName="checked"
                         >
                             <Switch />
                         </Form.Item>
                         <Form.Item
                             name="is_billable"
-                            label="Masuk Perhitungan Iuran"
+                            label={tx("Masuk Perhitungan Iuran", "Included in Dues Calculation")}
                             valuePropName="checked"
                         >
                             <Switch />
                         </Form.Item>
                         <Form.Item
                             name="is_deceased"
-                            label="Status Meninggal"
+                            label={tx("Status Meninggal", "Deceased Status")}
                             valuePropName="checked"
                         >
                             <Switch />
                         </Form.Item>
                         <Form.Item
                             name="is_active"
-                            label="Aktif"
+                            label={tx("Aktif", "Active")}
                             valuePropName="checked"
                         >
                             <Switch />
@@ -3173,14 +3165,14 @@ export default function SettingsIndex() {
                 </Modal>
 
                 <Modal
-                    title="Tambah Status Bayar"
+                    title={tx("Tambah Status Bayar", "Add Payment Status")}
                     open={paymentStatusModalOpen}
                     onCancel={() => {
                         setPaymentStatusModalOpen(false);
                         paymentStatusForm.resetFields();
                     }}
                     onOk={submitPaymentStatus}
-                    okText="Simpan"
+                    okText={tx("Simpan", "Save")}
                 >
                     <Form
                         form={paymentStatusForm}
@@ -3190,28 +3182,28 @@ export default function SettingsIndex() {
                         <Form.Item
                             name="code"
                             label="Kode"
-                            rules={[{ required: true, message: "Kode wajib" }]}
+                            rules={[{ required: true, message: tx("Kode wajib", "Code is required") }]}
                         >
                             <Input placeholder="PAID" />
                         </Form.Item>
                         <Form.Item
                             name="name"
-                            label="Nama Status"
+                            label={tx("Nama Status", "Status Name")}
                             rules={[
                                 {
                                     required: true,
-                                    message: "Nama status wajib",
+                                    message: tx("Nama status wajib", "Status name is required"),
                                 },
                             ]}
                         >
-                            <Input placeholder="Lunas" />
+                            <Input placeholder={tx("Lunas", "Paid")} />
                         </Form.Item>
-                        <Form.Item name="color" label="Warna Tag">
+                        <Form.Item name="color" label={tx("Warna Tag", "Tag Color")}>
                             <Input placeholder="blue" />
                         </Form.Item>
                         <Form.Item
                             name="is_active"
-                            label="Aktif"
+                            label={tx("Aktif", "Active")}
                             valuePropName="checked"
                         >
                             <Switch />
@@ -3220,14 +3212,14 @@ export default function SettingsIndex() {
                 </Modal>
 
                 <Modal
-                    title="Tambah Periode Program Kerja"
+                    title={tx("Tambah Periode Program Kerja", "Add Work Program Period")}
                     open={workProgramPeriodModalOpen}
                     onCancel={() => {
                         setWorkProgramPeriodModalOpen(false);
                         workProgramPeriodForm.resetFields();
                     }}
                     onOk={submitWorkProgramPeriod}
-                    okText="Simpan"
+                    okText={tx("Simpan", "Save")}
                 >
                     <Form
                         form={workProgramPeriodForm}
@@ -3240,20 +3232,20 @@ export default function SettingsIndex() {
                     >
                         <Form.Item
                             name="name"
-                            label="Nama Periode"
-                            rules={[{ required: true, message: "Nama periode wajib" }]}
+                            label={tx("Nama Periode", "Period Name")}
+                            rules={[{ required: true, message: tx("Nama periode wajib", "Period name is required") }]}
                         >
-                            <Input placeholder="Contoh: Program Kerja 2026" />
+                            <Input placeholder={tx("Contoh: Program Kerja 2026", "Example: 2026 Work Program")} />
                         </Form.Item>
-                        <Form.Item name="code" label="Kode (opsional)">
+                        <Form.Item name="code" label={tx("Kode (opsional)", "Code (optional)")}>
                             <Input placeholder="PROKER-2026" />
                         </Form.Item>
                         <Row gutter={12}>
                             <Col xs={24} md={12}>
                                 <Form.Item
                                     name="start_date"
-                                    label="Tanggal Mulai"
-                                    rules={[{ required: true, message: "Tanggal mulai wajib" }]}
+                                    label={tx("Tanggal Mulai", "Start Date")}
+                                    rules={[{ required: true, message: tx("Tanggal mulai wajib", "Start date is required") }]}
                                 >
                                     <DatePicker style={{ width: "100%" }} />
                                 </Form.Item>
@@ -3261,19 +3253,19 @@ export default function SettingsIndex() {
                             <Col xs={24} md={12}>
                                 <Form.Item
                                     name="end_date"
-                                    label="Tanggal Selesai"
-                                    rules={[{ required: true, message: "Tanggal selesai wajib" }]}
+                                    label={tx("Tanggal Selesai", "End Date")}
+                                    rules={[{ required: true, message: tx("Tanggal selesai wajib", "End date is required") }]}
                                 >
                                     <DatePicker style={{ width: "100%" }} />
                                 </Form.Item>
                             </Col>
                         </Row>
-                        <Form.Item name="notes" label="Catatan">
+                        <Form.Item name="notes" label={tx("Catatan", "Notes")}>
                             <Input.TextArea rows={3} />
                         </Form.Item>
                         <Form.Item
                             name="is_active"
-                            label="Aktif"
+                            label={tx("Aktif", "Active")}
                             valuePropName="checked"
                         >
                             <Switch />
@@ -3286,19 +3278,19 @@ export default function SettingsIndex() {
                     open={editMasterModal.open}
                     onCancel={closeEditMaster}
                     onOk={submitEditMaster}
-                    okText="Simpan"
+                    okText={tx("Simpan", "Save")}
                 >
                     <Form form={editMasterForm} layout="vertical">
                         {editMasterModal.type === "cash_categories" ? (
                             <Form.Item
                                 name="type"
-                                label="Tipe"
-                                rules={[{ required: true, message: "Tipe wajib" }]}
+                            label={tx("Tipe", "Type")}
+                                rules={[{ required: true, message: tx("Tipe wajib", "Type is required") }]}
                             >
                                 <Select
                                     options={[
-                                        { value: "in", label: "Masuk" },
-                                        { value: "out", label: "Keluar" },
+                                        { value: "in", label: tx("Masuk", "Income") },
+                                        { value: "out", label: tx("Keluar", "Expense") },
                                     ]}
                                 />
                             </Form.Item>
@@ -3311,7 +3303,7 @@ export default function SettingsIndex() {
                                 name="code"
                                 label="Kode"
                                 rules={[
-                                    { required: true, message: "Kode wajib" },
+                                    { required: true, message: tx("Kode wajib", "Code is required") },
                                 ]}
                             >
                                 <Input />
@@ -3322,10 +3314,10 @@ export default function SettingsIndex() {
                             name="name"
                             label={
                                 editMasterModal.type === "cash_methods"
-                                    ? "Nama Metode"
-                                    : "Nama"
+                                    ? tx("Nama Metode", "Method Name")
+                                    : tx("Nama", "Name")
                             }
-                            rules={[{ required: true, message: "Nama wajib" }]}
+                            rules={[{ required: true, message: tx("Nama wajib", "Name is required") }]}
                         >
                             <Input />
                         </Form.Item>
@@ -3336,7 +3328,7 @@ export default function SettingsIndex() {
                             "cash_categories",
                             "work_program_periods",
                         ].includes(editMasterModal.type) ? (
-                            <Form.Item name="code" label="Kode (opsional)">
+                            <Form.Item name="code" label={tx("Kode (opsional)", "Code (optional)")}>
                                 <Input />
                             </Form.Item>
                         ) : null}
@@ -3347,11 +3339,11 @@ export default function SettingsIndex() {
                                     <Col xs={24} md={12}>
                                         <Form.Item
                                             name="start_date"
-                                            label="Tanggal Mulai"
+                                            label={tx("Tanggal Mulai", "Start Date")}
                                             rules={[
                                                 {
                                                     required: true,
-                                                    message: "Tanggal mulai wajib",
+                                                    message: tx("Tanggal mulai wajib", "Start date is required"),
                                                 },
                                             ]}
                                         >
@@ -3361,11 +3353,11 @@ export default function SettingsIndex() {
                                     <Col xs={24} md={12}>
                                         <Form.Item
                                             name="end_date"
-                                            label="Tanggal Selesai"
+                                            label={tx("Tanggal Selesai", "End Date")}
                                             rules={[
                                                 {
                                                     required: true,
-                                                    message: "Tanggal selesai wajib",
+                                                    message: tx("Tanggal selesai wajib", "End date is required"),
                                                 },
                                             ]}
                                         >
@@ -3373,21 +3365,21 @@ export default function SettingsIndex() {
                                         </Form.Item>
                                     </Col>
                                 </Row>
-                                <Form.Item name="notes" label="Catatan">
+                                <Form.Item name="notes" label={tx("Catatan", "Notes")}>
                                     <Input.TextArea rows={3} />
                                 </Form.Item>
                             </>
                         ) : null}
 
                         {editMasterModal.type === "payment_statuses" ? (
-                            <Form.Item name="color" label="Warna Tag">
+                            <Form.Item name="color" label={tx("Warna Tag", "Tag Color")}>
                                 <Input placeholder="blue" />
                             </Form.Item>
                         ) : null}
 
                         {editMasterModal.type === "member_statuses" ? (
                             <>
-                                <Form.Item name="sort_order" label="Urutan">
+                                <Form.Item name="sort_order" label={tx("Urutan", "Order")}>
                                     <InputNumber
                                         min={0}
                                         style={{ width: "100%" }}
@@ -3395,21 +3387,21 @@ export default function SettingsIndex() {
                                 </Form.Item>
                                 <Form.Item
                                     name="is_active_member"
-                                    label="Anggota Aktif"
+                                    label={tx("Anggota Aktif", "Active Member")}
                                     valuePropName="checked"
                                 >
                                     <Switch />
                                 </Form.Item>
                                 <Form.Item
                                     name="is_billable"
-                                    label="Masuk Perhitungan Iuran"
+                                    label={tx("Masuk Perhitungan Iuran", "Included in Dues Calculation")}
                                     valuePropName="checked"
                                 >
                                     <Switch />
                                 </Form.Item>
                                 <Form.Item
                                     name="is_deceased"
-                                    label="Status Meninggal"
+                                    label={tx("Status Meninggal", "Deceased Status")}
                                     valuePropName="checked"
                                 >
                                     <Switch />
@@ -3419,7 +3411,7 @@ export default function SettingsIndex() {
 
                         <Form.Item
                             name="is_active"
-                            label="Aktif"
+                            label={tx("Aktif", "Active")}
                             valuePropName="checked"
                         >
                             <Switch />
@@ -3428,13 +3420,13 @@ export default function SettingsIndex() {
                 </Modal>
 
                 <Modal
-                    title={`Sync Permission User: ${syncUserModal.user?.name || ""}`}
+                    title={`${tx("Sinkronisasi Permission User", "Sync User Permissions")}: ${syncUserModal.user?.name || ""}`}
                     open={syncUserModal.open}
                     onCancel={() =>
                         setSyncUserModal({ open: false, user: null })
                     }
                     onOk={submitSyncUserPermissions}
-                    okText="Simpan"
+                    okText={tx("Simpan", "Save")}
                     width={640}
                 >
                     <Text type="secondary">
@@ -3459,7 +3451,7 @@ export default function SettingsIndex() {
                 </Modal>
 
                 <Modal
-                    title={`Edit Permission: ${editPermissionModal.permission?.name || ""}`}
+                    title={`${tx("Edit Permission", "Edit Permission")}: ${editPermissionModal.permission?.name || ""}`}
                     open={editPermissionModal.open}
                     onCancel={() =>
                         setEditPermissionModal({
@@ -3468,16 +3460,16 @@ export default function SettingsIndex() {
                         })
                     }
                     onOk={submitEditPermission}
-                    okText="Simpan"
+                    okText={tx("Simpan", "Save")}
                 >
                     <Form form={editPermissionForm} layout="vertical">
                         <Form.Item
                             name="name"
-                            label="Nama Permission"
+                            label={tx("Nama Permission", "Permission Name")}
                             rules={[
                                 {
                                     required: true,
-                                    message: "Nama permission wajib",
+                                    message: tx("Nama permission wajib", "Permission name is required"),
                                 },
                             ]}
                         >

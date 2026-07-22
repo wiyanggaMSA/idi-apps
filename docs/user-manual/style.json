@@ -1,0 +1,170 @@
+{
+  "input": "/Users/Wiyangga/Documents/GitHub/idi-apps/docs/user-manual/Buku_Panduan_Pengguna_IDI_Apps.docx",
+  "fonts_by_char_count": {
+    "Calibri": 58043
+  },
+  "direct_run_formatting_runs": 2082,
+  "direct_paragraph_formatting_paragraphs": 1820,
+  "heading_like_paragraphs_not_heading_style": [
+    {
+      "para_index": 1,
+      "text": "PANDUAN OPERASIONAL RESMI",
+      "style": "Normal"
+    },
+    {
+      "para_index": 3,
+      "text": "BUKU PANDUAN\nPENGGUNA IDI APPS",
+      "style": "Normal"
+    },
+    {
+      "para_index": 79,
+      "text": "Login",
+      "style": "Normal"
+    },
+    {
+      "para_index": 85,
+      "text": "Langkah penggunaan",
+      "style": "Normal"
+    },
+    {
+      "para_index": 95,
+      "text": "Lupa/Reset Password dan Verifikasi Email",
+      "style": "Normal"
+    },
+    {
+      "para_index": 101,
+      "text": "Langkah penggunaan",
+      "style": "Normal"
+    },
+    {
+      "para_index": 112,
+      "text": "Profil Pengguna",
+      "style": "Normal"
+    },
+    {
+      "para_index": 118,
+      "text": "Langkah penggunaan",
+      "style": "Normal"
+    },
+    {
+      "para_index": 129,
+      "text": "Ringkasan Dashboard",
+      "style": "Normal"
+    },
+    {
+      "para_index": 135,
+      "text": "Langkah penggunaan",
+      "style": "Normal"
+    },
+    {
+      "para_index": 152,
+      "text": "Board Sekretariat",
+      "style": "Normal"
+    },
+    {
+      "para_index": 158,
+      "text": "Langkah penggunaan",
+      "style": "Normal"
+    },
+    {
+      "para_index": 167,
+      "text": "Periode, Struktur, Posisi, dan Assignment Pengurus",
+      "style": "Normal"
+    },
+    {
+      "para_index": 173,
+      "text": "Langkah penggunaan",
+      "style": "Normal"
+    },
+    {
+      "para_index": 192,
+      "text": "Draft, Edit, Builder, Layout, dan Lampiran Surat",
+      "style": "Normal"
+    },
+    {
+      "para_index": 198,
+      "text": "Langkah penggunaan",
+      "style": "Normal"
+    },
+    {
+      "para_index": 210,
+      "text": "Penomoran, Finalisasi, PDF, Versi, Arsip, dan Pencabutan",
+      "style": "Normal"
+    },
+    {
+      "para_index": 216,
+      "text": "Langkah penggunaan",
+      "style": "Normal"
+    },
+    {
+      "para_index": 235,
+      "text": "Persiapan dan Tanda Tangan Surat",
+      "style": "Normal"
+    },
+    {
+      "para_index": 241,
+      "text": "Langkah penggunaan",
+      "style": "Normal"
+    }
+  ],
+  "examples": {
+    "direct_paragraph_formatting": [
+      {
+        "para_index": 1,
+        "text": "PANDUAN OPERASIONAL RESMI",
+        "style": "Normal"
+      },
+      {
+        "para_index": 2,
+        "text": "",
+        "style": "Normal"
+      },
+      {
+        "para_index": 3,
+        "text": "BUKU PANDUAN\nPENGGUNA IDI APPS",
+        "style": "Normal"
+      },
+      {
+        "para_index": 4,
+        "text": "Panduan fitur, alur lintas role, kontrol akses, dan penanganan masalah",
+        "style": "Normal"
+      },
+      {
+        "para_index": 5,
+        "text": "",
+        "style": "Normal"
+      }
+    ],
+    "direct_run_formatting": [
+      {
+        "para_index": 1,
+        "run_text": "PANDUAN OPERASIONAL RESMI",
+        "style": "Normal"
+      },
+      {
+        "para_index": 3,
+        "run_text": "BUKU PANDUAN\nPENGGUNA IDI APPS",
+        "style": "Normal"
+      },
+      {
+        "para_index": 4,
+        "run_text": "Panduan fitur, alur lintas role, kontrol akses, dan penanganan masalah",
+        "style": "Normal"
+      },
+      {
+        "para_index": 6,
+        "run_text": "Dokumen ini tidak memuat kredensial, data anggota asli, atau data finansial nyat",
+        "style": "Normal"
+      },
+      {
+        "para_index": 12,
+        "run_text": "Sumber kebenaran yang diaudit mencakup route, seeder role/permission, policy, co",
+        "style": "Normal"
+      }
+    ]
+  },
+  "notes": [
+    "Direct formatting is not always wrong, but it often causes inconsistent output when templates change.",
+    "Heading-like paragraphs not using Heading styles can break TOC and accessibility."
+  ]
+}

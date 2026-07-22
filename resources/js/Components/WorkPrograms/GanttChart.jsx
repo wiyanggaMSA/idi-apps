@@ -34,6 +34,7 @@ import {
 } from "@ant-design/icons";
 import { formatDate } from "@/lib/format";
 import { buildGoogleCalendarUrl } from "@/lib/googleCalendar";
+import useBilingual from "@/Hooks/useBilingual";
 
 const { Paragraph, Text } = Typography;
 
@@ -51,6 +52,22 @@ const STATUS_LABELS = {
     scheduled: "Terjadwal",
     on_hold: "Ditahan",
     rejected: "Ditolak",
+};
+
+const STATUS_LABELS_EN = {
+    todo: "Not Started",
+    in_progress: "In Progress",
+    blocked: "Blocked",
+    completed: "Completed",
+    cancelled: "Cancelled",
+    draft: "Draft",
+    submitted: "Submitted",
+    under_review: "Under Review",
+    revision_requested: "Revision Requested",
+    approved: "Approved",
+    scheduled: "Scheduled",
+    on_hold: "On Hold",
+    rejected: "Rejected",
 };
 
 const STATUS_COLORS = {
@@ -72,6 +89,8 @@ const PRIORITY_LABELS = {
     critical: "Kritis",
 };
 
+const PRIORITY_LABELS_EN = { low: "Low", medium: "Medium", high: "High", critical: "Critical" };
+
 const PRIORITY_COLORS = {
     low: "default",
     medium: "blue",
@@ -88,12 +107,14 @@ const ZOOM_CONFIG = {
 
 const LOCKED_PROGRAM_STATUSES = ["completed", "evaluated", "archived", "cancelled", "rejected"];
 
-function statusTag(status) {
-    return <Tag color={STATUS_COLORS[status] || "default"}>{STATUS_LABELS[status] || status || "-"}</Tag>;
+function statusTag(status, isEnglish = false) {
+    const labels = isEnglish ? STATUS_LABELS_EN : STATUS_LABELS;
+    return <Tag color={STATUS_COLORS[status] || "default"}>{labels[status] || status || "-"}</Tag>;
 }
 
-function priorityTag(priority) {
-    return <Tag color={PRIORITY_COLORS[priority] || "default"}>{PRIORITY_LABELS[priority] || priority || "-"}</Tag>;
+function priorityTag(priority, isEnglish = false) {
+    const labels = isEnglish ? PRIORITY_LABELS_EN : PRIORITY_LABELS;
+    return <Tag color={PRIORITY_COLORS[priority] || "default"}>{labels[priority] || priority || "-"}</Tag>;
 }
 
 function cleanPayload(payload) {
@@ -249,6 +270,7 @@ function taskCalendarUrl(task, program) {
 
 export default function GanttChart({ programId, permissions = [], onChanged }) {
     const { message } = AntdApp.useApp();
+    const { isEnglish, tx } = useBilingual();
     const [dataset, setDataset] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -273,11 +295,11 @@ export default function GanttChart({ programId, permissions = [], onChanged }) {
             const response = await axios.get(route("work-programs.gantt", programId));
             setDataset(response.data);
         } catch (requestError) {
-            setError(requestError.response?.data?.message || "Data Gantt belum dapat dimuat.");
+            setError(requestError.response?.data?.message || tx("Data Gantt belum dapat dimuat.", "Gantt data could not be loaded."));
         } finally {
             setLoading(false);
         }
-    }, [programId]);
+    }, [programId, tx]);
 
     useEffect(() => {
         fetchDataset();
@@ -435,12 +457,12 @@ export default function GanttChart({ programId, permissions = [], onChanged }) {
         const isCreate = drawerMode === "create";
 
         Modal.confirm({
-            title: isCreate ? "Tambah task program kerja?" : "Simpan perubahan task?",
+            title: isCreate ? tx("Tambah task program kerja?", "Add work program task?") : tx("Simpan perubahan task?", "Save task changes?"),
             content: isCreate
-                ? "Task baru akan menjadi aktivitas program kerja dan dapat dipakai untuk menjadwalkan Gantt."
-                : "Jadwal/progres akan disimpan ke backend. Jika data sudah berubah, server akan menolak dan timeline tetap memakai data terakhir.",
-            okText: isCreate ? "Tambah" : "Simpan",
-            cancelText: "Batal",
+                ? tx("Task baru akan menjadi aktivitas program kerja dan dapat dipakai untuk menjadwalkan Gantt.", "The new task will become a work program activity and can be scheduled on the Gantt chart.")
+                : tx("Jadwal/progres akan disimpan ke backend. Jika data sudah berubah, server akan menolak dan timeline tetap memakai data terakhir.", "Schedule and progress changes will be saved. If the data has changed, the server will reject the update and the timeline will keep the latest data."),
+            okText: isCreate ? tx("Tambah", "Add") : tx("Simpan", "Save"),
+            cancelText: tx("Batal", "Cancel"),
             onOk: async () => {
                 setSaving(true);
 
@@ -504,14 +526,14 @@ export default function GanttChart({ programId, permissions = [], onChanged }) {
                         );
                     }
 
-                    message.success(isCreate ? "Task berhasil ditambahkan." : "Task berhasil diperbarui.");
+                    message.success(isCreate ? tx("Task berhasil ditambahkan.", "Task added successfully.") : tx("Task berhasil diperbarui.", "Task updated successfully."));
                     setSelectedTask(null);
                     setDrawerMode("edit");
                     form.resetFields();
                     await fetchDataset();
                     onChanged?.();
                 } catch (requestError) {
-                    message.error(requestError.response?.data?.message || "Perubahan task ditolak oleh backend.");
+                    message.error(requestError.response?.data?.message || tx("Perubahan task ditolak oleh backend.", "The task update was rejected by the server."));
                     await fetchDataset();
                 } finally {
                     setSaving(false);
@@ -537,7 +559,7 @@ export default function GanttChart({ programId, permissions = [], onChanged }) {
             <Card>
                 <div className="flex min-h-[320px] items-center justify-center">
                     <Spin>
-                        <span className="sr-only">Memuat data Gantt...</span>
+                        <span className="sr-only">{tx("Memuat data Gantt...", "Loading Gantt data...")}</span>
                     </Spin>
                 </div>
             </Card>
@@ -549,9 +571,9 @@ export default function GanttChart({ programId, permissions = [], onChanged }) {
             <Alert
                 type="error"
                 showIcon
-                title="Gantt tidak dapat dimuat"
+                title={tx("Gantt tidak dapat dimuat", "Gantt could not be loaded")}
                 description={error}
-                action={<Button icon={<ReloadOutlined />} onClick={fetchDataset}>Muat ulang</Button>}
+                action={<Button icon={<ReloadOutlined />} onClick={fetchDataset}>{tx("Muat ulang", "Reload")}</Button>}
             />
         );
     }
@@ -560,13 +582,13 @@ export default function GanttChart({ programId, permissions = [], onChanged }) {
         return (
             <>
                 <Card
-                    title="Gantt Program Kerja"
+                    title={tx("Gantt Program Kerja", "Work Program Gantt")}
                     extra={
                         <Space>
                             <Button icon={<ReloadOutlined />} onClick={fetchDataset}>Refresh</Button>
                             {canManageTasks ? (
                                 <Button type="primary" icon={<PlusOutlined />} onClick={openCreateTask}>
-                                    Tambah Task
+                                    {tx("Tambah Task", "Add Task")}
                                 </Button>
                             ) : null}
                         </Space>
@@ -577,66 +599,66 @@ export default function GanttChart({ programId, permissions = [], onChanged }) {
                             className="mb-4"
                             type="info"
                             showIcon
-                            title="Gantt dikunci"
-                            description="Program kerja sudah selesai atau final. Task baru hanya bisa ditambahkan setelah ketua/reviewer membuka revisi program."
+                            title={tx("Gantt dikunci", "Gantt is locked")}
+                            description={tx("Program kerja sudah selesai atau final. Task baru hanya bisa ditambahkan setelah ketua/reviewer membuka revisi program.", "The work program is completed or final. New tasks can only be added after the chair or reviewer opens a program revision.")}
                         />
                     ) : null}
                     <Empty
                         description={
                             canManageTasks
-                                ? "Belum ada task. Tambahkan aktivitas dulu sebelum program kerja dijadwalkan."
-                                : "Belum ada task untuk ditampilkan sebagai Gantt."
+                                ? tx("Belum ada task. Tambahkan aktivitas dulu sebelum program kerja dijadwalkan.", "No tasks yet. Add an activity before scheduling the work program.")
+                                : tx("Belum ada task untuk ditampilkan sebagai Gantt.", "No tasks are available for the Gantt chart.")
                         }
                     >
                         {canManageTasks ? (
                             <Button type="primary" icon={<PlusOutlined />} onClick={openCreateTask}>
-                                Tambah Task Pertama
+                                {tx("Tambah Task Pertama", "Add First Task")}
                             </Button>
                         ) : null}
                     </Empty>
                 </Card>
 
                 <Drawer
-                    title="Tambah Task Gantt"
+                    title={tx("Tambah Task Gantt", "Add Gantt Task")}
                     size={520}
                     open={Boolean(selectedTask)}
                     onClose={closeTask}
                     extra={
                         <Space>
-                            <Button onClick={closeTask} disabled={saving}>Tutup</Button>
+                            <Button onClick={closeTask} disabled={saving}>{tx("Tutup", "Close")}</Button>
                             <Button type="primary" icon={<PlusOutlined />} onClick={saveTask} loading={saving}>
-                                Tambah
+                                {tx("Tambah", "Add")}
                             </Button>
                         </Space>
                     }
                 >
                     {selectedTask ? (
                         <Form form={form} layout="vertical" disabled={saving}>
-                            <Form.Item label="Nama Task / Aktivitas" name="name" rules={[{ required: true, message: "Nama task wajib diisi." }]}>
+                            <Form.Item label={tx("Nama Task / Aktivitas", "Task / Activity Name")} name="name" rules={[{ required: true, message: tx("Nama task wajib diisi.", "Task name is required.") }]}>
                                 <Input maxLength={255} />
                             </Form.Item>
-                            <Form.Item label="Kode Task" name="task_code">
-                                <Input maxLength={255} placeholder="Opsional" />
+                            <Form.Item label={tx("Kode Task", "Task Code")} name="task_code">
+                                <Input maxLength={255} placeholder={tx("Opsional", "Optional")} />
                             </Form.Item>
-                            <Form.Item label="Deskripsi" name="description">
+                            <Form.Item label={tx("Deskripsi", "Description")} name="description">
                                 <Input.TextArea rows={3} maxLength={2000} showCount />
                             </Form.Item>
                             <Form.Item label="PIC" name="pic_user_id">
                                 <Select allowClear showSearch optionFilterProp="label" options={userOptions} />
                             </Form.Item>
-                            <Form.Item label="Tim / Assignee" name="assignee_user_ids">
+                            <Form.Item label={tx("Tim / Assignee", "Team / Assignees")} name="assignee_user_ids">
                                 <Select mode="multiple" allowClear showSearch optionFilterProp="label" options={userOptions} />
                             </Form.Item>
-                            <Form.Item label="Tanggal Mulai Rencana" name="planned_start_date" rules={[{ required: true, message: "Tanggal mulai wajib diisi." }]}>
+                            <Form.Item label={tx("Tanggal Mulai Rencana", "Planned Start Date")} name="planned_start_date" rules={[{ required: true, message: tx("Tanggal mulai wajib diisi.", "Start date is required.") }]}>
                                 <DatePicker className="w-full" />
                             </Form.Item>
-                            <Form.Item label="Tanggal Selesai Rencana" name="planned_end_date" rules={[{ required: true, message: "Tanggal selesai wajib diisi." }]}>
+                            <Form.Item label={tx("Tanggal Selesai Rencana", "Planned End Date")} name="planned_end_date" rules={[{ required: true, message: tx("Tanggal selesai wajib diisi.", "End date is required.") }]}>
                                 <DatePicker className="w-full" />
                             </Form.Item>
-                            <Form.Item label="Prioritas" name="priority">
-                                <Select options={Object.entries(PRIORITY_LABELS).map(([value, label]) => ({ value, label }))} />
+                            <Form.Item label={tx("Prioritas", "Priority")} name="priority">
+                                <Select options={Object.entries(isEnglish ? PRIORITY_LABELS_EN : PRIORITY_LABELS).map(([value, label]) => ({ value, label }))} />
                             </Form.Item>
-                            <Form.Item label="Bobot" name="weight">
+                            <Form.Item label={tx("Bobot", "Weight")} name="weight">
                                 <InputNumber min={0} className="w-full" />
                             </Form.Item>
                             <Form.Item label="Progress" name="progress">
@@ -646,10 +668,10 @@ export default function GanttChart({ programId, permissions = [], onChanged }) {
                                 </Space.Compact>
                             </Form.Item>
                             <Form.Item label="Status" name="status">
-                                <Select options={["todo", "in_progress", "blocked", "completed", "cancelled"].map((value) => ({ value, label: STATUS_LABELS[value] }))} />
+                                <Select options={["todo", "in_progress", "blocked", "completed", "cancelled"].map((value) => ({ value, label: (isEnglish ? STATUS_LABELS_EN : STATUS_LABELS)[value] }))} />
                             </Form.Item>
                             <Form.Item name="is_milestone" valuePropName="checked">
-                                <Checkbox>Jadikan milestone</Checkbox>
+                                <Checkbox>{tx("Jadikan milestone", "Make this a milestone")}</Checkbox>
                             </Form.Item>
                         </Form>
                     ) : null}
@@ -661,13 +683,13 @@ export default function GanttChart({ programId, permissions = [], onChanged }) {
     return (
         <>
             <Card
-                title="Gantt Program Kerja"
+                title={tx("Gantt Program Kerja", "Work Program Gantt")}
                 extra={
                     <Space>
                         <Button icon={<ReloadOutlined />} onClick={fetchDataset}>Refresh</Button>
                         {canManageTasks ? (
                             <Button type="primary" icon={<PlusOutlined />} onClick={openCreateTask}>
-                                Tambah Task
+                                {tx("Tambah Task", "Add Task")}
                             </Button>
                         ) : null}
                     </Space>
@@ -678,16 +700,16 @@ export default function GanttChart({ programId, permissions = [], onChanged }) {
                         <Alert
                             type="info"
                             showIcon
-                            title="Gantt dikunci"
-                            description="Program kerja sudah selesai atau final. Jadwal dan task hanya bisa diubah setelah ketua/reviewer membuka revisi program."
+                            title={tx("Gantt dikunci", "Gantt is locked")}
+                            description={tx("Program kerja sudah selesai atau final. Jadwal dan task hanya bisa diubah setelah ketua/reviewer membuka revisi program.", "The work program is completed or final. Schedules and tasks can only be changed after the chair or reviewer opens a program revision.")}
                         />
                     ) : null}
                     <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
                         <Descriptions size="small" column={{ xs: 1, md: 4 }} bordered>
-                            <Descriptions.Item label="Periode">{formatDate(program?.planned_start_date)} - {formatDate(program?.planned_end_date)}</Descriptions.Item>
-                            <Descriptions.Item label="Tahun">{safeDate(program?.planned_start_date)?.year() || "-"}</Descriptions.Item>
-                            <Descriptions.Item label="Bidang">{program?.division?.name || "-"}</Descriptions.Item>
-                            <Descriptions.Item label="Status">{statusTag(program?.status)}</Descriptions.Item>
+                            <Descriptions.Item label={tx("Periode", "Period")}>{formatDate(program?.planned_start_date)} - {formatDate(program?.planned_end_date)}</Descriptions.Item>
+                            <Descriptions.Item label={tx("Tahun", "Year")}>{safeDate(program?.planned_start_date)?.year() || "-"}</Descriptions.Item>
+                            <Descriptions.Item label={tx("Bidang", "Division")}>{program?.division?.name || "-"}</Descriptions.Item>
+                            <Descriptions.Item label={tx("Status", "Status")}>{statusTag(program?.status, isEnglish)}</Descriptions.Item>
                         </Descriptions>
                         <Progress type="dashboard" percent={program?.progress || 0} size={108} />
                     </div>
@@ -701,12 +723,12 @@ export default function GanttChart({ programId, permissions = [], onChanged }) {
                                 style={{ width: 150 }}
                                 options={Object.entries(ZOOM_CONFIG).map(([value, config]) => ({
                                     value,
-                                    label: config.label,
+                                    label: tx(config.label, { day: "Daily", week: "Weekly", month: "Monthly", quarter: "Quarterly" }[value]),
                                 }))}
                             />
                         </div>
                         <div className="space-y-1">
-                            <Text className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-400">Status Task</Text>
+                            <Text className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-400">{tx("Status Task", "Task Status")}</Text>
                             <Select
                                 allowClear
                                 value={filters.status || undefined}
@@ -714,12 +736,12 @@ export default function GanttChart({ programId, permissions = [], onChanged }) {
                                 style={{ width: 170 }}
                                 options={["todo", "in_progress", "blocked", "completed", "cancelled"].map((value) => ({
                                     value,
-                                    label: STATUS_LABELS[value],
+                                    label: (isEnglish ? STATUS_LABELS_EN : STATUS_LABELS)[value],
                                 }))}
                             />
                         </div>
                         <div className="space-y-1">
-                            <Text className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-400">Prioritas</Text>
+                            <Text className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-400">{tx("Prioritas", "Priority")}</Text>
                             <Select
                                 allowClear
                                 value={filters.priority || undefined}
@@ -727,7 +749,7 @@ export default function GanttChart({ programId, permissions = [], onChanged }) {
                                 style={{ width: 145 }}
                                 options={["low", "medium", "high", "critical"].map((value) => ({
                                     value,
-                                    label: PRIORITY_LABELS[value],
+                                    label: (isEnglish ? PRIORITY_LABELS_EN : PRIORITY_LABELS)[value],
                                 }))}
                             />
                         </div>
@@ -752,7 +774,7 @@ export default function GanttChart({ programId, permissions = [], onChanged }) {
                                 style={{ width: 140 }}
                                 options={[
                                     { value: "yes", label: "Overdue" },
-                                    { value: "no", label: "Tidak" },
+                                    { value: "no", label: tx("Tidak", "No") },
                                 ]}
                             />
                         </div>
@@ -779,8 +801,8 @@ export default function GanttChart({ programId, permissions = [], onChanged }) {
                                         </div>
                                         <div className="mt-2 flex flex-wrap gap-2 text-xs text-zinc-500">
                                             <span>{formatDate(task.planned_start_date)} - {formatDate(task.planned_end_date)}</span>
-                                            {statusTag(task.status)}
-                                            {priorityTag(task.priority)}
+                                            {statusTag(task.status, isEnglish)}
+                                            {priorityTag(task.priority, isEnglish)}
                                             {isOverdue(task) ? <Tag color="red">Overdue</Tag> : null}
                                         </div>
                                         <Progress className="mt-2" percent={task.progress || 0} size="small" />
@@ -793,7 +815,7 @@ export default function GanttChart({ programId, permissions = [], onChanged }) {
                                             href={taskCalendarUrl(task, program)}
                                             target="_blank"
                                         >
-                                            Tambahkan Reminder
+                                            {tx("Tambahkan Reminder", "Add Reminder")}
                                         </Button>
                                     ) : null}
                                 </div>
@@ -804,7 +826,7 @@ export default function GanttChart({ programId, permissions = [], onChanged }) {
                     <div className="hidden overflow-hidden rounded-2xl border border-zinc-200 lg:block">
                         <div className="grid grid-cols-[360px_1fr] bg-zinc-50">
                             <div className="border-r border-zinc-200 px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
-                                Task Tree
+                                {tx("Struktur Task", "Task Tree")}
                             </div>
                             <div className="overflow-x-auto">
                                 <div className="flex" style={{ width: timelineWidth }}>
@@ -948,13 +970,13 @@ export default function GanttChart({ programId, permissions = [], onChanged }) {
                     </div>
 
                     <Paragraph className="mb-0 text-xs text-zinc-500">
-                        Gantt ini memakai custom fallback tanpa dependency Gantt komersial. Perubahan tidak dioptimistic-update; timeline dimuat ulang setelah backend menerima data.
+                        {tx("Gantt ini memakai custom fallback tanpa dependency Gantt komersial. Perubahan tidak dioptimistic-update; timeline dimuat ulang setelah backend menerima data.", "This Gantt chart uses a custom fallback without a commercial Gantt dependency. Changes are not optimistically updated; the timeline reloads after the server accepts the data.")}
                     </Paragraph>
                 </Space>
             </Card>
 
             <Drawer
-                title={drawerMode === "create" ? "Tambah Task Gantt" : "Detail Task Gantt"}
+                title={drawerMode === "create" ? tx("Tambah Task Gantt", "Add Gantt Task") : tx("Detail Task Gantt", "Gantt Task Details")}
                 size={520}
                 open={Boolean(selectedTask)}
                 onClose={closeTask}
@@ -965,7 +987,7 @@ export default function GanttChart({ programId, permissions = [], onChanged }) {
                                 Reminder
                             </Button>
                         ) : null}
-                        <Button onClick={closeTask} disabled={saving}>Tutup</Button>
+                        <Button onClick={closeTask} disabled={saving}>{tx("Tutup", "Close")}</Button>
                         <Button
                             type="primary"
                             icon={drawerMode === "create" ? <PlusOutlined /> : <EditOutlined />}
@@ -973,7 +995,7 @@ export default function GanttChart({ programId, permissions = [], onChanged }) {
                             loading={saving}
                             disabled={drawerMode === "create" ? !canManageTasks : !canEditAny}
                         >
-                            {drawerMode === "create" ? "Tambah" : "Simpan"}
+                            {drawerMode === "create" ? tx("Tambah", "Add") : tx("Simpan", "Save")}
                         </Button>
                     </Space>
                 }
@@ -981,104 +1003,104 @@ export default function GanttChart({ programId, permissions = [], onChanged }) {
                 {selectedTask ? (
                     <Space orientation="vertical" size="middle" className="w-full">
                         {drawerMode === "edit" && !canEditAny ? (
-                            <Alert type="info" showIcon title="Anda dapat melihat task ini, tetapi tidak memiliki aksi update yang tersedia." />
+                            <Alert type="info" showIcon title={tx("Anda dapat melihat task ini, tetapi tidak memiliki aksi update yang tersedia.", "You can view this task, but no update action is available to you.")} />
                         ) : null}
                         {drawerMode === "edit" ? (
                             <Descriptions column={1} size="small" bordered>
                                 <Descriptions.Item label="Task">{selectedTask.task_code || `TASK-${selectedTask.database_id}`} - {selectedTask.name}</Descriptions.Item>
                                 <Descriptions.Item label="PIC">{selectedTask.pic?.name || "-"}</Descriptions.Item>
-                                <Descriptions.Item label="Assignee">
+                                <Descriptions.Item label={tx("Assignee", "Assignees")}>
                                     {(selectedTask.assignees || []).map((assignee) => assignee.name).join(", ") || "-"}
                                 </Descriptions.Item>
-                                <Descriptions.Item label="Milestone">{selectedTask.is_milestone ? "Ya" : "Tidak"}</Descriptions.Item>
-                                <Descriptions.Item label="Dependency Keluar">
+                                <Descriptions.Item label="Milestone">{selectedTask.is_milestone ? tx("Ya", "Yes") : tx("Tidak", "No")}</Descriptions.Item>
+                                <Descriptions.Item label={tx("Dependency Keluar", "Outgoing Dependencies")}>
                                     {(dataset?.dependencies || []).filter((dependency) => dependency.source === selectedTask.id).length}
                                 </Descriptions.Item>
                             </Descriptions>
                         ) : (
-                            <Alert type="info" showIcon title="Task baru akan muncul sebagai Aktivitas, Gantt, dan Tim sesuai PIC/assignee yang dipilih." />
+                            <Alert type="info" showIcon title={tx("Task baru akan muncul sebagai Aktivitas, Gantt, dan Tim sesuai PIC/assignee yang dipilih.", "The new task will appear under Activity, Gantt, and Team according to the selected PIC and assignees.")} />
                         )}
                         <Form form={form} layout="vertical" disabled={saving || !canEditAny}>
                             {canManageTasks ? (
                                 <>
                                     <Form.Item
-                                        label="Nama Task / Aktivitas"
+                                        label={tx("Nama Task / Aktivitas", "Task / Activity Name")}
                                         name="name"
-                                        rules={[{ required: true, message: "Nama task wajib diisi." }]}
+                                        rules={[{ required: true, message: tx("Nama task wajib diisi.", "Task name is required.") }]}
                                     >
                                         <Input maxLength={255} />
                                     </Form.Item>
-                                    <Form.Item label="Kode Task" name="task_code">
-                                        <Input maxLength={255} placeholder="Opsional" />
+                                    <Form.Item label={tx("Kode Task", "Task Code")} name="task_code">
+                                        <Input maxLength={255} placeholder={tx("Opsional", "Optional")} />
                                     </Form.Item>
-                                    <Form.Item label="Parent Task" name="parent_task_id">
+                                    <Form.Item label={tx("Parent Task", "Parent Task")} name="parent_task_id">
                                         <Select
                                             allowClear
                                             showSearch
                                             optionFilterProp="label"
                                             options={parentTaskOptions.filter((option) => option.value !== selectedTask.database_id)}
-                                            placeholder="Opsional"
+                                            placeholder={tx("Opsional", "Optional")}
                                         />
                                     </Form.Item>
-                                    <Form.Item label="Deskripsi" name="description">
+                                    <Form.Item label={tx("Deskripsi", "Description")} name="description">
                                         <Input.TextArea rows={3} maxLength={2000} showCount />
                                     </Form.Item>
                                     <Form.Item label="PIC" name="pic_user_id">
                                         <Select allowClear showSearch optionFilterProp="label" options={userOptions} />
                                     </Form.Item>
-                                    <Form.Item label="Tim / Assignee" name="assignee_user_ids">
+                                    <Form.Item label={tx("Tim / Assignee", "Team / Assignees")} name="assignee_user_ids">
                                         <Select mode="multiple" allowClear showSearch optionFilterProp="label" options={userOptions} />
                                     </Form.Item>
                                 </>
                             ) : null}
                             <Form.Item
-                                label="Tanggal Mulai Rencana"
+                                label={tx("Tanggal Mulai Rencana", "Planned Start Date")}
                                 name="planned_start_date"
-                                rules={canManageTasks ? [{ required: true, message: "Tanggal mulai wajib diisi." }] : []}
+                                rules={canManageTasks ? [{ required: true, message: tx("Tanggal mulai wajib diisi.", "Start date is required.") }] : []}
                             >
                                 <DatePicker className="w-full" disabled={!canManageTasks} />
                             </Form.Item>
                             <Form.Item
-                                label="Tanggal Selesai Rencana"
+                                label={tx("Tanggal Selesai Rencana", "Planned End Date")}
                                 name="planned_end_date"
-                                rules={canManageTasks ? [{ required: true, message: "Tanggal selesai wajib diisi." }] : []}
+                                rules={canManageTasks ? [{ required: true, message: tx("Tanggal selesai wajib diisi.", "End date is required.") }] : []}
                             >
                                 <DatePicker className="w-full" disabled={!canManageTasks} />
                             </Form.Item>
-                            <Form.Item label="Progress" name="progress" rules={[{ required: true, message: "Progress wajib diisi." }]}>
+                            <Form.Item label={tx("Progres", "Progress")} name="progress" rules={[{ required: true, message: tx("Progress wajib diisi.", "Progress is required.") }]}>
                                 <Space.Compact className="w-full">
                                     <InputNumber min={0} max={100} className="w-full" />
                                     <span className="inline-flex items-center rounded-r-md border border-l-0 border-zinc-300 bg-zinc-50 px-3 text-zinc-500">%</span>
                                 </Space.Compact>
                             </Form.Item>
-                            <Form.Item label="Status" name="status" rules={[{ required: true, message: "Status wajib dipilih." }]}>
+                            <Form.Item label={tx("Status", "Status")} name="status" rules={[{ required: true, message: tx("Status wajib dipilih.", "Status is required.") }]}>
                                 <Select
                                     options={["todo", "in_progress", "blocked", "completed", "cancelled"].map((value) => ({
                                         value,
-                                        label: STATUS_LABELS[value],
+                                        label: (isEnglish ? STATUS_LABELS_EN : STATUS_LABELS)[value],
                                     }))}
                                 />
                             </Form.Item>
                             {canManageTasks ? (
                                 <>
-                                    <Form.Item label="Prioritas" name="priority">
-                                        <Select options={Object.entries(PRIORITY_LABELS).map(([value, label]) => ({ value, label }))} />
+                                    <Form.Item label={tx("Prioritas", "Priority")} name="priority">
+                                        <Select options={Object.entries(isEnglish ? PRIORITY_LABELS_EN : PRIORITY_LABELS).map(([value, label]) => ({ value, label }))} />
                                     </Form.Item>
-                                    <Form.Item label="Bobot" name="weight">
+                                    <Form.Item label={tx("Bobot", "Weight")} name="weight">
                                         <InputNumber min={0} className="w-full" />
                                     </Form.Item>
                                     <Form.Item name="is_milestone" valuePropName="checked">
-                                        <Checkbox>Jadikan milestone</Checkbox>
+                                        <Checkbox>{tx("Jadikan milestone", "Make this a milestone")}</Checkbox>
                                     </Form.Item>
                                 </>
                             ) : null}
-                            <Form.Item label="Tanggal Mulai Aktual" name="actual_start_date">
+                            <Form.Item label={tx("Tanggal Mulai Aktual", "Actual Start Date")} name="actual_start_date">
                                 <DatePicker className="w-full" />
                             </Form.Item>
-                            <Form.Item label="Tanggal Selesai Aktual" name="actual_end_date">
+                            <Form.Item label={tx("Tanggal Selesai Aktual", "Actual End Date")} name="actual_end_date">
                                 <DatePicker className="w-full" />
                             </Form.Item>
-                            <Form.Item label="Catatan Update" name="notes">
+                            <Form.Item label={tx("Catatan Update", "Update Notes")} name="notes">
                                 <Input.TextArea rows={3} maxLength={1000} showCount />
                             </Form.Item>
                         </Form>

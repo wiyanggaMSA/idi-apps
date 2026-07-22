@@ -8,8 +8,8 @@ use App\Models\Division;
 use App\Models\User;
 use App\Models\WorkProgram;
 use App\Models\WorkProgramPeriod;
+use App\Services\Pdf\MpdfRenderer;
 use App\Services\WorkPrograms\WorkProgramReportService;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -34,7 +34,7 @@ class WorkProgramReportController extends Controller
         ]);
     }
 
-    public function export(Request $request, WorkProgramReportService $service): BinaryFileResponse|HttpResponse
+    public function export(Request $request, WorkProgramReportService $service, MpdfRenderer $pdfRenderer): BinaryFileResponse|HttpResponse
     {
         $this->authorize('export', WorkProgram::class);
 
@@ -47,12 +47,14 @@ class WorkProgramReportController extends Controller
         }
 
         if ($format === 'pdf') {
-            return Pdf::loadView('work-programs.report', [
+            return $pdfRenderer->downloadView('work-programs.report', [
                 'rows' => $rows,
                 'summary' => $service->summary($rows),
                 'filters' => $service->filterSnapshot($request),
                 'generatedAt' => now(),
-            ])->setPaper('a4', 'landscape')->download("{$filename}.pdf");
+            ], "{$filename}.pdf", [
+                'orientation' => 'L',
+            ]);
         }
 
         return Excel::download(new WorkProgramReportExport($rows), "{$filename}.xlsx", \Maatwebsite\Excel\Excel::XLSX);

@@ -27,6 +27,7 @@ import {
 import { CalendarOutlined, DeleteOutlined, EditOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { buildGoogleCalendarUrl } from "@/lib/googleCalendar";
+import useBilingual from "@/Hooks/useBilingual";
 
 const { TextArea } = Input;
 const { Text, Paragraph } = Typography;
@@ -39,6 +40,18 @@ const STATUS_LABELS = {
     cancelled: "Dibatalkan",
     open: "Open",
     mitigating: "Mitigasi",
+    resolved: "Resolved",
+    closed: "Closed",
+};
+
+const STATUS_LABELS_EN = {
+    todo: "Not Started",
+    in_progress: "In Progress",
+    blocked: "Blocked",
+    completed: "Completed",
+    cancelled: "Cancelled",
+    open: "Open",
+    mitigating: "Mitigating",
     resolved: "Resolved",
     closed: "Closed",
 };
@@ -56,9 +69,9 @@ function levelTag(level) {
     return <Tag color={LEVEL_COLORS[level] || "default"}>{level || "-"}</Tag>;
 }
 
-function statusTag(status) {
+function statusTag(status, isEnglish = false) {
     const color = status === "blocked" || status === "open" ? "red" : status === "completed" || status === "resolved" || status === "closed" ? "green" : "blue";
-    return <Tag color={color}>{STATUS_LABELS[status] || status || "-"}</Tag>;
+    return <Tag color={color}>{(isEnglish ? STATUS_LABELS_EN : STATUS_LABELS)[status] || status || "-"}</Tag>;
 }
 
 function cleanPayload(payload) {
@@ -123,6 +136,7 @@ function riskCalendarUrl(risk, program) {
 
 function RiskDrawer({ open, editing, programId, program, tasks, users, onClose, onSaved }) {
     const { message } = AntdApp.useApp();
+    const { tx } = useBilingual();
     const [form] = Form.useForm();
     const [saving, setSaving] = useState(false);
 
@@ -167,15 +181,15 @@ function RiskDrawer({ open, editing, programId, program, tasks, users, onClose, 
         try {
             if (editing) {
                 await axios.patch(route("work-programs.risks.update", [programId, editing.id]), payload);
-                message.success("Risiko berhasil diperbarui.");
+                message.success(tx("Risiko berhasil diperbarui.", "Risk updated successfully."));
             } else {
                 await axios.post(route("work-programs.risks.store", programId), payload);
-                message.success("Risiko berhasil ditambahkan.");
+                message.success(tx("Risiko berhasil ditambahkan.", "Risk added successfully."));
             }
             onSaved();
             onClose();
         } catch (error) {
-            message.error(error.response?.data?.message || "Risiko belum dapat disimpan.");
+            message.error(error.response?.data?.message || tx("Risiko belum dapat disimpan.", "The risk could not be saved."));
         } finally {
             setSaving(false);
         }
@@ -183,7 +197,7 @@ function RiskDrawer({ open, editing, programId, program, tasks, users, onClose, 
 
     return (
         <Drawer
-            title={editing ? "Edit Risiko/Kendala" : "Tambah Risiko/Kendala"}
+            title={editing ? tx("Edit Risiko/Kendala", "Edit Risk/Issue") : tx("Tambah Risiko/Kendala", "Add Risk/Issue")}
             size={620}
             open={open}
             onClose={() => {
@@ -196,14 +210,14 @@ function RiskDrawer({ open, editing, programId, program, tasks, users, onClose, 
                             Reminder
                         </Button>
                     ) : null}
-                    <Button onClick={onClose} disabled={saving}>Batal</Button>
-                    <Button type="primary" onClick={save} loading={saving}>Simpan</Button>
+                    <Button onClick={onClose} disabled={saving}>{tx("Batal", "Cancel")}</Button>
+                    <Button type="primary" onClick={save} loading={saving}>{tx("Simpan", "Save")}</Button>
                 </Space>
             }
         >
             <Form layout="vertical" form={form}>
                 <div className="grid gap-4 md:grid-cols-2">
-                    <Form.Item label="Task Terkait" name="work_program_task_id">
+                    <Form.Item label={tx("Task Terkait", "Related Task")} name="work_program_task_id">
                         <Select
                             allowClear
                             showSearch
@@ -214,21 +228,21 @@ function RiskDrawer({ open, editing, programId, program, tasks, users, onClose, 
                             }))}
                         />
                     </Form.Item>
-                    <Form.Item label="Tipe" name="type" rules={[{ required: true, message: "Tipe wajib dipilih." }]}>
+                    <Form.Item label={tx("Tipe", "Type")} name="type" rules={[{ required: true, message: tx("Tipe wajib dipilih.", "Type is required.") }]}>
                         <Select
                             options={[
-                                { value: "risk", label: "Risiko" },
-                                { value: "issue", label: "Kendala/Issue" },
+                                { value: "risk", label: tx("Risiko", "Risk") },
+                                { value: "issue", label: tx("Kendala/Issue", "Issue") },
                             ]}
                         />
                     </Form.Item>
-                    <Form.Item label="Judul" name="title" rules={[{ required: true, message: "Judul wajib diisi." }]} className="md:col-span-2">
+                    <Form.Item label={tx("Judul", "Title")} name="title" rules={[{ required: true, message: tx("Judul wajib diisi.", "Title is required.") }]} className="md:col-span-2">
                         <Input />
                     </Form.Item>
-                    <Form.Item label="Kategori" name="category">
-                        <Input placeholder="Operasional, SDM, Anggaran, Vendor..." />
+                    <Form.Item label={tx("Kategori", "Category")} name="category">
+                        <Input placeholder={tx("Operasional, SDM, Anggaran, Vendor...", "Operations, HR, Budget, Vendor...")} />
                     </Form.Item>
-                    <Form.Item label="PIC Mitigasi" name="owner_user_id">
+                    <Form.Item label={tx("PIC Mitigasi", "Mitigation PIC")} name="owner_user_id">
                         <Select
                             allowClear
                             showSearch
@@ -239,17 +253,17 @@ function RiskDrawer({ open, editing, programId, program, tasks, users, onClose, 
                             }))}
                         />
                     </Form.Item>
-                    <Form.Item label="Kemungkinan" name="likelihood" rules={[{ required: true, message: "Kemungkinan wajib diisi." }]}>
+                    <Form.Item label={tx("Kemungkinan", "Likelihood")} name="likelihood" rules={[{ required: true, message: tx("Kemungkinan wajib diisi.", "Likelihood is required.") }]}>
                         <InputNumber min={1} max={5} className="w-full" />
                     </Form.Item>
-                    <Form.Item label="Dampak" name="impact" rules={[{ required: true, message: "Dampak wajib diisi." }]}>
+                    <Form.Item label={tx("Dampak", "Impact")} name="impact" rules={[{ required: true, message: tx("Dampak wajib diisi.", "Impact is required.") }]}>
                         <InputNumber min={1} max={5} className="w-full" />
                     </Form.Item>
-                    <Form.Item label="Status" name="status" rules={[{ required: true, message: "Status wajib dipilih." }]}>
+                    <Form.Item label={tx("Status", "Status")} name="status" rules={[{ required: true, message: tx("Status wajib dipilih.", "Status is required.") }]}>
                         <Select
                             options={[
                                 { value: "open", label: "Open" },
-                                { value: "mitigating", label: "Mitigasi" },
+                                { value: "mitigating", label: tx("Mitigasi", "Mitigating") },
                                 { value: "resolved", label: "Resolved" },
                                 { value: "closed", label: "Closed" },
                             ]}
@@ -258,17 +272,17 @@ function RiskDrawer({ open, editing, programId, program, tasks, users, onClose, 
                     <Form.Item label="Deadline" name="due_date">
                         <DatePicker className="w-full" />
                     </Form.Item>
-                    <Form.Item label="Deskripsi" name="description" className="md:col-span-2">
+                    <Form.Item label={tx("Deskripsi", "Description")} name="description" className="md:col-span-2">
                         <TextArea rows={3} />
                     </Form.Item>
-                    <Form.Item label="Mitigasi" name="mitigation_plan" className="md:col-span-2">
+                    <Form.Item label={tx("Mitigasi", "Mitigation")} name="mitigation_plan" className="md:col-span-2">
                         <TextArea rows={3} />
                     </Form.Item>
                     <Form.Item label="Follow-up" name="follow_up" className="md:col-span-2">
                         <TextArea rows={3} />
                     </Form.Item>
-                    <Form.Item label="Catatan Evidence" name="evidence_note" className="md:col-span-2">
-                        <TextArea rows={2} placeholder="Lampiran fisik/dokumen akan dilengkapi pada step dokumen." />
+                    <Form.Item label={tx("Catatan Evidence", "Evidence Notes")} name="evidence_note" className="md:col-span-2">
+                        <TextArea rows={2} placeholder={tx("Lampiran fisik/dokumen akan dilengkapi pada step dokumen.", "Physical attachments/documents will be completed in the documents step.")} />
                     </Form.Item>
                 </div>
             </Form>
@@ -278,6 +292,7 @@ function RiskDrawer({ open, editing, programId, program, tasks, users, onClose, 
 
 function ProgressDrawer({ open, task, programId, onClose, onSaved }) {
     const { message } = AntdApp.useApp();
+    const { isEnglish, tx } = useBilingual();
     const [form] = Form.useForm();
     const [saving, setSaving] = useState(false);
 
@@ -310,11 +325,11 @@ function ProgressDrawer({ open, task, programId, onClose, onSaved }) {
                     lock_version: task.lock_version,
                 }),
             );
-            message.success("Progress task berhasil diperbarui.");
+            message.success(tx("Progress task berhasil diperbarui.", "Task progress updated successfully."));
             onSaved();
             onClose();
         } catch (error) {
-            message.error(error.response?.data?.message || "Progress task belum dapat disimpan.");
+            message.error(error.response?.data?.message || tx("Progress task belum dapat disimpan.", "Task progress could not be saved."));
         } finally {
             setSaving(false);
         }
@@ -322,7 +337,7 @@ function ProgressDrawer({ open, task, programId, onClose, onSaved }) {
 
     return (
         <Drawer
-            title="Update Progress Task"
+            title={tx("Update Progress Task", "Update Task Progress")}
             size={520}
             open={open}
             onClose={() => {
@@ -330,8 +345,8 @@ function ProgressDrawer({ open, task, programId, onClose, onSaved }) {
             }}
             extra={
                 <Space>
-                    <Button onClick={onClose} disabled={saving}>Batal</Button>
-                    <Button type="primary" onClick={save} loading={saving}>Simpan</Button>
+                    <Button onClick={onClose} disabled={saving}>{tx("Batal", "Cancel")}</Button>
+                    <Button type="primary" onClick={save} loading={saving}>{tx("Simpan", "Save")}</Button>
                 </Space>
             }
         >
@@ -340,10 +355,10 @@ function ProgressDrawer({ open, task, programId, onClose, onSaved }) {
                     <Descriptions column={1} size="small" bordered>
                         <Descriptions.Item label="Task">{task.task_code || task.id} - {task.name}</Descriptions.Item>
                         <Descriptions.Item label="PIC">{task.pic?.name || "-"}</Descriptions.Item>
-                        <Descriptions.Item label="Rencana">{formatDate(task.planned_start_date)} - {formatDate(task.planned_end_date)}</Descriptions.Item>
+                        <Descriptions.Item label={tx("Rencana", "Planned Dates")}>{formatDate(task.planned_start_date)} - {formatDate(task.planned_end_date)}</Descriptions.Item>
                     </Descriptions>
                     <Form form={form} layout="vertical">
-                        <Form.Item label="Progress" name="progress" rules={[{ required: true, message: "Progress wajib diisi." }]}>
+                        <Form.Item label={tx("Progres", "Progress")} name="progress" rules={[{ required: true, message: tx("Progress wajib diisi.", "Progress is required.") }]}>
                             <Space.Compact className="w-full">
                                 <InputNumber min={0} max={100} className="w-full" />
                                 <span className="inline-flex items-center rounded-r-md border border-l-0 border-zinc-300 bg-zinc-50 px-3 text-zinc-500">%</span>
@@ -352,20 +367,20 @@ function ProgressDrawer({ open, task, programId, onClose, onSaved }) {
                         <Form.Item label="Status" name="status">
                             <Select
                                 options={[
-                                    { value: "todo", label: STATUS_LABELS.todo },
-                                    { value: "in_progress", label: STATUS_LABELS.in_progress },
-                                    { value: "blocked", label: STATUS_LABELS.blocked },
-                                    { value: "completed", label: STATUS_LABELS.completed },
+                                    { value: "todo", label: (isEnglish ? STATUS_LABELS_EN : STATUS_LABELS).todo },
+                                    { value: "in_progress", label: (isEnglish ? STATUS_LABELS_EN : STATUS_LABELS).in_progress },
+                                    { value: "blocked", label: (isEnglish ? STATUS_LABELS_EN : STATUS_LABELS).blocked },
+                                    { value: "completed", label: (isEnglish ? STATUS_LABELS_EN : STATUS_LABELS).completed },
                                 ]}
                             />
                         </Form.Item>
-                        <Form.Item label="Tanggal Mulai Aktual" name="actual_start_date">
+                        <Form.Item label={tx("Tanggal Mulai Aktual", "Actual Start Date")} name="actual_start_date">
                             <DatePicker className="w-full" />
                         </Form.Item>
-                        <Form.Item label="Tanggal Selesai Aktual" name="actual_end_date">
+                        <Form.Item label={tx("Tanggal Selesai Aktual", "Actual End Date")} name="actual_end_date">
                             <DatePicker className="w-full" />
                         </Form.Item>
-                        <Form.Item label="Catatan Update" name="notes">
+                        <Form.Item label={tx("Catatan Update", "Update Notes")} name="notes">
                             <TextArea rows={3} maxLength={1000} showCount />
                         </Form.Item>
                     </Form>
@@ -377,6 +392,7 @@ function ProgressDrawer({ open, task, programId, onClose, onSaved }) {
 
 export default function MonitoringPanel({ programId, options = {}, permissions = [] }) {
     const { message } = AntdApp.useApp();
+    const { isEnglish, tx } = useBilingual();
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -391,11 +407,11 @@ export default function MonitoringPanel({ programId, options = {}, permissions =
             const response = await axios.get(route("work-programs.monitoring", programId));
             setData(response.data);
         } catch (requestError) {
-            setError(requestError.response?.data?.message || "Data monitoring belum dapat dimuat.");
+            setError(requestError.response?.data?.message || tx("Data monitoring belum dapat dimuat.", "Monitoring data could not be loaded."));
         } finally {
             setLoading(false);
         }
-    }, [programId]);
+    }, [programId, tx]);
 
     useEffect(() => {
         fetchMonitoring();
@@ -412,7 +428,7 @@ export default function MonitoringPanel({ programId, options = {}, permissions =
     const riskColumns = useMemo(
         () => [
             {
-                title: "Risiko/Kendala",
+                title: tx("Risiko/Kendala", "Risk/Issue"),
                 dataIndex: "title",
                 render: (value, row) => (
                     <div>
@@ -423,7 +439,7 @@ export default function MonitoringPanel({ programId, options = {}, permissions =
             },
             { title: "Level", dataIndex: "level", width: 110, render: levelTag },
             { title: "Score", width: 100, render: (_, row) => `${row.likelihood} x ${row.impact}` },
-            { title: "Status", dataIndex: "status", width: 130, render: statusTag },
+            { title: tx("Status", "Status"), dataIndex: "status", width: 130, render: (value) => statusTag(value, isEnglish) },
             { title: "PIC", width: 150, render: (_, row) => row.owner?.name || "-" },
             { title: "Deadline", dataIndex: "due_date", width: 130, render: formatDate },
             {
@@ -440,7 +456,7 @@ export default function MonitoringPanel({ programId, options = {}, permissions =
                 },
             },
             {
-                title: "Aksi",
+                title: tx("Aksi", "Actions"),
                 width: 110,
                 align: "right",
                 render: (_, row) =>
@@ -455,7 +471,7 @@ export default function MonitoringPanel({ programId, options = {}, permissions =
                     ) : null,
             },
         ],
-        [canManageRisks, program],
+        [canManageRisks, isEnglish, program, tx],
     );
 
     const taskColumns = [
@@ -465,18 +481,18 @@ export default function MonitoringPanel({ programId, options = {}, permissions =
             render: (value, row) => (
                 <div>
                     <div className="font-semibold text-zinc-950">{row.task_code || row.id} - {value}</div>
-                    <div className="text-xs text-zinc-500">{row.pic?.name || "PIC belum ada"}</div>
+                    <div className="text-xs text-zinc-500">{row.pic?.name || tx("PIC belum ada", "No PIC assigned")}</div>
                 </div>
             ),
         },
-        { title: "Status", dataIndex: "status", width: 130, render: statusTag },
+        { title: tx("Status", "Status"), dataIndex: "status", width: 130, render: (value) => statusTag(value, isEnglish) },
         { title: "Progress", dataIndex: "progress", width: 160, render: (value) => <Progress percent={value || 0} size="small" /> },
         { title: "Deadline", dataIndex: "planned_end_date", width: 130, render: formatDate },
         {
-            title: "Deviasi",
+            title: tx("Deviasi", "Deviation"),
             dataIndex: "schedule_deviation_days",
             width: 110,
-            render: (value) => (value > 0 ? <Tag color="red">+{value} hari</Tag> : <Tag color="green">0 hari</Tag>),
+            render: (value) => (value > 0 ? <Tag color="red">+{value} {tx("hari", "days")}</Tag> : <Tag color="green">0 {tx("hari", "days")}</Tag>),
         },
         {
             title: "",
@@ -507,11 +523,11 @@ export default function MonitoringPanel({ programId, options = {}, permissions =
         if (!deletingRisk) return;
         try {
             await axios.delete(route("work-programs.risks.destroy", [programId, deletingRisk.id]));
-            message.success("Risiko berhasil dihapus.");
+            message.success(tx("Risiko berhasil dihapus.", "Risk removed successfully."));
             setDeletingRisk(null);
             fetchMonitoring();
         } catch (requestError) {
-            message.error(requestError.response?.data?.message || "Risiko belum dapat dihapus.");
+            message.error(requestError.response?.data?.message || tx("Risiko belum dapat dihapus.", "The risk could not be removed."));
         }
     };
 
@@ -520,7 +536,7 @@ export default function MonitoringPanel({ programId, options = {}, permissions =
             <Card>
                 <div className="flex min-h-[260px] items-center justify-center">
                     <Spin>
-                        <span className="sr-only">Memuat monitoring...</span>
+                        <span className="sr-only">{tx("Memuat monitoring...", "Loading monitoring data...")}</span>
                     </Spin>
                 </div>
             </Card>
@@ -532,9 +548,9 @@ export default function MonitoringPanel({ programId, options = {}, permissions =
             <Alert
                 type="error"
                 showIcon
-                title="Monitoring tidak dapat dimuat"
+                title={tx("Monitoring tidak dapat dimuat", "Monitoring could not be loaded")}
                 description={error}
-                action={<Button icon={<ReloadOutlined />} onClick={fetchMonitoring}>Muat ulang</Button>}
+                action={<Button icon={<ReloadOutlined />} onClick={fetchMonitoring}>{tx("Muat ulang", "Reload")}</Button>}
             />
         );
     }
@@ -544,39 +560,39 @@ export default function MonitoringPanel({ programId, options = {}, permissions =
             <Space orientation="vertical" size="middle" className="w-full">
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                     <Card>
-                        <Statistic title="Progress Program" value={data.progress?.value || 0} suffix="%" />
+                        <Statistic title={tx("Progres Program", "Program Progress")} value={data.progress?.value || 0} suffix="%" />
                         <Progress percent={data.progress?.value || 0} size="small" />
                         <Text className="text-xs text-zinc-500">{data.progress?.formula}</Text>
                     </Card>
                     <Card><Statistic title="Blocked" value={data.summary?.blocked_tasks || 0} /></Card>
                     <Card><Statistic title="Overdue" value={data.summary?.overdue_tasks || 0} /></Card>
-                    <Card><Statistic title="Mendekati Deadline" value={data.summary?.approaching_deadline_tasks || 0} /></Card>
+                    <Card><Statistic title={tx("Mendekati Deadline", "Approaching Deadline")} value={data.summary?.approaching_deadline_tasks || 0} /></Card>
                     <Card><Statistic title="Extreme Risk" value={data.summary?.extreme_risks || 0} /></Card>
                 </div>
 
-                <Card title="Rumus Progress">
+                <Card title={tx("Rumus Progres", "Progress Formula")}>
                     <Descriptions column={{ xs: 1, md: 4 }} size="small" bordered>
-                        <Descriptions.Item label="Rumus">{data.progress?.formula}</Descriptions.Item>
+                        <Descriptions.Item label={tx("Rumus", "Formula")}>{data.progress?.formula}</Descriptions.Item>
                         <Descriptions.Item label="Leaf Task">{data.progress?.leaf_task_count}</Descriptions.Item>
                         <Descriptions.Item label="Total Task">{data.progress?.total_task_count}</Descriptions.Item>
-                        <Descriptions.Item label="Task Berbobot">{data.progress?.weighted_task_count}</Descriptions.Item>
+                        <Descriptions.Item label={tx("Task Berbobot", "Weighted Tasks")}>{data.progress?.weighted_task_count}</Descriptions.Item>
                     </Descriptions>
                     <Paragraph className="mb-0 mt-3 text-sm text-zinc-500">
-                        Progress dihitung dari leaf task saja agar parent dan child tidak dihitung ganda. Jika bobot leaf task tersedia, sistem memakai weighted progress; jika tidak, sistem memakai rata-rata progress leaf task.
+                        {tx("Progress dihitung dari leaf task saja agar parent dan child tidak dihitung ganda. Jika bobot leaf task tersedia, sistem memakai weighted progress; jika tidak, sistem memakai rata-rata progress leaf task.", "Progress is calculated from leaf tasks only so parent and child tasks are not counted twice. If leaf task weights are available, weighted progress is used; otherwise, the average leaf task progress is used.")}
                     </Paragraph>
                 </Card>
 
                 <div className="grid gap-4 xl:grid-cols-2">
-                    <Card title="Task Overdue">
-                        <Table columns={taskColumns} dataSource={data.overdue_tasks || []} rowKey="id" pagination={false} locale={{ emptyText: <Empty description="Tidak ada task overdue." /> }} scroll={{ x: 720 }} />
+                    <Card title={tx("Task Terlambat", "Overdue Tasks")}>
+                        <Table columns={taskColumns} dataSource={data.overdue_tasks || []} rowKey="id" pagination={false} locale={{ emptyText: <Empty description={tx("Tidak ada task overdue.", "No overdue tasks.")} /> }} scroll={{ x: 720 }} />
                     </Card>
-                    <Card title="Task Perlu Perhatian">
-                        <Table columns={taskColumns} dataSource={[...(data.blocked_tasks || []), ...(data.approaching_deadline_tasks || [])]} rowKey={(row) => `${row.id}-${row.is_overdue ? "overdue" : "watch"}`} pagination={false} locale={{ emptyText: <Empty description="Tidak ada task yang perlu perhatian." /> }} scroll={{ x: 720 }} />
+                    <Card title={tx("Task Perlu Perhatian", "Tasks Requiring Attention")}>
+                        <Table columns={taskColumns} dataSource={[...(data.blocked_tasks || []), ...(data.approaching_deadline_tasks || [])]} rowKey={(row) => `${row.id}-${row.is_overdue ? "overdue" : "watch"}`} pagination={false} locale={{ emptyText: <Empty description={tx("Tidak ada task yang perlu perhatian.", "No tasks require attention.")} /> }} scroll={{ x: 720 }} />
                     </Card>
                 </div>
 
                 <Card
-                    title="Update Progress Task"
+                    title={tx("Update Progress Task", "Update Task Progress")}
                     extra={<Button icon={<ReloadOutlined />} onClick={fetchMonitoring}>Refresh</Button>}
                 >
                     {programLocked ? (
@@ -584,8 +600,8 @@ export default function MonitoringPanel({ programId, options = {}, permissions =
                             className="mb-4"
                             type="info"
                             showIcon
-                            title="Progress task dikunci"
-                            description="Program kerja sudah selesai atau final. Progress dan task hanya bisa diubah setelah ketua/reviewer membuka revisi program."
+                            title={tx("Progress task dikunci", "Task progress is locked")}
+                            description={tx("Program kerja sudah selesai atau final. Progress dan task hanya bisa diubah setelah ketua/reviewer membuka revisi program.", "The work program is completed or final. Progress and tasks can only be changed after the chair or reviewer opens a program revision.")}
                         />
                     ) : null}
                     {!programLocked && progressLocked ? (
@@ -593,8 +609,8 @@ export default function MonitoringPanel({ programId, options = {}, permissions =
                             className="mb-4"
                             type="info"
                             showIcon
-                            title="Progress belum bisa diupdate"
-                            description="Program kerja harus dijadwalkan dulu. Setelah status menjadi Terjadwal atau Berjalan, PIC/assignee task dapat mengupdate progress masing-masing."
+                            title={tx("Progress belum bisa diupdate", "Progress cannot be updated yet")}
+                            description={tx("Program kerja harus dijadwalkan dulu. Setelah status menjadi Terjadwal atau Berjalan, PIC/assignee task dapat mengupdate progress masing-masing.", "The work program must be scheduled first. Once its status is Scheduled or In Progress, task PICs and assignees can update their progress.")}
                         />
                     ) : null}
                     {!progressLocked && !canUpdateAnyTask ? (
@@ -602,15 +618,15 @@ export default function MonitoringPanel({ programId, options = {}, permissions =
                             className="mb-4"
                             type="warning"
                             showIcon
-                            title="Tidak ada task yang bisa Anda update"
-                            description="Tombol Update hanya muncul untuk PIC task, assignee task, atau pengguna dengan akses update progress."
+                            title={tx("Tidak ada task yang bisa Anda update", "No tasks are available for you to update")}
+                            description={tx("Tombol Update hanya muncul untuk PIC task, assignee task, atau pengguna dengan akses update progress.", "The Update button only appears for task PICs, task assignees, or users with progress update access.")}
                         />
                     ) : null}
                     <Table
                         columns={taskColumns}
                         dataSource={data.tasks || []}
                         rowKey="id"
-                        locale={{ emptyText: <Empty description="Belum ada task untuk diupdate." /> }}
+                        locale={{ emptyText: <Empty description={tx("Belum ada task untuk diupdate.", "No tasks are available to update.")} /> }}
                         scroll={{ x: 860 }}
                     />
                 </Card>
@@ -623,7 +639,7 @@ export default function MonitoringPanel({ programId, options = {}, permissions =
                                 setEditingRisk(null);
                                 setDrawerOpen(true);
                             }}>
-                                Tambah Risiko
+                                {tx("Tambah Risiko", "Add Risk")}
                             </Button>
                         ) : null
                     }
@@ -633,14 +649,14 @@ export default function MonitoringPanel({ programId, options = {}, permissions =
                             className="mb-4"
                             type="info"
                             showIcon
-                            title="Risk register dikunci"
-                            description="Risiko dan kendala tidak dapat diubah setelah program selesai. Minta ketua/reviewer membuka revisi program jika data perlu diperbaiki."
+                            title={tx("Risk register dikunci", "Risk register is locked")}
+                            description={tx("Risiko dan kendala tidak dapat diubah setelah program selesai. Minta ketua/reviewer membuka revisi program jika data perlu diperbaiki.", "Risks and issues cannot be changed after the program is completed. Ask the chair or reviewer to open a program revision if the data needs correction.")}
                         />
                     ) : null}
                     <Table columns={riskColumns} dataSource={data.risks || []} rowKey="id" scroll={{ x: 980 }} />
                 </Card>
 
-                <Card title="Progress Update History">
+                <Card title={tx("Riwayat Update Progres", "Progress Update History")}>
                     {(data.progress_history || []).length ? (
                         <Timeline
                             items={(data.progress_history || []).map((update) => ({
@@ -652,7 +668,7 @@ export default function MonitoringPanel({ programId, options = {}, permissions =
                                             {update.task?.task_code || update.task?.id} - {update.task?.name || "Program"}
                                         </div>
                                         <div className="text-xs text-zinc-500">
-                                            {formatDateTime(update.updated_at)} oleh {update.updater?.name || "-"} · {update.progress_before}% → {update.progress_after}%
+                                            {formatDateTime(update.updated_at)} {tx("oleh", "by")} {update.updater?.name || "-"} · {update.progress_before}% → {update.progress_after}%
                                         </div>
                                         {update.notes ? <Paragraph className="mb-0 mt-1 text-sm text-zinc-600">{update.notes}</Paragraph> : null}
                                     </div>
@@ -660,7 +676,7 @@ export default function MonitoringPanel({ programId, options = {}, permissions =
                             }))}
                         />
                     ) : (
-                        <Empty description="Belum ada histori update progress." />
+                        <Empty description={tx("Belum ada histori update progress.", "No progress update history yet.")} />
                     )}
                 </Card>
             </Space>
@@ -688,14 +704,14 @@ export default function MonitoringPanel({ programId, options = {}, permissions =
             />
 
             <Modal
-                title="Hapus risiko?"
+                title={tx("Hapus risiko?", "Remove risk?")}
                 open={Boolean(deletingRisk)}
                 onCancel={() => setDeletingRisk(null)}
                 onOk={deleteRisk}
-                okText="Hapus"
+                okText={tx("Hapus", "Remove")}
                 okButtonProps={{ danger: true }}
             >
-                Risiko <strong>{deletingRisk?.title}</strong> akan dihapus dari register.
+                {tx("Risiko", "Risk")} <strong>{deletingRisk?.title}</strong> {tx("akan dihapus dari register.", "will be removed from the register.")}
             </Modal>
         </>
     );

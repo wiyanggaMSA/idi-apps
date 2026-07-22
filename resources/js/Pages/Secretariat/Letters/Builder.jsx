@@ -7,6 +7,7 @@ import AppLayout from "@/Layouts/AppLayout";
 import PageHeader from "@/Components/App/PageHeader";
 import PageShell from "@/Components/App/PageShell";
 import SimpleRichTextEditor from "@/Components/SimpleRichTextEditor";
+import useBilingual from "@/Hooks/useBilingual";
 import { formatDate } from "@/lib/format";
 
 const defaultLayout = () => [
@@ -19,17 +20,17 @@ const defaultLayout = () => [
 
 const blockContent = (blocks, type, fallback = "") => blocks?.find((block) => block.type === type)?.content ?? fallback;
 
-const buildBlocks = (values) => [
-  { id: "kop_surat", type: "kop_surat", label: "Kop Surat", content: values.kop_text || "Kop Surat Otomatis" },
+const buildBlocks = (values, tx = (id) => id) => [
+  { id: "kop_surat", type: "kop_surat", label: tx("Kop Surat", "Letterhead"), content: values.kop_text || tx("Kop Surat Otomatis", "Automatic Letterhead") },
   {
     id: "nomor_tanggal",
     type: "nomor_tanggal",
-    label: "Nomor & Tanggal",
-    content: `Nomor: ${values.number || "{nomor_surat}"}\nLampiran: ${values.attachment || "-"}\nPerihal: ${values.subject || "{perihal}"}`,
+    label: tx("Nomor & Tanggal", "Number & Date"),
+    content: `${tx("Nomor", "Number")}: ${values.number || "{nomor_surat}"}\n${tx("Lampiran", "Attachment")}: ${values.attachment || "-"}\n${tx("Perihal", "Subject")}: ${values.subject || "{perihal}"}`,
   },
-  { id: "isi_surat", type: "isi_surat", label: "Isi Surat", content: values.body_text || "" },
-  { id: "tanda_tangan", type: "tanda_tangan", label: "Tanda Tangan", content: "Tanda Tangan dan QR Otomatis" },
-  { id: "tembusan", type: "tembusan", label: "Tembusan", content: values.cc_text || "" },
+  { id: "isi_surat", type: "isi_surat", label: tx("Isi Surat", "Letter Body"), content: values.body_text || "" },
+  { id: "tanda_tangan", type: "tanda_tangan", label: tx("Tanda Tangan", "Signature"), content: tx("Tanda Tangan dan QR Otomatis", "Automatic signature and QR") },
+  { id: "tembusan", type: "tembusan", label: tx("Tembusan", "CC"), content: values.cc_text || "" },
 ];
 
 const stripHtml = (value) => String(value ?? "").replace(/<[^>]*>/g, "").trim();
@@ -37,10 +38,10 @@ const sanitizeHtml = (value) => String(value ?? "")
   .replace(/<script\b[^>]*>(.*?)<\/script>/gis, "")
   .replace(/\son\w+=(["']).*?\1/gi, "");
 const defaultSigner = { member_id: undefined, name: "", title: "", position: "right", qr_enabled: true };
-const signerPositionOptions = [
-  { label: "Kiri", value: "left" },
-  { label: "Tengah", value: "center" },
-  { label: "Kanan", value: "right" },
+const signerPositionOptions = (tx) => [
+  { label: tx("Kiri", "Left"), value: "left" },
+  { label: tx("Tengah", "Center"), value: "center" },
+  { label: tx("Kanan", "Right"), value: "right" },
 ];
 const normalizeSigners = (source, fallbackName = "", fallbackTitle = "", qrEnabled = true) => {
   const signers = Array.isArray(source) && source.length
@@ -62,6 +63,7 @@ const signatureSlots = (signers = []) => ["left", "center", "right"].map((positi
 
 export default function LetterComposer() {
   const { letter = null, templates = [], numberingProfiles = [], signerMembers = [] } = usePage().props;
+  const { tx } = useBilingual();
   const [finalizing, setFinalizing] = useState(false);
   const [activeStep, setActiveStep] = useState(letter ? 1 : 0);
   const templateMap = useMemo(() => new Map(templates.map((item) => [item.id, item])), [templates]);
@@ -93,7 +95,66 @@ export default function LetterComposer() {
     attachments: [],
   });
 
-  const blocks = useMemo(() => buildBlocks(form.data), [form.data]);
+  const copy = useMemo(() => ({
+    pageTitle: tx("Sekretariat - Buat Surat", "Secretariat - Create Letter"),
+    eyebrow: tx("Surat", "Letters"),
+    editTitle: tx("Edit Draft Surat", "Edit Letter Draft"),
+    createTitle: tx("Buat Surat", "Create Letter"),
+    description: tx(
+      "Alur dibuat bertahap: pilih template, isi data, cek draft, lalu simpan atau finalisasi.",
+      "A step-by-step flow: choose a template, fill in the data, review the draft, then save or finalize."
+    ),
+    details: tx("Detail", "Details"),
+    saveDraft: tx("Simpan Draft", "Save Draft"),
+    finalize: tx("Finalisasi", "Finalize"),
+    stepTemplate: tx("Template", "Template"),
+    stepData: tx("Data Surat", "Letter Data"),
+    stepPreview: tx("Preview Draft", "Draft Preview"),
+    stepSave: tx("Simpan/Finalisasi", "Save/Finalize"),
+    formTitle: tx("Form Surat", "Letter Form"),
+    templateLabel: tx("Template surat", "Letter template"),
+    typeLabel: tx("Jenis surat", "Letter type"),
+    numberLabel: tx("Nomor surat", "Letter number"),
+    numberPlaceholder: tx("Otomatis saat finalisasi", "Automatic on finalization"),
+    generate: tx("Generate", "Generate"),
+    dateLabel: tx("Tanggal surat", "Letter date"),
+    attachment: tx("Lampiran", "Attachment"),
+    attachmentPlaceholder: tx("Contoh: 1 berkas / -", "Example: 1 file / -"),
+    subject: tx("Perihal", "Subject"),
+    recipient: tx("Penerima", "Recipient"),
+    body: tx("Isi surat", "Letter body"),
+    bodyHelp: tx(
+      "Editor ini mendukung format terbatas seperti tebal, miring, garis bawah, perataan, daftar, dan kutipan. Teks dari Word atau web akan ditempel sebagai teks polos agar format tersembunyi tidak merusak PDF; atur kembali perataan dan daftar melalui toolbar. Untuk data berlabel, ketik satu baris seperti Nama: Wisnu tanpa spasi tambahan agar titik dua otomatis sejajar. Font, ukuran, jarak baris, dan margin hasil PDF mengikuti Template Surat.",
+      "This editor supports limited formatting such as bold, italic, underline, alignment, lists, and quotes. Text copied from Word or the web is pasted as plain text so hidden formatting cannot disrupt the PDF; reapply alignment and lists from the toolbar. For labelled data, type one row such as Name: Wisnu without extra spaces so the colons align automatically. The PDF font, size, line spacing, and margins follow the Letter Template."
+    ),
+    cc: tx("Tembusan", "CC"),
+    signers: tx("Penandatangan", "Signers"),
+    add: tx("Tambah", "Add"),
+    databaseMember: tx("Anggota database", "Database member"),
+    name: tx("Nama", "Name"),
+    title: tx("Jabatan", "Position"),
+    position: tx("Posisi", "Alignment"),
+    optionalAttachment: tx("Lampiran opsional", "Optional attachments"),
+    uploadHint: tx("PDF, gambar, DOC/DOCX. Maks 10MB per file.", "PDF, images, DOC/DOCX. Max 10 MB per file."),
+    chooseTemplate: tx("Pilih template untuk mulai membuat surat.", "Choose a template to start creating a letter."),
+    letterhead: tx("KOP SURAT", "LETTERHEAD"),
+    autoAtFinalize: tx("(otomatis saat finalisasi)", "(automatic on finalization)"),
+    cityDate: tx("Purwakarta", "Purwakarta"),
+    recipientPlaceholder: tx("<p>Yth. ...</p>", "<p>Dear ...</p>"),
+    bodyPlaceholder: tx("<p>Isi surat...</p>", "<p>Letter body...</p>"),
+    signaturePlaceholder: tx("Tanda tangan", "Signature"),
+    qrSignaturePlaceholder: tx("QR + tanda tangan", "QR + signature"),
+    signerNamePlaceholder: tx("Nama penandatangan", "Signer name"),
+    signerTitlePlaceholder: tx("Jabatan", "Position"),
+    saved: tx("Draft surat disimpan.", "Letter draft saved."),
+    saveFailed: tx("Gagal menyimpan draft.", "Failed to save draft."),
+    saveBeforeNumber: tx("Simpan draft lebih dulu sebelum generate nomor.", "Save the draft before generating a number."),
+    numberSuggested: tx("Nomor tersedia disarankan. Counter dikunci saat finalisasi.", "Suggested available number. The counter is locked on finalization."),
+    saveBeforeFinalize: tx("Simpan draft surat terlebih dahulu.", "Save the letter draft first."),
+    finalizeFailed: tx("Finalisasi gagal.", "Finalization failed."),
+  }), [tx]);
+
+  const blocks = useMemo(() => buildBlocks(form.data, tx), [form.data, tx]);
   const layout = useMemo(() => letter?.layout_json ?? selectedTemplate?.layout_json ?? defaultLayout(), [letter?.layout_json, selectedTemplate?.layout_json]);
 
   const payload = () => ({
@@ -127,8 +188,8 @@ export default function LetterComposer() {
     const options = {
       forceFormData: form.data.attachments.length > 0,
       preserveScroll: true,
-      onSuccess: () => message.success("Draft surat disimpan."),
-      onError: (errors) => message.error(Object.values(errors || {})[0] || "Gagal menyimpan draft."),
+      onSuccess: () => message.success(copy.saved),
+      onError: (errors) => message.error(Object.values(errors || {})[0] || copy.saveFailed),
     };
 
     if (letter?.id) {
@@ -140,7 +201,7 @@ export default function LetterComposer() {
 
   const generateNumber = async () => {
     if (!letter?.id) {
-      message.warning("Simpan draft lebih dulu sebelum generate nomor.");
+      message.warning(copy.saveBeforeNumber);
       return;
     }
 
@@ -150,12 +211,12 @@ export default function LetterComposer() {
       classification: form.data.classification,
     });
     form.setData("number", data.number);
-    message.success("Nomor tersedia disarankan. Counter dikunci saat finalisasi.");
+    message.success(copy.numberSuggested);
   };
 
   const finalize = () => {
     if (!letter?.id) {
-      message.warning("Simpan draft surat terlebih dahulu.");
+      message.warning(copy.saveBeforeFinalize);
       return;
     }
 
@@ -163,7 +224,7 @@ export default function LetterComposer() {
     form.transform(payload);
     form.post(route("secretariat.letters.finalize", letter.id), {
       preserveScroll: true,
-      onError: (errors) => message.error(Object.values(errors || {})[0] || "Finalisasi gagal."),
+      onError: (errors) => message.error(Object.values(errors || {})[0] || copy.finalizeFailed),
       onFinish: () => setFinalizing(false),
     });
   };
@@ -187,18 +248,18 @@ export default function LetterComposer() {
   };
 
   return (
-    <AppLayout title="Sekretariat - Buat Surat">
+    <AppLayout title={copy.pageTitle}>
       <PageShell>
         <PageHeader
-          eyebrow="Surat"
-          title={letter?.id ? "Edit Draft Surat" : "Buat Surat"}
-          description="Alur dibuat bertahap: pilih template, isi data, cek draft, lalu simpan atau finalisasi."
+          eyebrow={copy.eyebrow}
+          title={letter?.id ? copy.editTitle : copy.createTitle}
+          description={copy.description}
           extra={
             <Space>
-              {letter?.id ? <Link href={route("secretariat.letters.show", letter.id)}><Button>Detail</Button></Link> : null}
-              <Button icon={<SaveOutlined />} onClick={saveDraft} loading={form.processing}>Simpan Draft</Button>
+              {letter?.id ? <Link href={route("secretariat.letters.show", letter.id)}><Button>{copy.details}</Button></Link> : null}
+              <Button icon={<SaveOutlined />} onClick={saveDraft} loading={form.processing}>{copy.saveDraft}</Button>
               <Button type="primary" icon={<SendOutlined />} disabled={!letter?.id} onClick={finalize} loading={finalizing}>
-                Finalisasi
+                {copy.finalize}
               </Button>
             </Space>
           }
@@ -209,21 +270,21 @@ export default function LetterComposer() {
             current={activeStep}
             onChange={setActiveStep}
             items={[
-              { title: "Template" },
-              { title: "Data Surat" },
-              { title: "Preview Draft" },
-              { title: "Simpan/Finalisasi" },
+              { title: copy.stepTemplate },
+              { title: copy.stepData },
+              { title: copy.stepPreview },
+              { title: copy.stepSave },
             ]}
           />
         </Card>
 
         <Row gutter={[16, 16]}>
           <Col span={14}>
-            <Card className="border-white/80 shadow-sm" title="Form Surat">
+            <Card className="border-white/80 shadow-sm" title={copy.formTitle}>
               <Form layout="vertical">
                 <Row gutter={12}>
                   <Col span={12}>
-                    <Form.Item label="Template surat" required>
+                    <Form.Item label={copy.templateLabel} required>
                       <Select
                         showSearch
                         value={form.data.template_id}
@@ -237,7 +298,7 @@ export default function LetterComposer() {
                     </Form.Item>
                   </Col>
                   <Col span={12}>
-                    <Form.Item label="Jenis surat">
+                    <Form.Item label={copy.typeLabel}>
                       <Input value={form.data.classification} onChange={(event) => form.setData("classification", event.target.value)} />
                     </Form.Item>
                   </Col>
@@ -245,40 +306,40 @@ export default function LetterComposer() {
 
                 <Row gutter={12}>
                   <Col span={12}>
-                    <Form.Item label="Nomor surat">
+                    <Form.Item label={copy.numberLabel}>
                       <Space.Compact className="w-full">
-                        <Input value={form.data.number} onChange={(event) => form.setData("number", event.target.value)} placeholder="Otomatis saat finalisasi" />
-                        <Button icon={<NumberOutlined />} onClick={generateNumber}>Generate</Button>
+                        <Input value={form.data.number} onChange={(event) => form.setData("number", event.target.value)} placeholder={copy.numberPlaceholder} />
+                        <Button icon={<NumberOutlined />} onClick={generateNumber}>{copy.generate}</Button>
                       </Space.Compact>
                     </Form.Item>
                   </Col>
                   <Col span={12}>
-                    <Form.Item label="Tanggal surat" required>
+                    <Form.Item label={copy.dateLabel} required>
                       <Input type="date" value={form.data.date} onChange={(event) => form.setData("date", event.target.value)} />
                     </Form.Item>
                   </Col>
                 </Row>
 
-                <Form.Item label="Lampiran">
-                  <Input value={form.data.attachment} onChange={(event) => form.setData("attachment", event.target.value)} placeholder="Contoh: 1 berkas / -" />
+                <Form.Item label={copy.attachment}>
+                  <Input value={form.data.attachment} onChange={(event) => form.setData("attachment", event.target.value)} placeholder={copy.attachmentPlaceholder} />
                 </Form.Item>
-                <Form.Item label="Perihal" required>
+                <Form.Item label={copy.subject} required>
                   <Input value={form.data.subject} onChange={(event) => form.setData("subject", event.target.value)} />
                 </Form.Item>
-                <Form.Item label="Penerima" required>
+                <Form.Item label={copy.recipient} required>
                   <SimpleRichTextEditor documentMode minHeight={96} value={form.data.recipient_text} onChange={(value) => form.setData("recipient_text", value)} />
                 </Form.Item>
-                <Form.Item label="Isi surat" required>
+                <Form.Item label={copy.body} required extra={copy.bodyHelp}>
                   <SimpleRichTextEditor documentMode value={form.data.body_text} onChange={(value) => form.setData("body_text", value)} />
                 </Form.Item>
-                <Form.Item label="Tembusan">
+                <Form.Item label={copy.cc}>
                   <SimpleRichTextEditor documentMode minHeight={86} value={form.data.cc_text} onChange={(value) => form.setData("cc_text", value)} />
                 </Form.Item>
 
                 <Card
                   size="small"
                   className="mb-4 bg-zinc-50"
-                  title="Penandatangan"
+                  title={copy.signers}
                   extra={
                     <Button
                       size="small"
@@ -286,14 +347,14 @@ export default function LetterComposer() {
                       disabled={(form.data.signers || []).length >= 3}
                       onClick={() => form.setData("signers", [...(form.data.signers || []), { ...defaultSigner, position: "left" }])}
                     >
-                      Tambah
+                      {copy.add}
                     </Button>
                   }
                 >
                   <div className="space-y-3">
                     {(form.data.signers || []).map((signer, index) => (
                       <div key={index} className="rounded-xl border border-zinc-200 bg-white p-3">
-                        <Form.Item label={`Anggota database ${index + 1}`} className="mb-3">
+                        <Form.Item label={`${copy.databaseMember} ${index + 1}`} className="mb-3">
                           <Select
                             allowClear
                             showSearch
@@ -307,7 +368,7 @@ export default function LetterComposer() {
                           />
                         </Form.Item>
                         <div className="grid grid-cols-[1fr_1fr_112px_80px_40px] items-end gap-3">
-                          <Form.Item label={`Nama ${index + 1}`} required={index === 0} className="mb-0">
+                          <Form.Item label={`${copy.name} ${index + 1}`} required={index === 0} className="mb-0">
                             <Input
                               value={signer.name}
                               onChange={(event) => {
@@ -321,7 +382,7 @@ export default function LetterComposer() {
                               }}
                             />
                           </Form.Item>
-                          <Form.Item label="Jabatan" required={index === 0} className="mb-0">
+                          <Form.Item label={copy.title} required={index === 0} className="mb-0">
                             <Input
                               value={signer.title}
                               onChange={(event) => {
@@ -335,7 +396,7 @@ export default function LetterComposer() {
                               }}
                             />
                           </Form.Item>
-                          <Form.Item label="Posisi" className="mb-0">
+                          <Form.Item label={copy.position} className="mb-0">
                             <Select
                               value={signer.position}
                               onChange={(value) => {
@@ -343,7 +404,7 @@ export default function LetterComposer() {
                                 next[index] = { ...next[index], position: value };
                                 form.setData("signers", next);
                               }}
-                              options={signerPositionOptions}
+                              options={signerPositionOptions(tx)}
                             />
                           </Form.Item>
                           <Form.Item label="QR" className="mb-0">
@@ -381,39 +442,39 @@ export default function LetterComposer() {
                   onRemove={(file) => form.setData("attachments", form.data.attachments.filter((item) => item.uid !== file.uid))}
                 >
                   <p className="ant-upload-drag-icon"><InboxOutlined /></p>
-                  <p className="ant-upload-text">Lampiran opsional</p>
-                  <p className="ant-upload-hint">PDF, gambar, DOC/DOCX. Maks 10MB per file.</p>
+                  <p className="ant-upload-text">{copy.optionalAttachment}</p>
+                  <p className="ant-upload-hint">{copy.uploadHint}</p>
                 </Upload.Dragger>
               </Form>
             </Card>
           </Col>
 
           <Col span={10}>
-            <Card className="sticky top-6 border-white/80 shadow-sm" title="Preview Draft">
+            <Card className="sticky top-6 border-white/80 shadow-sm" title={copy.stepPreview}>
               {!form.data.template_id ? (
-                <Alert type="info" showIcon title="Pilih template untuk mulai membuat surat." />
+                <Alert type="info" showIcon title={copy.chooseTemplate} />
               ) : (
                 <div className="h-[760px] overflow-auto rounded-lg border border-zinc-200 bg-zinc-100 p-5">
                   <div className="mx-auto min-h-[680px] w-[520px] bg-white p-8 shadow-sm">
-                    <div className="border-b-2 border-zinc-900 pb-4 text-center text-sm font-semibold">KOP SURAT</div>
+                    <div className="border-b-2 border-zinc-900 pb-4 text-center text-sm font-semibold">{copy.letterhead}</div>
                     <div className="mt-6 flex items-start justify-between gap-4 text-sm">
                       <div className="grid flex-1 grid-cols-[72px_14px_1fr] gap-y-1">
-                        <span>Nomor</span><span>:</span><span>{form.data.number || "(otomatis saat finalisasi)"}</span>
-                        <span>Lampiran</span><span>:</span><span>{form.data.attachment || "-"}</span>
-                        <span>Perihal</span><span>:</span><span>{form.data.subject || "-"}</span>
+                        <span>{tx("Nomor", "Number")}</span><span>:</span><span>{form.data.number || copy.autoAtFinalize}</span>
+                        <span>{copy.attachment}</span><span>:</span><span>{form.data.attachment || "-"}</span>
+                        <span>{copy.subject}</span><span>:</span><span>{form.data.subject || "-"}</span>
                       </div>
-                      <div className="shrink-0 text-right">Purwakarta, {formatDate(form.data.date)}</div>
+                      <div className="shrink-0 text-right">{copy.cityDate}, {formatDate(form.data.date)}</div>
                     </div>
-                    <div className="prose prose-sm mt-6 max-w-none" dangerouslySetInnerHTML={{ __html: sanitizeHtml(form.data.recipient_text || "<p>Yth. ...</p>") }} />
-                    <div className="prose prose-sm mt-5 max-w-none" dangerouslySetInnerHTML={{ __html: sanitizeHtml(form.data.body_text || "<p>Isi surat...</p>") }} />
+                    <div className="prose prose-sm mt-6 max-w-none" dangerouslySetInnerHTML={{ __html: sanitizeHtml(form.data.recipient_text || copy.recipientPlaceholder) }} />
+                    <div className="prose prose-sm mt-5 max-w-none" dangerouslySetInnerHTML={{ __html: sanitizeHtml(form.data.body_text || copy.bodyPlaceholder) }} />
                     <div className="mt-10 grid grid-cols-3 gap-4 text-center text-sm">
                       {signatureSlots(form.data.signers || []).map((slot) => (
                         <div key={slot.position} className="min-h-[120px]">
                           {slot.signers.map((signer, index) => (
                             <div key={`${slot.position}-${index}`} className={index > 0 ? "mt-6" : ""}>
-                              <div>{signer.title || "Jabatan"}</div>
-                              <div className="my-8 text-xs text-zinc-400">{signer.qr_enabled === false ? "Tanda tangan" : "QR + tanda tangan"}</div>
-                              <div className="font-semibold">{signer.name || "Nama penandatangan"}</div>
+                              <div>{signer.title || copy.signerTitlePlaceholder}</div>
+                              <div className="my-8 text-xs text-zinc-400">{signer.qr_enabled === false ? copy.signaturePlaceholder : copy.qrSignaturePlaceholder}</div>
+                              <div className="font-semibold">{signer.name || copy.signerNamePlaceholder}</div>
                             </div>
                           ))}
                         </div>

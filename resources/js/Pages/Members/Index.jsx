@@ -440,7 +440,7 @@ export default function MembersIndex() {
       columnHelper.display({
         id: "actions",
         header: copy.actions,
-        meta: { label: copy.actions, sortable: false, width: 88 },
+        meta: { label: copy.actions, sortable: false, width: 88, fixed: "right" },
         cell: (info) => {
           const member = info.row.original;
           const items = [
@@ -513,6 +513,7 @@ export default function MembersIndex() {
       key: column.id,
       dataIndex: column.id,
       width: column.columnDef.meta?.width,
+      fixed: column.columnDef.meta?.fixed,
       ellipsis: false,
       render: (_, row) =>
         flexRender(column.columnDef.cell, {

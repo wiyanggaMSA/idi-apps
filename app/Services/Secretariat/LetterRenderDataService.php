@@ -12,12 +12,15 @@ use Illuminate\Support\Facades\Storage;
 
 class LetterRenderDataService
 {
-    public function __construct(private readonly QrCodeService $qrCodeService) {}
+    public function __construct(
+        private readonly QrCodeService $qrCodeService,
+        private readonly LetterBodyHtmlFormatter $bodyHtmlFormatter
+    ) {}
 
     public function build(Letter $letter): array
     {
         $layout = $letter->layout_json ?? [];
-        $blocks = $letter->blocks_json ?? [];
+        $blocks = $this->bodyHtmlFormatter->formatBlocks($letter->blocks_json ?? []);
 
         $orgProfile = AppSetting::query()->first();
         $addressLines = $orgProfile?->address
@@ -66,10 +69,9 @@ class LetterRenderDataService
                 'signature' => $signature->id,
                 'k' => $signature->verification_code,
             ]);
-            $logoPath = $normalizedLogoPath ? Storage::disk('public')->path($normalizedLogoPath) : null;
             $qrDataUri = $this->qrCodeService->generateQrWithCenterLogo(
                 $verificationUrl,
-                $logoPath && file_exists($logoPath) ? $logoPath : null
+                $this->qrLogoAbsolutePath($normalizedLogoPath)
             );
 
             $signaturePayload = [
@@ -81,10 +83,9 @@ class LetterRenderDataService
             ];
         } elseif ($letter->public_hash) {
             $verificationUrl = route('letters.verify', ['public_hash' => $letter->public_hash]);
-            $logoPath = $normalizedLogoPath ? Storage::disk('public')->path($normalizedLogoPath) : null;
             $qrDataUri = $this->qrCodeService->generateQrWithCenterLogo(
                 $verificationUrl,
-                $logoPath && file_exists($logoPath) ? $logoPath : null
+                $this->qrLogoAbsolutePath($normalizedLogoPath)
             );
 
             $signaturePayload = [
@@ -104,6 +105,14 @@ class LetterRenderDataService
                 : LetterTemplate::query()->find($letter->template_id);
             $templateStyle = is_array($template?->margin_json) ? $template->margin_json : [];
         }
+
+        $pxToMm = static fn (float $px): float => round($px * 25.4 / 96, 1);
+        $mmToPx = static fn (float $mm): int => (int) round($mm * 96 / 25.4);
+        $marginTopMm = (float) ($templateStyle['margin_top_mm'] ?? 10);
+        $marginRightMm = (float) ($templateStyle['margin_right_mm'] ?? $pxToMm($templateStyle['margin_right_px'] ?? 64));
+        $marginBottomMm = (float) ($templateStyle['margin_bottom_mm'] ?? $pxToMm($templateStyle['margin_bottom_px'] ?? 72));
+        $marginLeftMm = (float) ($templateStyle['margin_left_mm'] ?? $pxToMm($templateStyle['margin_left_px'] ?? 64));
+        $contentTopGapMm = (float) ($templateStyle['content_top_gap_mm'] ?? $pxToMm($templateStyle['content_top_gap_px'] ?? 11));
 
         $signers = LetterSignerNormalizer::normalize(
             $letter->signers_json,
@@ -137,21 +146,28 @@ class LetterRenderDataService
                 ],
                 'style' => [
                     'font_family' => $templateStyle['font_family'] ?? 'Times New Roman',
-                    'font_size' => (float) ($templateStyle['font_size'] ?? 12),
-                    'line_height' => (float) ($templateStyle['line_height'] ?? 1.35),
-                    'paragraph_spacing' => (float) ($templateStyle['paragraph_spacing'] ?? 4),
+                    'font_size' => (float) ($templateStyle['font_size'] ?? 11),
+                    'line_height' => (float) ($templateStyle['line_height'] ?? 1.25),
+                    'paragraph_spacing' => (float) ($templateStyle['paragraph_spacing'] ?? 2),
                     'repeat_header' => (bool) ($templateStyle['repeat_header'] ?? true),
                     'signature_qr_position' => in_array(($templateStyle['signature_qr_position'] ?? ''), ['left', 'right'], true)
                         ? $templateStyle['signature_qr_position']
                         : 'right',
                     'header_image_url' => $template?->header_image_path ? url(Storage::url($template->header_image_path)) : null,
-                    'header_image_data_uri' => $this->fileDataUri($template?->header_image_path),
+                    'header_image_data_uri' => $this->fileDataUri($template?->header_image_path, 1200, 600, true),
                     'header_height_px' => (int) ($template?->header_height_px ?: 132),
                     'document_mode' => $template?->document_mode ?: ($templateStyle['document_mode'] ?? 'flow'),
-                    'margin_left_px' => (int) ($templateStyle['margin_left_px'] ?? 64),
-                    'margin_right_px' => (int) ($templateStyle['margin_right_px'] ?? 64),
-                    'margin_bottom_px' => (int) ($templateStyle['margin_bottom_px'] ?? 72),
-                    'content_top_gap_px' => (int) ($templateStyle['content_top_gap_px'] ?? 54),
+                    'paper_format' => $templateStyle['paper_format'] ?? $template?->paper ?? 'A4',
+                    'orientation' => ($templateStyle['orientation'] ?? 'P') === 'L' ? 'L' : 'P',
+                    'margin_top_mm' => $marginTopMm,
+                    'margin_right_mm' => $marginRightMm,
+                    'margin_bottom_mm' => $marginBottomMm,
+                    'margin_left_mm' => $marginLeftMm,
+                    'content_top_gap_mm' => $contentTopGapMm,
+                    'margin_left_px' => (int) ($templateStyle['margin_left_px'] ?? $mmToPx($marginLeftMm)),
+                    'margin_right_px' => (int) ($templateStyle['margin_right_px'] ?? $mmToPx($marginRightMm)),
+                    'margin_bottom_px' => (int) ($templateStyle['margin_bottom_px'] ?? $mmToPx($marginBottomMm)),
+                    'content_top_gap_px' => (int) ($templateStyle['content_top_gap_px'] ?? $mmToPx($contentTopGapMm)),
                 ],
             ],
         ];
@@ -159,7 +175,7 @@ class LetterRenderDataService
 
     private function logoDataUri(?string $logoPath): ?string
     {
-        $dataUri = $this->fileDataUri($logoPath);
+        $dataUri = $this->fileDataUri($logoPath, 256, 256);
         if ($dataUri) {
             return $dataUri;
         }
@@ -173,6 +189,7 @@ class LetterRenderDataService
             return null;
         }
         $mime = @mime_content_type($fallbackPath) ?: 'image/png';
+        [$bytes, $mime] = $this->optimizeImageForPdf($bytes, $mime, 256, 256);
 
         return 'data:'.$mime.';base64,'.base64_encode($bytes);
     }
@@ -183,8 +200,7 @@ class LetterRenderDataService
             return $signers;
         }
 
-        $logoAbsolutePath = $logoPath ? Storage::disk('public')->path($logoPath) : null;
-        $validLogoPath = $logoAbsolutePath && file_exists($logoAbsolutePath) ? $logoAbsolutePath : null;
+        $validLogoPath = $this->qrLogoAbsolutePath($logoPath);
         $baseVerificationUrl = route('letters.verify', ['public_hash' => $letter->public_hash]);
         $memberIds = collect($signers)->pluck('member_id')->filter()->unique()->values();
         $signatureRecords = $memberIds->isEmpty()
@@ -231,7 +247,7 @@ class LetterRenderDataService
             ->all();
     }
 
-    private function fileDataUri(?string $path): ?string
+    private function fileDataUri(?string $path, int $maxWidth = 600, int $maxHeight = 600, bool $trimWhitespace = false): ?string
     {
         if (! $path || ! Storage::disk('public')->exists($path)) {
             return null;
@@ -248,8 +264,136 @@ class LetterRenderDataService
         }
 
         $mime = @mime_content_type($absolutePath) ?: 'image/png';
+        [$bytes, $mime] = $this->optimizeImageForPdf($bytes, $mime, $maxWidth, $maxHeight, $trimWhitespace);
 
         return 'data:'.$mime.';base64,'.base64_encode($bytes);
+    }
+
+    private function qrLogoAbsolutePath(?string $logoPath): ?string
+    {
+        if ($logoPath) {
+            $absolutePath = Storage::disk('public')->path($logoPath);
+            if (is_file($absolutePath)) {
+                return $absolutePath;
+            }
+        }
+
+        $fallbackPath = public_path('images/idi-logo.png');
+
+        return is_file($fallbackPath) ? $fallbackPath : null;
+    }
+
+    private function optimizeImageForPdf(string $bytes, string $mime, int $maxWidth, int $maxHeight, bool $trimWhitespace = false): array
+    {
+        if (! function_exists('imagecreatefromstring')) {
+            return [$bytes, $mime];
+        }
+
+        $info = @getimagesizefromstring($bytes);
+        if (! $info) {
+            return [$bytes, $mime];
+        }
+
+        [$width, $height] = $info;
+        $shouldOptimize = $trimWhitespace || strlen($bytes) > 80_000 || $width > $maxWidth || $height > $maxHeight;
+        if (! $shouldOptimize) {
+            return [$bytes, $mime];
+        }
+
+        $image = @imagecreatefromstring($bytes);
+        if (! $image) {
+            return [$bytes, $mime];
+        }
+
+        if ($trimWhitespace) {
+            $cropped = $this->cropNearWhiteWhitespace($image);
+            if ($cropped !== false) {
+                imagedestroy($image);
+                $image = $cropped;
+                $width = imagesx($image);
+                $height = imagesy($image);
+            }
+        }
+
+        $scale = min(1, $maxWidth / max(1, $width), $maxHeight / max(1, $height));
+        $targetWidth = max(1, (int) round($width * $scale));
+        $targetHeight = max(1, (int) round($height * $scale));
+
+        $canvas = imagecreatetruecolor($targetWidth, $targetHeight);
+        if (! $canvas) {
+            imagedestroy($image);
+
+            return [$bytes, $mime];
+        }
+
+        $white = imagecolorallocate($canvas, 255, 255, 255);
+        imagefilledrectangle($canvas, 0, 0, $targetWidth, $targetHeight, $white);
+        imagecopyresampled($canvas, $image, 0, 0, 0, 0, $targetWidth, $targetHeight, $width, $height);
+
+        ob_start();
+        imagejpeg($canvas, null, 78);
+        $optimized = ob_get_clean();
+
+        imagedestroy($image);
+        imagedestroy($canvas);
+
+        if (! is_string($optimized) || strlen($optimized) >= strlen($bytes)) {
+            return [$bytes, $mime];
+        }
+
+        return [$optimized, 'image/jpeg'];
+    }
+
+    private function cropNearWhiteWhitespace(\GdImage $image): \GdImage|false
+    {
+        $width = imagesx($image);
+        $height = imagesy($image);
+        $minX = $width;
+        $minY = $height;
+        $maxX = -1;
+        $maxY = -1;
+        $threshold = 245;
+        $trueColor = imageistruecolor($image);
+
+        for ($y = 0; $y < $height; $y++) {
+            for ($x = 0; $x < $width; $x++) {
+                $color = imagecolorat($image, $x, $y);
+                if ($trueColor) {
+                    $red = ($color >> 16) & 0xff;
+                    $green = ($color >> 8) & 0xff;
+                    $blue = $color & 0xff;
+                } else {
+                    $channels = imagecolorsforindex($image, $color);
+                    $red = $channels['red'];
+                    $green = $channels['green'];
+                    $blue = $channels['blue'];
+                }
+
+                if ($red < $threshold || $green < $threshold || $blue < $threshold) {
+                    $minX = min($minX, $x);
+                    $minY = min($minY, $y);
+                    $maxX = max($maxX, $x);
+                    $maxY = max($maxY, $y);
+                }
+            }
+        }
+
+        if ($maxX < $minX || $maxY < $minY) {
+            return false;
+        }
+
+        $padding = max(4, (int) round(min($width, $height) * 0.01));
+        $x = max(0, $minX - $padding);
+        $y = max(0, $minY - $padding);
+        $cropWidth = min($width - $x, ($maxX - $minX + 1) + (2 * $padding));
+        $cropHeight = min($height - $y, ($maxY - $minY + 1) + (2 * $padding));
+
+        return imagecrop($image, [
+            'x' => $x,
+            'y' => $y,
+            'width' => $cropWidth,
+            'height' => $cropHeight,
+        ]);
     }
 
     private function normalizeLogoPath(?string $logoPath): ?string

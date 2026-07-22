@@ -120,10 +120,9 @@ class LetterFinalizeWorkflowService
         $this->signatureStatusService->refreshLetterPayload($letter->refresh());
 
         Storage::disk('public')->makeDirectory("letters/{$letter->id}");
-        $html = view('letters.render', [
-            'renderData' => $this->renderDataService->build($letter),
-        ])->render();
-        $this->pdfService->generateFromHtml($html, storage_path('app/public/'.$path));
+        $renderData = $this->renderDataService->build($letter);
+        $html = view('letters.render-mpdf', compact('renderData'))->render();
+        $this->pdfService->generateFromHtml($html, storage_path('app/public/'.$path), $renderData);
 
         $letter->update([
             'pdf_path' => $path,

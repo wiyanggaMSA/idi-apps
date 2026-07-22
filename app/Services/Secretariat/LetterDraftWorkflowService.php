@@ -7,6 +7,7 @@ use App\Models\Letter;
 use App\Models\LetterTemplate;
 use App\Support\Secretariat\LetterSignerNormalizer;
 use Carbon\Carbon;
+use Illuminate\Support\Str;
 
 class LetterDraftWorkflowService
 {
@@ -48,6 +49,7 @@ class LetterDraftWorkflowService
             'content_plaintext' => $this->plaintextService->extract($plaintextSource),
             'layout_json' => $layout,
             'blocks_json' => $gridBlocks,
+            'public_hash' => (string) Str::uuid(),
             'status' => 'draft',
             'created_by' => $userId,
         ]);
@@ -88,6 +90,7 @@ class LetterDraftWorkflowService
             'content_plaintext' => $this->plaintextService->extract($plaintextSource),
             'layout_json' => $layout,
             'blocks_json' => $gridBlocks,
+            'public_hash' => $letter->public_hash ?: (string) Str::uuid(),
             'updated_by' => $userId,
         ]);
 

@@ -29,6 +29,7 @@ import {
     UploadOutlined,
 } from "@ant-design/icons";
 import { formatDate, formatDateTime, formatIDR } from "@/lib/format";
+import useBilingual from "@/Hooks/useBilingual";
 
 const { TextArea } = Input;
 
@@ -54,13 +55,17 @@ function isProgramLocked(program) {
 }
 
 function LockedProgramAlert({ section = "Bagian ini" }) {
+    const { tx } = useBilingual();
     return (
         <Alert
             className="mb-4"
             type="info"
             showIcon
-            title="Program kerja sudah dikunci"
-            description={`${section} tidak dapat diubah setelah program selesai. Jika perlu revisi, minta ketua/reviewer membuka revisi program terlebih dahulu.`}
+            title={tx("Program kerja sudah dikunci", "The work program is locked")}
+            description={tx(
+                `${section} tidak dapat diubah setelah program selesai. Jika perlu revisi, minta ketua/reviewer membuka revisi program terlebih dahulu.`,
+                `${section} cannot be changed after the program is completed. If a revision is needed, ask the chair or reviewer to open a program revision first.`,
+            )}
         />
     );
 }
@@ -76,6 +81,7 @@ function cleanPayload(payload) {
 }
 
 function BudgetPanel({ program, permissions, onChanged }) {
+    const { tx } = useBilingual();
     const [form] = Form.useForm();
     const [itemForm] = Form.useForm();
     const [saving, setSaving] = useState(false);
@@ -100,10 +106,10 @@ function BudgetPanel({ program, permissions, onChanged }) {
         setSaving(true);
         try {
             await axios.patch(route("work-programs.budget.update", program.id), cleanPayload(values));
-            message.success("Anggaran berhasil diperbarui.");
+            message.success(tx("Anggaran berhasil diperbarui.", "Budget updated successfully."));
             onChanged?.();
         } catch (error) {
-            message.error(error.response?.data?.message || "Anggaran belum dapat disimpan.");
+            message.error(error.response?.data?.message || tx("Anggaran belum dapat disimpan.", "The budget could not be saved."));
         } finally {
             setSaving(false);
         }
@@ -157,12 +163,12 @@ function BudgetPanel({ program, permissions, onChanged }) {
                 : await axios.post(route("work-programs.budget-items.store", program.id), payload);
 
             syncBudgetResponse(response);
-            message.success(editingItem ? "Rincian anggaran berhasil diperbarui." : "Rincian anggaran berhasil ditambahkan.");
+            message.success(editingItem ? tx("Rincian anggaran berhasil diperbarui.", "Budget item updated successfully.") : tx("Rincian anggaran berhasil ditambahkan.", "Budget item added successfully."));
             setItemModalOpen(false);
             setEditingItem(null);
             itemForm.resetFields();
         } catch (error) {
-            message.error(error.response?.data?.message || "Rincian anggaran belum dapat disimpan.");
+            message.error(error.response?.data?.message || tx("Rincian anggaran belum dapat disimpan.", "The budget item could not be saved."));
         } finally {
             setSaving(false);
         }
@@ -173,9 +179,9 @@ function BudgetPanel({ program, permissions, onChanged }) {
         try {
             const response = await axios.delete(route("work-programs.budget-items.destroy", [program.id, item.id]));
             syncBudgetResponse(response);
-            message.success("Rincian anggaran berhasil dihapus.");
+            message.success(tx("Rincian anggaran berhasil dihapus.", "Budget item removed successfully."));
         } catch (error) {
-            message.error(error.response?.data?.message || "Rincian anggaran belum dapat dihapus.");
+            message.error(error.response?.data?.message || tx("Rincian anggaran belum dapat dihapus.", "The budget item could not be removed."));
         } finally {
             setSaving(false);
         }
@@ -189,13 +195,13 @@ function BudgetPanel({ program, permissions, onChanged }) {
 
     const budgetColumns = [
         {
-            title: "Komponen",
+            title: tx("Komponen", "Item"),
             dataIndex: "description",
             render: (value, row) => (
                 <div>
                     <div className="font-semibold text-zinc-950">{value}</div>
                     <div className="text-xs text-zinc-500">
-                        {[row.category, row.budget_source].filter(Boolean).join(" · ") || "Tanpa kategori"}
+                        {[row.category, row.budget_source].filter(Boolean).join(" · ") || tx("Tanpa kategori", "Uncategorized")}
                     </div>
                     {row.notes ? <div className="mt-1 text-xs text-zinc-500">{row.notes}</div> : null}
                 </div>
@@ -207,17 +213,17 @@ function BudgetPanel({ program, permissions, onChanged }) {
             render: (_, row) => `${row.quantity || 1} ${row.unit || ""}`,
         },
         {
-            title: "Harga Satuan",
+            title: tx("Harga Satuan", "Unit Price"),
             width: 160,
             render: (_, row) => formatIDR(row.unit_cost || 0),
         },
         {
-            title: "Estimasi",
+            title: tx("Estimasi", "Estimate"),
             width: 160,
             render: (_, row) => formatIDR(row.estimated_amount || 0),
         },
         {
-            title: "Realisasi",
+            title: tx("Realisasi", "Actual"),
             width: 160,
             render: (_, row) => formatIDR(row.realized_amount || 0),
         },
@@ -227,14 +233,14 @@ function BudgetPanel({ program, permissions, onChanged }) {
             render: (_, row) =>
                 canManageBudget ? (
                     <Space>
-                        <Button size="small" onClick={() => openItemModal(row)}>Edit</Button>
+                        <Button size="small" onClick={() => openItemModal(row)}>{tx("Edit", "Edit")}</Button>
                         <Popconfirm
-                            title="Hapus rincian anggaran?"
-                            okText="Hapus"
-                            cancelText="Batal"
+                            title={tx("Hapus rincian anggaran?", "Remove budget item?")}
+                            okText={tx("Hapus", "Remove")}
+                            cancelText={tx("Batal", "Cancel")}
                             onConfirm={() => deleteItem(row)}
                         >
-                            <Button size="small" danger>Hapus</Button>
+                            <Button size="small" danger>{tx("Hapus", "Remove")}</Button>
                         </Popconfirm>
                     </Space>
                 ) : null,
@@ -244,53 +250,53 @@ function BudgetPanel({ program, permissions, onChanged }) {
     return (
         <Space orientation="vertical" size="middle" className="w-full">
             <div className="grid gap-4 md:grid-cols-3">
-                <Card><Statistic title="Estimasi" value={displayEstimated} formatter={(value) => formatIDR(value)} /></Card>
-                <Card><Statistic title="Realisasi" value={displayRealized} formatter={(value) => formatIDR(value)} /></Card>
-                <Card><Statistic title="Sisa" value={remaining} formatter={(value) => formatIDR(value)} /></Card>
+                <Card><Statistic title={tx("Estimasi", "Estimate")} value={displayEstimated} formatter={(value) => formatIDR(value)} /></Card>
+                <Card><Statistic title={tx("Realisasi", "Actual")} value={displayRealized} formatter={(value) => formatIDR(value)} /></Card>
+                <Card><Statistic title={tx("Sisa", "Remaining")} value={remaining} formatter={(value) => formatIDR(value)} /></Card>
             </div>
             <Card
-                title="Rincian Anggaran"
-                extra={canManageBudget ? <Button type="primary" icon={<PlusOutlined />} onClick={() => openItemModal()}>Tambah Rincian</Button> : null}
+                title={tx("Rincian Anggaran", "Budget Items")}
+                extra={canManageBudget ? <Button type="primary" icon={<PlusOutlined />} onClick={() => openItemModal()}>{tx("Tambah Rincian", "Add Item")}</Button> : null}
             >
-                {locked ? <LockedProgramAlert section="Anggaran" /> : null}
+                {locked ? <LockedProgramAlert section={tx("Anggaran", "Budget")} /> : null}
                 <Table
                     columns={budgetColumns}
                     dataSource={items}
                     rowKey="id"
                     pagination={false}
-                    locale={{ emptyText: "Belum ada rincian anggaran." }}
+                    locale={{ emptyText: tx("Belum ada rincian anggaran.", "No budget items yet.") }}
                     scroll={{ x: 820 }}
                 />
             </Card>
             <Card
-                title="Catatan Anggaran"
-                extra={canManageBudget ? <Button icon={<SaveOutlined />} type="primary" loading={saving} onClick={save}>Simpan</Button> : null}
+                title={tx("Catatan Anggaran", "Budget Notes")}
+                extra={canManageBudget ? <Button icon={<SaveOutlined />} type="primary" loading={saving} onClick={save}>{tx("Simpan", "Save")}</Button> : null}
             >
-                {locked ? <LockedProgramAlert section="Catatan anggaran" /> : null}
+                {locked ? <LockedProgramAlert section={tx("Catatan anggaran", "Budget notes")} /> : null}
                 <Form layout="vertical" form={form} disabled={!canManageBudget || saving}>
                     <div className="grid gap-4 md:grid-cols-2">
-                        <Form.Item label="Estimasi Anggaran" name="estimated_budget" rules={[{ required: true, message: "Estimasi wajib diisi." }]}>
+                        <Form.Item label={tx("Estimasi Anggaran", "Estimated Budget")} name="estimated_budget" rules={[{ required: true, message: tx("Estimasi wajib diisi.", "Estimate is required.") }]}>
                             <InputNumber min={0} className="w-full" disabled={items.length > 0} formatter={(value) => formatIDR(value)} parser={(value) => value?.replace(/[^\d]/g, "")} />
                         </Form.Item>
-                        <Form.Item label="Realisasi Anggaran" name="realized_budget" rules={[{ required: true, message: "Realisasi wajib diisi." }]}>
+                        <Form.Item label={tx("Realisasi Anggaran", "Actual Budget")} name="realized_budget" rules={[{ required: true, message: tx("Realisasi wajib diisi.", "Actual amount is required.") }]}>
                             <InputNumber min={0} className="w-full" disabled={items.length > 0} formatter={(value) => formatIDR(value)} parser={(value) => value?.replace(/[^\d]/g, "")} />
                         </Form.Item>
-                        <Form.Item label="Sumber Anggaran" name="budget_source">
+                        <Form.Item label={tx("Sumber Anggaran", "Budget Source")} name="budget_source">
                             <Input />
                         </Form.Item>
-                        <Form.Item label="Catatan Perubahan" name="internal_notes">
+                        <Form.Item label={tx("Catatan Perubahan", "Change Notes")} name="internal_notes">
                             <TextArea rows={3} />
                         </Form.Item>
                     </div>
                     {items.length > 0 ? (
                         <div className="text-xs text-zinc-500">
-                            Estimasi dan realisasi dihitung otomatis dari rincian anggaran.
+                            {tx("Estimasi dan realisasi dihitung otomatis dari rincian anggaran.", "Estimated and actual amounts are calculated automatically from budget items.")}
                         </div>
                     ) : null}
                 </Form>
             </Card>
             <Modal
-                title={editingItem ? "Edit Rincian Anggaran" : "Tambah Rincian Anggaran"}
+                title={editingItem ? tx("Edit Rincian Anggaran", "Edit Budget Item") : tx("Tambah Rincian Anggaran", "Add Budget Item")}
                 open={itemModalOpen}
                 onCancel={() => {
                     if (saving) return;
@@ -300,12 +306,12 @@ function BudgetPanel({ program, permissions, onChanged }) {
                 }}
                 onOk={saveItem}
                 confirmLoading={saving}
-                okText={editingItem ? "Simpan" : "Tambah"}
-                cancelText="Batal"
+                okText={editingItem ? tx("Simpan", "Save") : tx("Tambah", "Add")}
+                cancelText={tx("Batal", "Cancel")}
                 destroyOnHidden
             >
                 <Form form={itemForm} layout="vertical">
-                    <Form.Item label="Kategori" name="category">
+                    <Form.Item label={tx("Kategori", "Category")} name="category">
                         <Select
                             allowClear
                             options={[
@@ -321,32 +327,32 @@ function BudgetPanel({ program, permissions, onChanged }) {
                             ].map((value) => ({ value, label: value }))}
                         />
                     </Form.Item>
-                    <Form.Item label="Komponen" name="description" rules={[{ required: true, message: "Komponen wajib diisi." }]}>
+                    <Form.Item label={tx("Komponen", "Item")} name="description" rules={[{ required: true, message: tx("Komponen wajib diisi.", "Item is required.") }]}>
                         <Input maxLength={255} />
                     </Form.Item>
                     <div className="grid gap-3 md:grid-cols-3">
                         <Form.Item label="Qty" name="quantity">
                             <InputNumber min={1} className="w-full" />
                         </Form.Item>
-                        <Form.Item label="Satuan" name="unit">
-                            <Input maxLength={50} placeholder="orang/hari/paket" />
+                        <Form.Item label={tx("Satuan", "Unit")} name="unit">
+                            <Input maxLength={50} placeholder={tx("orang/hari/paket", "person/day/package")} />
                         </Form.Item>
-                        <Form.Item label="Harga Satuan" name="unit_cost">
+                        <Form.Item label={tx("Harga Satuan", "Unit Price")} name="unit_cost">
                             <InputNumber min={0} className="w-full" formatter={(value) => formatIDR(value)} parser={(value) => value?.replace(/[^\d]/g, "")} />
                         </Form.Item>
                     </div>
                     <div className="grid gap-3 md:grid-cols-2">
-                        <Form.Item label="Estimasi" name="estimated_amount" help="Jika dikosongkan di backend, dihitung dari qty x harga satuan.">
+                        <Form.Item label={tx("Estimasi", "Estimate")} name="estimated_amount" help={tx("Jika dikosongkan di backend, dihitung dari qty x harga satuan.", "If left empty, it is calculated from quantity × unit price.")}>
                             <InputNumber min={0} className="w-full" formatter={(value) => formatIDR(value)} parser={(value) => value?.replace(/[^\d]/g, "")} />
                         </Form.Item>
-                        <Form.Item label="Realisasi" name="realized_amount">
+                        <Form.Item label={tx("Realisasi", "Actual")} name="realized_amount">
                             <InputNumber min={0} className="w-full" formatter={(value) => formatIDR(value)} parser={(value) => value?.replace(/[^\d]/g, "")} />
                         </Form.Item>
                     </div>
-                    <Form.Item label="Sumber Anggaran" name="budget_source">
+                    <Form.Item label={tx("Sumber Anggaran", "Budget Source")} name="budget_source">
                         <Input maxLength={255} />
                     </Form.Item>
-                    <Form.Item label="Catatan" name="notes">
+                    <Form.Item label={tx("Catatan", "Notes")} name="notes">
                         <TextArea rows={3} />
                     </Form.Item>
                 </Form>
@@ -356,6 +362,7 @@ function BudgetPanel({ program, permissions, onChanged }) {
 }
 
 function DocumentsPanel({ program, permissions, onDocumentsLoaded }) {
+    const { tx } = useBilingual();
     const [form] = Form.useForm();
     const [documents, setDocuments] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -372,11 +379,11 @@ function DocumentsPanel({ program, permissions, onDocumentsLoaded }) {
             setDocuments(response.data.data || []);
             onDocumentsLoaded?.(response.data.data || []);
         } catch (error) {
-            message.error(error.response?.data?.message || "Dokumen belum dapat dimuat.");
+            message.error(error.response?.data?.message || tx("Dokumen belum dapat dimuat.", "Documents could not be loaded."));
         } finally {
             setLoading(false);
         }
-    }, [onDocumentsLoaded, program.id]);
+    }, [onDocumentsLoaded, program.id, tx]);
 
     useEffect(() => {
         fetchDocuments();
@@ -385,7 +392,7 @@ function DocumentsPanel({ program, permissions, onDocumentsLoaded }) {
     const upload = async () => {
         const values = await form.validateFields();
         if (!fileList[0]?.originFileObj) {
-            message.error("Pilih file dokumen terlebih dahulu.");
+            message.error(tx("Pilih file dokumen terlebih dahulu.", "Select a document file first."));
             return;
         }
         const payload = new FormData();
@@ -401,12 +408,12 @@ function DocumentsPanel({ program, permissions, onDocumentsLoaded }) {
             await axios.post(route("work-programs.documents.store", program.id), payload, {
                 headers: { "Content-Type": "multipart/form-data" },
             });
-            message.success("Dokumen berhasil diunggah.");
+            message.success(tx("Dokumen berhasil diunggah.", "Document uploaded successfully."));
             form.resetFields();
             setFileList([]);
             fetchDocuments();
         } catch (error) {
-            message.error(error.response?.data?.message || "Dokumen belum dapat diunggah.");
+            message.error(error.response?.data?.message || tx("Dokumen belum dapat diunggah.", "The document could not be uploaded."));
         } finally {
             setUploading(false);
         }
@@ -416,22 +423,22 @@ function DocumentsPanel({ program, permissions, onDocumentsLoaded }) {
         if (!deleting) return;
         try {
             await axios.delete(route("work-programs.documents.destroy", [program.id, deleting.id]));
-            message.success("Dokumen berhasil dilepas.");
+            message.success(tx("Dokumen berhasil dilepas.", "Document detached successfully."));
             setDeleting(null);
             fetchDocuments();
         } catch (error) {
-            message.error(error.response?.data?.message || "Dokumen belum dapat dihapus.");
+            message.error(error.response?.data?.message || tx("Dokumen belum dapat dihapus.", "The document could not be removed."));
         }
     };
 
     const columns = [
-        { title: "Judul", dataIndex: "title", render: (value, row) => <div><div className="font-semibold text-zinc-950">{value}</div><div className="text-xs text-zinc-500">{row.original_name}</div></div> },
-        { title: "Kategori", dataIndex: "category", width: 150 },
-        { title: "Nomor", dataIndex: "document_number", width: 150, render: (value) => value || "-" },
-        { title: "Tanggal", dataIndex: "document_date", width: 130, render: formatDate },
-        { title: "Diunggah", dataIndex: "created_at", width: 160, render: formatDateTime },
+        { title: tx("Judul", "Title"), dataIndex: "title", render: (value, row) => <div><div className="font-semibold text-zinc-950">{value}</div><div className="text-xs text-zinc-500">{row.original_name}</div></div> },
+        { title: tx("Kategori", "Category"), dataIndex: "category", width: 150 },
+        { title: tx("Nomor", "Number"), dataIndex: "document_number", width: 150, render: (value) => value || "-" },
+        { title: tx("Tanggal", "Date"), dataIndex: "document_date", width: 130, render: formatDate },
+        { title: tx("Diunggah", "Uploaded"), dataIndex: "created_at", width: 160, render: formatDateTime },
         {
-            title: "Aksi",
+            title: tx("Aksi", "Actions"),
             width: 140,
             align: "right",
             render: (_, row) => (
@@ -447,22 +454,22 @@ function DocumentsPanel({ program, permissions, onDocumentsLoaded }) {
     return (
         <Space orientation="vertical" size="middle" className="w-full">
             {canUpload ? (
-                <Card title="Upload Dokumen">
+                <Card title={tx("Upload Dokumen", "Upload Document")}>
                     <Form layout="vertical" form={form}>
                         <div className="grid gap-4 md:grid-cols-2">
-                            <Form.Item label="Judul" name="title" rules={[{ required: true, message: "Judul wajib diisi." }]}>
+                            <Form.Item label={tx("Judul", "Title")} name="title" rules={[{ required: true, message: tx("Judul wajib diisi.", "Title is required.") }]}>
                                 <Input />
                             </Form.Item>
-                            <Form.Item label="Kategori" name="category" rules={[{ required: true, message: "Kategori wajib dipilih." }]}>
+                            <Form.Item label={tx("Kategori", "Category")} name="category" rules={[{ required: true, message: tx("Kategori wajib dipilih.", "Category is required.") }]}>
                                 <Select options={DOCUMENT_CATEGORIES.map(([value, label]) => ({ value, label }))} />
                             </Form.Item>
-                            <Form.Item label="Nomor Dokumen" name="document_number">
+                            <Form.Item label={tx("Nomor Dokumen", "Document Number")} name="document_number">
                                 <Input />
                             </Form.Item>
-                            <Form.Item label="Tanggal Dokumen" name="document_date">
+                            <Form.Item label={tx("Tanggal Dokumen", "Document Date")} name="document_date">
                                 <DatePicker className="w-full" />
                             </Form.Item>
-                            <Form.Item label="Deskripsi" name="description" className="md:col-span-2">
+                            <Form.Item label={tx("Deskripsi", "Description")} name="description" className="md:col-span-2">
                                 <TextArea rows={2} />
                             </Form.Item>
                             <Form.Item label="File" className="md:col-span-2">
@@ -473,7 +480,7 @@ function DocumentsPanel({ program, permissions, onDocumentsLoaded }) {
                                     onChange={({ fileList: next }) => setFileList(next)}
                                     accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx"
                                 >
-                                    <Button icon={<UploadOutlined />}>Pilih File</Button>
+                                    <Button icon={<UploadOutlined />}>{tx("Pilih File", "Choose File")}</Button>
                                 </Upload>
                             </Form.Item>
                         </div>
@@ -483,32 +490,33 @@ function DocumentsPanel({ program, permissions, onDocumentsLoaded }) {
                     </Form>
                 </Card>
             ) : null}
-            <Card title="Dokumen Program">
-                {locked ? <LockedProgramAlert section="Dokumen program" /> : null}
+            <Card title={tx("Dokumen Program", "Program Documents")}>
+                {locked ? <LockedProgramAlert section={tx("Dokumen program", "Program documents")} /> : null}
                 <Table
                     columns={columns}
                     dataSource={documents}
                     rowKey="id"
                     loading={loading}
                     scroll={{ x: 920 }}
-                    locale={{ emptyText: <Empty description="Belum ada dokumen program." /> }}
+                    locale={{ emptyText: <Empty description={tx("Belum ada dokumen program.", "No program documents yet.")} /> }}
                 />
             </Card>
             <Modal
-                title="Lepas dokumen?"
+                title={tx("Lepas dokumen?", "Detach document?")}
                 open={Boolean(deleting)}
                 onCancel={() => setDeleting(null)}
                 onOk={remove}
-                okText="Lepas"
+                okText={tx("Lepas", "Detach")}
                 okButtonProps={{ danger: true }}
             >
-                Dokumen <strong>{deleting?.title}</strong> akan dilepas dari program kerja.
+                {tx("Dokumen", "Document")} <strong>{deleting?.title}</strong> {tx("akan dilepas dari program kerja.", "will be detached from the work program.")}
             </Modal>
         </Space>
     );
 }
 
 function EvaluationPanel({ program, permissions, documents }) {
+    const { tx } = useBilingual();
     const [form] = Form.useForm();
     const [saving, setSaving] = useState(false);
     const canEvaluate = permissions.includes("work_program.evaluate") && program.status === "completed";
@@ -530,9 +538,9 @@ function EvaluationPanel({ program, permissions, documents }) {
                 evaluated_at: values.evaluated_at?.format("YYYY-MM-DD HH:mm:ss"),
                 mark_evaluated: markEvaluated,
             }));
-            message.success(markEvaluated ? "Program berhasil ditandai evaluated." : "Evaluasi berhasil disimpan.");
+            message.success(markEvaluated ? tx("Program berhasil ditandai evaluated.", "Program marked as evaluated.") : tx("Evaluasi berhasil disimpan.", "Evaluation saved successfully."));
         } catch (error) {
-            message.error(error.response?.data?.message || "Evaluasi belum dapat disimpan.");
+            message.error(error.response?.data?.message || tx("Evaluasi belum dapat disimpan.", "The evaluation could not be saved."));
         } finally {
             setSaving(false);
         }
@@ -544,68 +552,68 @@ function EvaluationPanel({ program, permissions, documents }) {
 
     return (
         <Card
-            title="Evaluasi Program"
+            title={tx("Evaluasi Program", "Program Evaluation")}
             extra={
                 canEvaluate ? (
                     <Space>
-                        <Button icon={<SaveOutlined />} loading={saving} onClick={() => save(false)}>Simpan</Button>
-                        <Button type="primary" loading={saving} onClick={() => save(true)}>Tandai Evaluated</Button>
+                        <Button icon={<SaveOutlined />} loading={saving} onClick={() => save(false)}>{tx("Simpan", "Save")}</Button>
+                        <Button type="primary" loading={saving} onClick={() => save(true)}>{tx("Tandai Evaluated", "Mark as Evaluated")}</Button>
                     </Space>
                 ) : null
             }
         >
             {!canEvaluate && !evaluation.id ? (
-                <Empty description="Evaluasi belum tersedia." />
+                <Empty description={tx("Evaluasi belum tersedia.", "Evaluation is not available yet.")} />
             ) : (
                 <Form layout="vertical" form={form} disabled={!canEvaluate || saving}>
                     <div className="grid gap-4 md:grid-cols-2">
-                        <Form.Item label="Capaian Tujuan" name="objective_achievement" rules={[{ required: true, message: "Capaian tujuan wajib diisi." }]}>
+                        <Form.Item label={tx("Capaian Tujuan", "Objective Achievement")} name="objective_achievement" rules={[{ required: true, message: tx("Capaian tujuan wajib diisi.", "Objective achievement is required.") }]}>
                             <TextArea rows={3} />
                         </Form.Item>
-                        <Form.Item label="Capaian Indikator" name="indicator_result" rules={[{ required: true, message: "Capaian indikator wajib diisi." }]}>
+                        <Form.Item label={tx("Capaian Indikator", "Indicator Achievement")} name="indicator_result" rules={[{ required: true, message: tx("Capaian indikator wajib diisi.", "Indicator achievement is required.") }]}>
                             <TextArea rows={3} />
                         </Form.Item>
-                        <Form.Item label="Target vs Realisasi" name="target_vs_realization" rules={[{ required: true, message: "Target vs realisasi wajib diisi." }]}>
+                        <Form.Item label={tx("Target vs Realisasi", "Target vs Actual")} name="target_vs_realization" rules={[{ required: true, message: tx("Target vs realisasi wajib diisi.", "Target vs actual is required.") }]}>
                             <TextArea rows={3} />
                         </Form.Item>
-                        <Form.Item label="Evaluasi Waktu" name="time_evaluation" rules={[{ required: true, message: "Evaluasi waktu wajib diisi." }]}>
+                        <Form.Item label={tx("Evaluasi Waktu", "Time Evaluation")} name="time_evaluation" rules={[{ required: true, message: tx("Evaluasi waktu wajib diisi.", "Time evaluation is required.") }]}>
                             <TextArea rows={3} />
                         </Form.Item>
-                        <Form.Item label="Evaluasi Anggaran" name="budget_result" rules={[{ required: true, message: "Evaluasi anggaran wajib diisi." }]}>
+                        <Form.Item label={tx("Evaluasi Anggaran", "Budget Evaluation")} name="budget_result" rules={[{ required: true, message: tx("Evaluasi anggaran wajib diisi.", "Budget evaluation is required.") }]}>
                             <TextArea rows={3} />
                         </Form.Item>
-                        <Form.Item label="Ringkasan Hasil" name="result_summary" rules={[{ required: true, message: "Ringkasan hasil wajib diisi." }]}>
+                        <Form.Item label={tx("Ringkasan Hasil", "Results Summary")} name="result_summary" rules={[{ required: true, message: tx("Ringkasan hasil wajib diisi.", "Results summary is required.") }]}>
                             <TextArea rows={3} />
                         </Form.Item>
-                        <Form.Item label="Kendala" name="constraints">
+                        <Form.Item label={tx("Kendala", "Constraints")} name="constraints">
                             <TextArea rows={3} />
                         </Form.Item>
-                        <Form.Item label="Faktor Pendukung" name="supporting_factors">
+                        <Form.Item label={tx("Faktor Pendukung", "Supporting Factors")} name="supporting_factors">
                             <TextArea rows={3} />
                         </Form.Item>
-                        <Form.Item label="Faktor Penghambat" name="inhibiting_factors">
+                        <Form.Item label={tx("Faktor Penghambat", "Inhibiting Factors")} name="inhibiting_factors">
                             <TextArea rows={3} />
                         </Form.Item>
-                        <Form.Item label="Lesson Learned" name="lessons_learned" rules={[{ required: true, message: "Lesson learned wajib diisi." }]}>
+                        <Form.Item label="Lessons Learned" name="lessons_learned" rules={[{ required: true, message: tx("Lesson learned wajib diisi.", "Lessons learned are required.") }]}>
                             <TextArea rows={3} />
                         </Form.Item>
-                        <Form.Item label="Rekomendasi" name="recommendations" rules={[{ required: true, message: "Rekomendasi wajib diisi." }]}>
+                        <Form.Item label={tx("Rekomendasi", "Recommendations")} name="recommendations" rules={[{ required: true, message: tx("Rekomendasi wajib diisi.", "Recommendations are required.") }]}>
                             <TextArea rows={3} />
                         </Form.Item>
-                        <Form.Item label="Tindak Lanjut" name="follow_up" rules={[{ required: true, message: "Tindak lanjut wajib diisi." }]}>
+                        <Form.Item label={tx("Tindak Lanjut", "Follow-up")} name="follow_up" rules={[{ required: true, message: tx("Tindak lanjut wajib diisi.", "Follow-up is required.") }]}>
                             <TextArea rows={3} />
                         </Form.Item>
-                        <Form.Item label="Dokumen Laporan" name="report_document_id">
+                        <Form.Item label={tx("Dokumen Laporan", "Report Document")} name="report_document_id">
                             <Select allowClear options={documentOptions} />
                         </Form.Item>
-                        <Form.Item label="Tanggal Evaluasi" name="evaluated_at" rules={[{ required: true, message: "Tanggal evaluasi wajib diisi." }]}>
+                        <Form.Item label={tx("Tanggal Evaluasi", "Evaluation Date")} name="evaluated_at" rules={[{ required: true, message: tx("Tanggal evaluasi wajib diisi.", "Evaluation date is required.") }]}>
                             <DatePicker showTime className="w-full" />
                         </Form.Item>
                     </div>
                     {evaluation.evaluator ? (
                         <Descriptions className="mt-4" column={1} size="small" bordered>
                             <Descriptions.Item label="Evaluator">{evaluation.evaluator.name}</Descriptions.Item>
-                            <Descriptions.Item label="Laporan">{evaluation.report_document?.title || "-"}</Descriptions.Item>
+                            <Descriptions.Item label={tx("Laporan", "Report")}>{evaluation.report_document?.title || "-"}</Descriptions.Item>
                         </Descriptions>
                     ) : null}
                 </Form>

@@ -78,7 +78,7 @@ class LetterTemplatesController extends Controller
             'layout' => ['required', 'array'],
             'blocks' => ['required', 'array'],
             'settings' => ['nullable', 'array'],
-            'settings.font_family' => ['nullable', 'string', 'max:120'],
+            'settings.font_family' => ['nullable', 'string', 'in:Times New Roman,Arial,Calibri'],
             'settings.font_size' => ['nullable', 'numeric', 'min:10', 'max:20'],
             'settings.line_height' => ['nullable', 'numeric', 'min:1.1', 'max:2.2'],
             'settings.paragraph_spacing' => ['nullable', 'numeric', 'min:0', 'max:32'],
@@ -90,20 +90,42 @@ class LetterTemplatesController extends Controller
             'settings.margin_right_px' => ['nullable', 'integer', 'min:32', 'max:140'],
             'settings.margin_bottom_px' => ['nullable', 'integer', 'min:40', 'max:160'],
             'settings.content_top_gap_px' => ['nullable', 'integer', 'min:16', 'max:120'],
+            'settings.paper_format' => ['nullable', 'string', 'in:A4,A5,Letter,Legal'],
+            'settings.orientation' => ['nullable', 'string', 'in:P,L'],
+            'settings.margin_top_mm' => ['nullable', 'numeric', 'min:5', 'max:50'],
+            'settings.margin_right_mm' => ['nullable', 'numeric', 'min:5', 'max:50'],
+            'settings.margin_bottom_mm' => ['nullable', 'numeric', 'min:5', 'max:50'],
+            'settings.margin_left_mm' => ['nullable', 'numeric', 'min:5', 'max:50'],
+            'settings.content_top_gap_mm' => ['nullable', 'numeric', 'min:0', 'max:40'],
         ]);
+
+        $pxToMm = static fn (float $px): float => round($px * 25.4 / 96, 1);
+        $mmToPx = static fn (float $mm): int => (int) round($mm * 96 / 25.4);
+        $marginTopMm = (float) ($data['settings']['margin_top_mm'] ?? 10);
+        $marginRightMm = (float) ($data['settings']['margin_right_mm'] ?? $pxToMm($data['settings']['margin_right_px'] ?? 64));
+        $marginBottomMm = (float) ($data['settings']['margin_bottom_mm'] ?? $pxToMm($data['settings']['margin_bottom_px'] ?? 72));
+        $marginLeftMm = (float) ($data['settings']['margin_left_mm'] ?? $pxToMm($data['settings']['margin_left_px'] ?? 64));
+        $contentTopGapMm = (float) ($data['settings']['content_top_gap_mm'] ?? $pxToMm($data['settings']['content_top_gap_px'] ?? 11));
 
         $styleSettings = [
             'font_family' => $data['settings']['font_family'] ?? 'Times New Roman',
-            'font_size' => (float) ($data['settings']['font_size'] ?? 12),
-            'line_height' => (float) ($data['settings']['line_height'] ?? 1.35),
-            'paragraph_spacing' => (float) ($data['settings']['paragraph_spacing'] ?? 4),
+            'font_size' => (float) ($data['settings']['font_size'] ?? 11),
+            'line_height' => (float) ($data['settings']['line_height'] ?? 1.25),
+            'paragraph_spacing' => (float) ($data['settings']['paragraph_spacing'] ?? 2),
             'repeat_header' => (bool) ($data['settings']['repeat_header'] ?? true),
             'signature_qr_position' => $data['settings']['signature_qr_position'] ?? 'right',
             'document_mode' => $data['settings']['document_mode'] ?? 'flow',
-            'margin_left_px' => (int) ($data['settings']['margin_left_px'] ?? 64),
-            'margin_right_px' => (int) ($data['settings']['margin_right_px'] ?? 64),
-            'margin_bottom_px' => (int) ($data['settings']['margin_bottom_px'] ?? 72),
-            'content_top_gap_px' => (int) ($data['settings']['content_top_gap_px'] ?? 54),
+            'paper_format' => $data['settings']['paper_format'] ?? $template->paper ?? 'A4',
+            'orientation' => $data['settings']['orientation'] ?? 'P',
+            'margin_top_mm' => $marginTopMm,
+            'margin_right_mm' => $marginRightMm,
+            'margin_bottom_mm' => $marginBottomMm,
+            'margin_left_mm' => $marginLeftMm,
+            'content_top_gap_mm' => $contentTopGapMm,
+            'margin_left_px' => $mmToPx($marginLeftMm),
+            'margin_right_px' => $mmToPx($marginRightMm),
+            'margin_bottom_px' => $mmToPx($marginBottomMm),
+            'content_top_gap_px' => $mmToPx($contentTopGapMm),
         ];
 
         $bodyText = null;
@@ -119,6 +141,7 @@ class LetterTemplatesController extends Controller
             'blocks_json' => $data['blocks'],
             'margin_json' => $styleSettings,
             'content_text' => $bodyText,
+            'paper' => $styleSettings['paper_format'],
             'header_height_px' => (int) ($data['settings']['header_height_px'] ?? $template->header_height_px ?? 132),
             'document_mode' => $data['settings']['document_mode'] ?? $template->document_mode ?? 'flow',
         ]);

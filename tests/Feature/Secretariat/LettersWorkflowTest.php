@@ -54,8 +54,14 @@ class LettersWorkflowTest extends TestCase
         $this->assertNotNull($letter);
         $this->assertSame($template->id, $letter->template_id);
         $this->assertSame('draft', $letter->status);
+        $this->assertNotNull($letter->public_hash);
         $this->assertCount(2, $letter->layout_json ?? []);
         $this->assertCount(2, $letter->blocks_json ?? []);
+
+        $this->get(route('letters.verify', $letter->public_hash))
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Public/VerifyLetter')
+                ->where('payload.status', 'DRAFT'));
     }
 
     public function test_finalize_marks_letter_finalized_and_creates_version(): void

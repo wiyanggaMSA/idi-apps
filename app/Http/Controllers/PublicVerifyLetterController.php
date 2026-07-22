@@ -30,6 +30,7 @@ class PublicVerifyLetterController extends Controller
         $letter = Letter::query()->with('signatures')->where('public_hash', $public_hash)->firstOrFail();
         $signatureSummary = $signatureStatusService->summary($letter);
         $status = match (true) {
+            $letter->status === 'draft' => 'DRAFT',
             (bool) $letter->is_revoked => 'REVOKED',
             $signatureSummary['status'] === 'PENDING_SIGNATURES' => 'PENDING_SIGNATURES',
             default => 'VALID',

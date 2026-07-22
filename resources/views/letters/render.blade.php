@@ -43,7 +43,7 @@
             $signatureQrPosition = in_array(($style['signature_qr_position'] ?? ''), ['left', 'right'], true)
                 ? $style['signature_qr_position']
                 : 'right';
-            $headerImageSource = $style['header_image_data_uri'] ?? ($style['header_image_url'] ?? null);
+            $headerImageSource = null;
             $headerHeight = max(80, min(260, (int) ($style['header_height_px'] ?? 132)));
             $marginLeft = max(32, min(140, (int) ($style['margin_left_px'] ?? 64)));
             $marginRight = max(32, min(140, (int) ($style['margin_right_px'] ?? 64)));
@@ -173,7 +173,7 @@
             $kopHtml = preg_replace('/\s(href|src)=(["\'])javascript:[^"\']*\2/i', '', (string) $kopHtml);
             $kopHasHtml = preg_match('/<[a-z][\s\S]*>/i', $kopContent) === 1;
             $hasOfficialHeader = !empty($headerImageSource);
-            $useFixedHeader = $repeatHeader && ($hasOfficialHeader || !$hasCustomKop);
+            $useFixedHeader = false;
             $renderBlocks = $useFixedHeader
                 ? array_values(array_filter($blocks, fn ($block) => ($block['type'] ?? '') !== 'kop_surat'))
                 : $blocks;
@@ -205,38 +205,34 @@
                 background: #fff;
             }
             .kop-left {
-                display: grid;
-                grid-template-columns: 92px auto 92px;
-                align-items: center;
-                column-gap: 12px;
+                display: table;
+                table-layout: fixed;
                 text-align: center;
-                justify-content: center;
                 width: 100%;
             }
             .kop-left-main {
+                display: table-cell;
+                vertical-align: middle;
                 text-align: center;
-                grid-column: 2;
-                width: 620px;
-                max-width: 100%;
+                width: auto;
             }
             .kop-left-spacer {
-                grid-column: 3;
+                display: table-cell;
+                width: 92px;
             }
             .kop-fixed {
                 position: fixed;
                 top: 0;
-                left: 50%;
-                transform: translateX(-50%);
-                width: 794px;
+                left: 0;
+                width: 100%;
                 padding: {{ $hasOfficialHeader ? 24 : 20 }}px {{ $marginRight }}px 6px {{ $marginLeft }}px;
                 z-index: 10;
             }
             .kop-image {
-                width: 100%;
-                height: {{ $headerHeight }}px;
-                object-fit: contain;
-                object-position: center top;
+                width: {{ max(80, min(190, (int) round((794 - $marginLeft - $marginRight) * 25.4 / 96))) }}mm;
+                height: auto;
                 display: block;
+                margin: 0 auto;
             }
             .kop-logo {
                 max-height: 70px;
@@ -244,9 +240,10 @@
                 display: block;
             }
             .kop-left .kop-logo {
-                grid-column: 1;
-                justify-self: center;
-                margin: 0;
+                display: table-cell;
+                vertical-align: middle;
+                width: 92px;
+                margin: 0 auto;
                 max-height: 78px;
                 max-width: 78px;
             }
@@ -287,12 +284,13 @@
                 text-align: center;
             }
             .kop-custom-wrap-left {
-                display: flex;
-                align-items: center;
-                gap: 14px;
+                display: table;
+                width: 100%;
                 text-align: center;
             }
             .kop-custom-wrap-left .kop-custom {
+                display: table-cell;
+                vertical-align: middle;
                 text-align: center;
             }
             .kop-custom-logo {
@@ -302,10 +300,11 @@
                 margin: 0 auto 6px;
             }
             .kop-custom-wrap-left .kop-custom-logo {
-                margin: 0;
+                display: table-cell;
+                vertical-align: middle;
+                margin: 0 14px 0 0;
                 max-height: 82px;
                 max-width: 92px;
-                flex: 0 0 auto;
             }
             .kop-custom p,
             .kop-custom div,
@@ -315,9 +314,9 @@
                 margin: 0 0 3px;
             }
             .meta-wrap {
-                display: flex;
-                justify-content: space-between;
-                gap: 16px;
+                display: table;
+                table-layout: fixed;
+                width: 100%;
             }
             .meta-table {
                 width: 68%;
@@ -337,6 +336,7 @@
                 text-align: center;
             }
             .meta-date {
+                display: table-cell;
                 width: 28%;
                 text-align: right;
                 font-size: {{ $fontSize }}px;
@@ -405,10 +405,9 @@
                 text-align: justify;
             }
             .signature {
-                display: grid;
-                grid-template-columns: repeat(3, minmax(0, 1fr));
-                gap: 24px;
-                align-items: start;
+                display: table;
+                table-layout: fixed;
+                width: 100%;
                 margin-top: 18px;
             }
             .signature-stack {
@@ -416,24 +415,27 @@
                 line-height: {{ $lineHeight }};
                 text-align: center;
                 max-width: 220px;
-                justify-self: center;
+                margin-left: auto;
+                margin-right: auto;
             }
             .signature-stack + .signature-stack {
                 margin-top: 22px;
             }
             .signature-column {
+                display: table-cell;
+                width: 33.33%;
                 min-height: 1px;
-                justify-self: stretch;
+                vertical-align: top;
                 text-align: center;
             }
             .signature-left {
-                grid-column: 1;
+                text-align: center;
             }
             .signature-center {
-                grid-column: 2;
+                text-align: center;
             }
             .signature-right {
-                grid-column: 3;
+                text-align: center;
             }
             .signature-opening {
                 margin-bottom: 8px;

@@ -7,6 +7,7 @@ export default function VerifyLetter() {
   const org = payload?.organization ?? {};
   const isValid = payload?.status === "VALID";
   const isPending = payload?.status === "PENDING_SIGNATURES";
+  const isDraft = payload?.status === "DRAFT";
   const logoUrl = org.logo_url || "/images/idi-logo.png";
   const signatureSummary = payload?.signature_verification ?? {};
 
@@ -67,11 +68,13 @@ export default function VerifyLetter() {
 
             <div style={{ padding: 22 }}>
               <Alert
-                type={isValid ? "success" : "warning"}
+                type={isValid ? "success" : isDraft || isPending ? "warning" : "error"}
                 showIcon
                 title={
                   isValid
                     ? "Dokumen terverifikasi dan terdaftar di sistem."
+                    : isDraft
+                      ? "Dokumen ini masih berupa draft dan belum menjadi surat resmi."
                     : isPending
                       ? "Dokumen terdaftar, tetapi metadata verifikasi belum lengkap karena masih menunggu tanda tangan."
                       : "Dokumen tidak valid atau sudah dicabut."
@@ -86,7 +89,7 @@ export default function VerifyLetter() {
                 labelStyle={{ width: 220, fontWeight: 600 }}
               >
                 <Descriptions.Item label="Status">
-                  <Tag color={isValid ? "green" : isPending ? "gold" : "red"}>{payload?.status || "-"}</Tag>
+                  <Tag color={isValid ? "green" : isDraft || isPending ? "gold" : "red"}>{payload?.status || "-"}</Tag>
                 </Descriptions.Item>
                 <Descriptions.Item label="Status Tanda Tangan">
                   {signatureSummary.required_count ? (

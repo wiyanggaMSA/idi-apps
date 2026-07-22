@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { usePage } from "@inertiajs/react";
-import { Alert, Card, Divider, Form, InputNumber, Select, Space, Switch, Typography } from "antd";
+import { Alert, Card, Divider, Form, InputNumber, Segmented, Select, Space, Switch, Typography } from "antd";
 import AppLayout from "@/Layouts/AppLayout";
 import PageShell from "@/Components/App/PageShell";
 import PageHeader from "@/Components/App/PageHeader";
@@ -9,19 +9,23 @@ import LetterGridBuilder from "@/Components/LetterGridBuilder";
 export default function TemplateBuilder() {
   const { template } = usePage().props;
   const initialStyle = template?.margin_json ?? {};
+  const pxToMm = (value, fallback) => Number(((Number(value ?? fallback) * 25.4) / 96).toFixed(1));
   const [styleSettings, setStyleSettings] = useState({
     font_family: initialStyle?.font_family ?? "Times New Roman",
-    font_size: Number(initialStyle?.font_size ?? 12),
-    line_height: Number(initialStyle?.line_height ?? 1.35),
-    paragraph_spacing: Number(initialStyle?.paragraph_spacing ?? 4),
+    font_size: Number(initialStyle?.font_size ?? 11),
+    line_height: Number(initialStyle?.line_height ?? 1.25),
+    paragraph_spacing: Number(initialStyle?.paragraph_spacing ?? 2),
     repeat_header: Boolean(initialStyle?.repeat_header ?? true),
     signature_qr_position: initialStyle?.signature_qr_position === "left" ? "left" : "right",
     header_height_px: Number(template?.header_height_px ?? initialStyle?.header_height_px ?? 132),
     document_mode: template?.document_mode ?? initialStyle?.document_mode ?? "flow",
-    margin_left_px: Number(initialStyle?.margin_left_px ?? 64),
-    margin_right_px: Number(initialStyle?.margin_right_px ?? 64),
-    margin_bottom_px: Number(initialStyle?.margin_bottom_px ?? 72),
-    content_top_gap_px: Number(initialStyle?.content_top_gap_px ?? 54),
+    paper_format: initialStyle?.paper_format ?? template?.paper ?? "A4",
+    orientation: initialStyle?.orientation === "L" ? "L" : "P",
+    margin_top_mm: Number(initialStyle?.margin_top_mm ?? 10),
+    margin_right_mm: Number(initialStyle?.margin_right_mm ?? pxToMm(initialStyle?.margin_right_px, 64)),
+    margin_bottom_mm: Number(initialStyle?.margin_bottom_mm ?? pxToMm(initialStyle?.margin_bottom_px, 72)),
+    margin_left_mm: Number(initialStyle?.margin_left_mm ?? pxToMm(initialStyle?.margin_left_px, 64)),
+    content_top_gap_mm: Number(initialStyle?.content_top_gap_mm ?? pxToMm(initialStyle?.content_top_gap_px, 11)),
   });
 
   const sidebarExtras = useMemo(
@@ -57,11 +61,35 @@ export default function TemplateBuilder() {
               onChange={(value) => setStyleSettings((prev) => ({ ...prev, font_size: Number(value ?? 16) }))}
             />
           </Form.Item>
+          <Form.Item label="Ukuran Kertas">
+            <Select
+              value={styleSettings.paper_format}
+              onChange={(value) => setStyleSettings((prev) => ({ ...prev, paper_format: value }))}
+              options={[
+                { label: "A4", value: "A4" },
+                { label: "A5", value: "A5" },
+                { label: "Letter", value: "Letter" },
+                { label: "Legal", value: "Legal" },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item label="Orientasi">
+            <Segmented
+              block
+              value={styleSettings.orientation}
+              onChange={(value) => setStyleSettings((prev) => ({ ...prev, orientation: value }))}
+              options={[
+                { label: "Portrait", value: "P" },
+                { label: "Landscape", value: "L" },
+              ]}
+            />
+          </Form.Item>
           <Form.Item label="Line Height">
             <Select
               value={styleSettings.line_height}
               onChange={(value) => setStyleSettings((prev) => ({ ...prev, line_height: Number(value) }))}
               options={[
+                { label: "Padat (1.25)", value: 1.25 },
                 { label: "Rapat (1.3)", value: 1.3 },
                 { label: "Sedang (1.45)", value: 1.45 },
                 { label: "Lapang (1.6)", value: 1.6 },
@@ -97,50 +125,58 @@ export default function TemplateBuilder() {
               onChange={(value) => setStyleSettings((prev) => ({ ...prev, header_height_px: Number(value ?? 132) }))}
             />
           </Form.Item>
-          <div className="grid grid-cols-2 gap-2">
-            <Form.Item label="Margin Kiri (px)">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <Form.Item label="Margin Atas (mm)">
               <InputNumber
-                min={32}
-                max={140}
-                step={4}
+                min={5}
+                max={50}
+                step={1}
                 style={{ width: "100%" }}
-                value={styleSettings.margin_left_px}
-                onChange={(value) => setStyleSettings((prev) => ({ ...prev, margin_left_px: Number(value ?? 64) }))}
+                value={styleSettings.margin_top_mm}
+                onChange={(value) => setStyleSettings((prev) => ({ ...prev, margin_top_mm: Number(value ?? 10) }))}
               />
             </Form.Item>
-            <Form.Item label="Margin Kanan (px)">
+            <Form.Item label="Margin Kanan (mm)">
               <InputNumber
-                min={32}
-                max={140}
-                step={4}
+                min={5}
+                max={50}
+                step={1}
                 style={{ width: "100%" }}
-                value={styleSettings.margin_right_px}
-                onChange={(value) => setStyleSettings((prev) => ({ ...prev, margin_right_px: Number(value ?? 64) }))}
+                value={styleSettings.margin_right_mm}
+                onChange={(value) => setStyleSettings((prev) => ({ ...prev, margin_right_mm: Number(value ?? 18) }))}
+              />
+            </Form.Item>
+            <Form.Item label="Margin Bawah (mm)">
+              <InputNumber
+                min={5}
+                max={50}
+                step={1}
+                style={{ width: "100%" }}
+                value={styleSettings.margin_bottom_mm}
+                onChange={(value) => setStyleSettings((prev) => ({ ...prev, margin_bottom_mm: Number(value ?? 20) }))}
+              />
+            </Form.Item>
+            <Form.Item label="Margin Kiri (mm)">
+              <InputNumber
+                min={5}
+                max={50}
+                step={1}
+                style={{ width: "100%" }}
+                value={styleSettings.margin_left_mm}
+                onChange={(value) => setStyleSettings((prev) => ({ ...prev, margin_left_mm: Number(value ?? 18) }))}
               />
             </Form.Item>
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <Form.Item label="Jarak Isi dari Kop (px)">
-              <InputNumber
-                min={16}
-                max={120}
-                step={4}
-                style={{ width: "100%" }}
-                value={styleSettings.content_top_gap_px}
-                onChange={(value) => setStyleSettings((prev) => ({ ...prev, content_top_gap_px: Number(value ?? 54) }))}
-              />
-            </Form.Item>
-            <Form.Item label="Margin Bawah (px)">
-              <InputNumber
-                min={40}
-                max={160}
-                step={4}
-                style={{ width: "100%" }}
-                value={styleSettings.margin_bottom_px}
-                onChange={(value) => setStyleSettings((prev) => ({ ...prev, margin_bottom_px: Number(value ?? 72) }))}
-              />
-            </Form.Item>
-          </div>
+          <Form.Item label="Jarak Isi dari Kop (mm)">
+            <InputNumber
+              min={0}
+              max={40}
+              step={1}
+              style={{ width: "100%" }}
+              value={styleSettings.content_top_gap_mm}
+              onChange={(value) => setStyleSettings((prev) => ({ ...prev, content_top_gap_mm: Number(value ?? 3) }))}
+            />
+          </Form.Item>
           <Form.Item label="Mode Dokumen">
             <Select
               value={styleSettings.document_mode}
