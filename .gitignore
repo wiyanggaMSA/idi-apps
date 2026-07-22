@@ -21,8 +21,6 @@ Homestead.yaml
 Homestead.json
 /.vagrant
 .phpunit.result.cache
-
-/public/build
 /storage/pail
 /storage/framework/mpdf
 .env.backup
