@@ -42,7 +42,7 @@ export default function AppSidebar({
     const { t } = useI18n();
     const { props, url } = usePage();
     const permissions = props?.auth?.permissions || [];
-    const resolvedOrgName = orgName || "Aplikasi Keuangan";
+    const resolvedOrgName = orgName || "IDI Apps";
     const collapsedLabel = resolvedOrgName
         .split(" ")
         .filter(Boolean)
@@ -63,6 +63,7 @@ export default function AppSidebar({
 
     const selectedKey = useMemo(() => {
         if (route().current("dashboard")) return "dashboard";
+        if (route().current("portal-idi.*")) return "portal-idi.contents";
 
         // ✅ Sekretariat child highlight
         if (route().current("secretariat.dashboard"))
@@ -112,6 +113,11 @@ export default function AppSidebar({
         if (selectedKey.startsWith("secretariat.")) {
             setOpenKeys((prev) =>
                 prev.includes("secretariat") ? prev : ["secretariat", ...prev],
+            );
+        }
+        if (selectedKey.startsWith("portal-idi.")) {
+            setOpenKeys((prev) =>
+                prev.includes("portal-idi") ? prev : ["portal-idi", ...prev],
             );
         }
         if (selectedKey.startsWith("members.")) {
@@ -172,7 +178,7 @@ export default function AppSidebar({
                     ) : (
                         <div className="flex-1 rounded-2xl border border-white/10 bg-white/5 px-3 py-2.5 transition-all">
                             <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-white/45">
-                                IDI Finance
+                                IDI Apps
                             </p>
                             <p className="mt-1.5 text-[13px] font-semibold leading-snug text-white">
                                 {resolvedOrgName}

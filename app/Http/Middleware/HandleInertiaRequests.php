@@ -49,7 +49,7 @@ class HandleInertiaRequests extends Middleware
                 'permissions' => $request->user()?->getAllPermissions()->pluck('name') ?? [],
             ],
             'orgProfile' => [
-                'org_name' => $orgProfile?->org_name ?? 'Aplikasi Keuangan Organisasi',
+                'org_name' => $orgProfile?->org_name ?? 'IDI Apps',
                 'brand_color' => $orgProfile?->brand_color ?? '#1677ff',
                 'logo_url' => $orgProfile?->logo_path
                     ? Storage::url($orgProfile->logo_path)

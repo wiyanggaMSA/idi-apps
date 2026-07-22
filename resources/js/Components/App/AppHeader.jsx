@@ -73,7 +73,7 @@ export default function AppHeader({
 
                     <div>
                         <p className="text-xs font-semibold uppercase tracking-[0.28em] text-zinc-400">
-                            {orgName || "IDI Finance"}
+                            {orgName || "IDI Apps"}
                         </p>
                         <h2 className="text-base font-semibold tracking-tight text-zinc-950">
                             {title}

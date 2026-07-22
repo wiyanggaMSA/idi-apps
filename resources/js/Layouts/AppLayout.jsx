@@ -12,7 +12,7 @@ export default function AppLayout({ title, children }) {
     const user = auth?.user || null;
     const orgProfile = props?.orgProfile || {};
 
-    const pageTitle = title || "Aplikasi Keuangan Organisasi";
+    const pageTitle = title || "IDI Apps";
 
     useEffect(() => {
         if (!mobileMenuOpen) return undefined;

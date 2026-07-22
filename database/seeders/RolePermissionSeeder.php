@@ -107,6 +107,8 @@ class RolePermissionSeeder extends Seeder
             'organization.structure.manage',
             'organization.assignment.manage',
             'organization.assignment.replace',
+            'portal.view',
+            'portal.manage',
         ];
 
         foreach ($permissions as $permission) {
@@ -154,6 +156,8 @@ class RolePermissionSeeder extends Seeder
             'organization.structure.manage',
             'organization.assignment.manage',
             'organization.assignment.replace',
+            'portal.view',
+            'portal.manage',
         ]);
         $bendahara->syncPermissions([
             'dues.view',
@@ -225,6 +229,7 @@ class RolePermissionSeeder extends Seeder
             'organization.structure.manage',
             'organization.assignment.manage',
             'organization.assignment.replace',
+            'portal.view',
         ]);
         $bendahara->givePermissionTo([
             'organization.view',

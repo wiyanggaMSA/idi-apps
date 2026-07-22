@@ -1,0 +1,1 @@
+import{c as e,j as r}from"./client-BhtuhNUU.js";import{D as n}from"./DocumentRenderer-BwHOpl7e.js";const t=document.getElementById("letter-render-root"),o=window.__LETTER_RENDER_DATA__??{};t&&e.createRoot(t).render(r.jsx(n,{blocks:o.blocks??[],layout:o.layout??[],gridConfig:o.gridConfig??{cols:12,rowHeight:24},data:o.data??{}}));

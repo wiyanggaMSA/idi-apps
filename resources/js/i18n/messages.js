@@ -1,10 +1,10 @@
 export const messages = {
     id: {
         common: {
-            idiFinance: "IDI Finance",
+            idiFinance: "IDI Apps",
             workspace: "Workspace",
             roleBasedAccess:
-                "Sistem keuangan organisasi dengan kontrol akses berbasis peran.",
+                "Sistem administrasi organisasi dengan kontrol akses berbasis peran.",
             profile: "Profil",
             logout: "Logout",
             activeUser: "Pengguna aktif",
@@ -370,10 +370,10 @@ export const messages = {
         },
         auth: {
             pageTitle: "Portal Internal",
-            systemName: "IDI Finance",
-            heroTitle: "Portal Internal Keuangan Organisasi",
+            systemName: "IDI Apps",
+            heroTitle: "Portal Internal Organisasi",
             heroDescription:
-                "Akses khusus untuk staf berwenang dalam pengelolaan keuangan dan administrasi organisasi.",
+                "Akses khusus untuk staf berwenang dalam pengelolaan administrasi organisasi.",
             restrictedAccess: "Akses terbatas untuk pengguna berwenang",
             emailLabel: "Email",
             passwordLabel: "Kata Sandi",
@@ -382,22 +382,22 @@ export const messages = {
             forgotPassword: "Lupa kata sandi?",
         },
         welcome: {
-            title: "Portal Keuangan Organisasi IDI",
+            title: "Portal Organisasi IDI",
             subtitle: "IDI Cabang Purwakarta",
             description:
-                "Sistem internal untuk pengelolaan administrasi organisasi, keanggotaan, dan layanan keuangan.",
+                "Sistem internal untuk pengelolaan administrasi organisasi, keanggotaan, dan layanan anggota.",
             secureOnly: "Akses khusus petugas berwenang.",
             internalPortal: "Portal Internal",
             internalHint: "Pintu masuk autentikasi pengguna internal.",
-            footer: "Informasi publik tidak menampilkan data keuangan.",
+            footer: "Informasi publik organisasi.",
         },
     },
     en: {
         common: {
-            idiFinance: "IDI Finance",
+            idiFinance: "IDI Apps",
             workspace: "Workspace",
             roleBasedAccess:
-                "Organization finance system with role-based access control.",
+                "Organization administration system with role-based access control.",
             profile: "Profile",
             logout: "Logout",
             activeUser: "Active user",
@@ -763,10 +763,10 @@ export const messages = {
         },
         auth: {
             pageTitle: "Internal Portal",
-            systemName: "IDI Finance",
-            heroTitle: "Organization Finance Internal Portal",
+            systemName: "IDI Apps",
+            heroTitle: "Organization Internal Portal",
             heroDescription:
-                "Restricted access for authorized staff managing finance and organization administration.",
+                "Restricted access for authorized staff managing organization administration.",
             restrictedAccess: "Restricted to authorized users",
             emailLabel: "Email",
             passwordLabel: "Password",
@@ -775,14 +775,14 @@ export const messages = {
             forgotPassword: "Forgot your password?",
         },
         welcome: {
-            title: "IDI Organization Finance Portal",
+            title: "IDI Organization Portal",
             subtitle: "IDI Purwakarta Branch",
             description:
-                "Internal system for organization administration, membership, and finance operations.",
+                "Internal system for organization administration, membership, and member services.",
             secureOnly: "Authorized staff access only.",
             internalPortal: "Internal Portal",
             internalHint: "Entry point for internal user authentication.",
-            footer: "Public information does not expose financial data.",
+            footer: "Public organization information.",
         },
     },
 };

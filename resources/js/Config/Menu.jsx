@@ -23,6 +23,8 @@ import {
     LockOutlined,
     ProjectOutlined,
     ScheduleOutlined,
+    GlobalOutlined,
+    PictureOutlined,
 } from "@ant-design/icons";
 
 export const appMenu = [
@@ -32,6 +34,23 @@ export const appMenu = [
         labelKey: "menu.dashboard",
         icon: <DashboardOutlined />,
         routeName: "dashboard",
+    },
+    {
+        key: "portal-idi",
+        label: "Portal IDI",
+        labelKey: "menu.portalIdi",
+        icon: <GlobalOutlined />,
+        permission: "portal.view|portal.manage",
+        children: [
+            {
+                key: "portal-idi.contents",
+                label: "Konten Landing",
+                labelKey: "menu.portalContent",
+                icon: <PictureOutlined />,
+                routeName: "portal-idi.contents.index",
+                permission: "portal.view|portal.manage",
+            },
+        ],
     },
     //SECRETARIAT
     {

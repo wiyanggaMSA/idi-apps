@@ -18,6 +18,8 @@ use App\Http\Controllers\Organization\OrganizationPageController;
 use App\Http\Controllers\Organization\OrganizationPeriodController;
 use App\Http\Controllers\Organization\OrganizationUnitController;
 use App\Http\Controllers\Organization\OrganizationUnitPositionController;
+use App\Http\Controllers\Portal\PortalLandingContentController;
+use App\Http\Controllers\Portal\PublicLandingController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PublicLetterSignatureController;
 use App\Http\Controllers\PublicVerifyLetterController;
@@ -59,24 +61,30 @@ use App\Http\Controllers\WorkPrograms\WorkProgramRiskController;
 use App\Http\Controllers\WorkPrograms\WorkProgramTaskController;
 use App\Http\Controllers\WorkPrograms\WorkProgramTaskDependencyController;
 use App\Http\Controllers\WorkPrograms\WorkProgramWorkflowController;
-use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
-Route::get('/', function () {
-    return Inertia::render('Welcome', [
-        'canLogin' => Route::has('login'),
-        'canRegister' => Route::has('register'),
-        'laravelVersion' => Application::VERSION,
-        'phpVersion' => PHP_VERSION,
-    ]);
-});
+Route::get('/', PublicLandingController::class)->name('portal.public');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    Route::prefix('portal-idi')
+        ->name('portal-idi.')
+        ->middleware('permission:portal.view|portal.manage')
+        ->group(function () {
+            Route::get('/', [PortalLandingContentController::class, 'index'])->name('contents.index');
+            Route::post('/contents', [PortalLandingContentController::class, 'store'])
+                ->middleware('permission:portal.manage')
+                ->name('contents.store');
+            Route::patch('/contents/{content}', [PortalLandingContentController::class, 'update'])
+                ->middleware('permission:portal.manage')
+                ->name('contents.update');
+            Route::delete('/contents/{content}', [PortalLandingContentController::class, 'destroy'])
+                ->middleware('permission:portal.manage')
+                ->name('contents.destroy');
+        });
     Route::prefix('organization')
         ->name('organization.')
         ->middleware('permission:organization.view|organization.history.view')

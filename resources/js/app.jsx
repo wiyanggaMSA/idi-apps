@@ -7,7 +7,7 @@ import { createRoot } from 'react-dom/client';
 import { I18nProvider } from '@/Contexts/I18nContext';
 import { App as AntdApp } from 'antd';
 
-const appName = import.meta.env.VITE_APP_NAME || 'IDI Finance';
+const appName = import.meta.env.VITE_APP_NAME || 'IDI Apps';
 
 createInertiaApp({
     title: (title) => `${title} - ${appName}`,

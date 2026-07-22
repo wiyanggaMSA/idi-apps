@@ -1,0 +1,1 @@
+import{j as t}from"./client-BhtuhNUU.js";import{E as i}from"./EmptyState-CdNN9516.js";import{F as m}from"./Table-DBUdaWQp.js";function c({emptyTitle:r,emptyDescription:o,scroll:e,className:a="",...s}){return t.jsx("div",{className:a,children:t.jsx(m,{scroll:e||{x:960},locale:{emptyText:t.jsx(i,{compact:!0,title:r,description:o})},...s})})}export{c as D};
