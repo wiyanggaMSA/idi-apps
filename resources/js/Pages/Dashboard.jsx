@@ -24,9 +24,9 @@ import {
     XAxis,
     YAxis,
 } from "recharts";
-import AppLayout from "@/layouts/AppLayout";
-import PageShell from "@/components/app/PageShell";
-import PageHeader from "@/components/app/PageHeader";
+import AppLayout from "@/Layouts/AppLayout";
+import PageShell from "@/Components/App/PageShell";
+import PageHeader from "@/Components/App/PageHeader";
 import StatCard from "@/Components/App/StatCard";
 import MoneyDisplay from "@/Components/App/MoneyDisplay";
 import DataTable from "@/Components/App/DataTable";

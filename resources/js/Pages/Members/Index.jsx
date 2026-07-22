@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { router, usePage } from "@inertiajs/react";
 import dayjs from "dayjs";
-import AppLayout from "@/layouts/AppLayout";
-import PageShell from "@/components/app/PageShell";
-import PageHeader from "@/components/app/PageHeader";
+import AppLayout from "@/Layouts/AppLayout";
+import PageShell from "@/Components/App/PageShell";
+import PageHeader from "@/Components/App/PageHeader";
 import {
   Avatar,
   Button,

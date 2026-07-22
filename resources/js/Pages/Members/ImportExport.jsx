@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
-import AppLayout from "@/layouts/AppLayout";
-import PageShell from "@/components/app/PageShell";
-import PageHeader from "@/components/app/PageHeader";
+import AppLayout from "@/Layouts/AppLayout";
+import PageShell from "@/Components/App/PageShell";
+import PageHeader from "@/Components/App/PageHeader";
 import {
   Button,
   Card,

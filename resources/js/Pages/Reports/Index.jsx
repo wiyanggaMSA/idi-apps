@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
-import AppLayout from "@/layouts/AppLayout";
-import PageShell from "@/components/app/PageShell";
-import PageHeader from "@/components/app/PageHeader";
+import AppLayout from "@/Layouts/AppLayout";
+import PageShell from "@/Components/App/PageShell";
+import PageHeader from "@/Components/App/PageHeader";
 import {
   Button,
   Card,
