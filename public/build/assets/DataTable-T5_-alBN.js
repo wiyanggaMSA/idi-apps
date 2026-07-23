@@ -1,0 +1,1 @@
+import{j as t}from"./client-CuAv3WcI.js";import{E as i}from"./EmptyState-DT72DidN.js";import{F as m}from"./Table-m4GA_qJL.js";function c({emptyTitle:r,emptyDescription:o,scroll:e,className:a="",...s}){return t.jsx("div",{className:a,children:t.jsx(m,{scroll:e||{x:960},locale:{emptyText:t.jsx(i,{compact:!0,title:r,description:o})},...s})})}export{c as D};
