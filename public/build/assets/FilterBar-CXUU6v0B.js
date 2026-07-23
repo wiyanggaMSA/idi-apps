@@ -1,1 +1,0 @@
-import{j as r}from"./client-BhtuhNUU.js";import{c as s}from"./cn-2dOUpm6k.js";function p({children:e,className:a=""}){return r.jsx("div",{className:s("rounded-3xl border border-white/80 bg-white/90 p-4 shadow-[0_18px_50px_-32px_rgba(15,23,42,0.32)] backdrop-blur",a),children:r.jsx("div",{className:"flex flex-wrap items-end gap-3",children:e})})}export{p as F};

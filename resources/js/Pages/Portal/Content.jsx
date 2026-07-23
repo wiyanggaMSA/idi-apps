@@ -45,6 +45,18 @@ const SECTION_HINTS = {
     contact: "Kontak sekretariat, tautan tombol kontak, dan link media sosial footer.",
 };
 
+const CONTACT_FIELDS = [
+    "address",
+    "phone",
+    "whatsapp",
+    "email",
+    "service_hours",
+    "map_url",
+    "instagram_url",
+    "facebook_url",
+    "youtube_url",
+];
+
 export default function PortalContent() {
     const { props } = usePage();
     const contents = props.contents || [];
@@ -55,6 +67,8 @@ export default function PortalContent() {
     const [modal, setModal] = useState({ open: false, record: null });
     const [fileList, setFileList] = useState([]);
     const [form] = Form.useForm();
+    const selectedSection = Form.useWatch("section", form) || activeSection;
+    const isContactSection = selectedSection === "contact";
 
     const grouped = useMemo(
         () =>
@@ -103,6 +117,7 @@ export default function PortalContent() {
             const fd = new FormData();
 
             Object.entries(values).forEach(([key, value]) => {
+                if (values.section !== "contact" && CONTACT_FIELDS.includes(key)) return;
                 if (value === undefined || value === null) return;
                 fd.append(key, value === true ? "1" : value === false ? "0" : String(value));
             });
@@ -284,44 +299,46 @@ export default function PortalContent() {
                             <Input maxLength={255} />
                         </Form.Item>
                     </div>
-                    <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4">
-                        <p className="mb-4 text-sm font-semibold text-zinc-800">
-                            Detail Kontak Sekretariat
-                        </p>
-                        <Form.Item name="address" label="Alamat">
-                            <Input.TextArea rows={2} maxLength={500} />
-                        </Form.Item>
-                        <div className="grid gap-4 md:grid-cols-2">
-                            <Form.Item name="phone" label="Telepon">
-                                <Input maxLength={80} />
+                    {isContactSection ? (
+                        <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4">
+                            <p className="mb-4 text-sm font-semibold text-zinc-800">
+                                Detail Kontak Sekretariat
+                            </p>
+                            <Form.Item name="address" label="Alamat">
+                                <Input.TextArea rows={2} maxLength={500} />
                             </Form.Item>
-                            <Form.Item name="whatsapp" label="WhatsApp">
-                                <Input maxLength={80} />
-                            </Form.Item>
-                        </div>
-                        <div className="grid gap-4 md:grid-cols-2">
-                            <Form.Item name="email" label="Email">
-                                <Input type="email" maxLength={180} />
-                            </Form.Item>
-                            <Form.Item name="service_hours" label="Jam Pelayanan">
-                                <Input maxLength={180} />
-                            </Form.Item>
-                        </div>
-                        <Form.Item name="map_url" label="Link Lokasi / Google Maps">
-                            <Input maxLength={255} />
-                        </Form.Item>
-                        <div className="grid gap-4 md:grid-cols-3">
-                            <Form.Item name="instagram_url" label="Instagram">
+                            <div className="grid gap-4 md:grid-cols-2">
+                                <Form.Item name="phone" label="Telepon">
+                                    <Input maxLength={80} />
+                                </Form.Item>
+                                <Form.Item name="whatsapp" label="WhatsApp">
+                                    <Input maxLength={80} />
+                                </Form.Item>
+                            </div>
+                            <div className="grid gap-4 md:grid-cols-2">
+                                <Form.Item name="email" label="Email">
+                                    <Input type="email" maxLength={180} />
+                                </Form.Item>
+                                <Form.Item name="service_hours" label="Jam Pelayanan">
+                                    <Input maxLength={180} />
+                                </Form.Item>
+                            </div>
+                            <Form.Item name="map_url" label="Link Lokasi / Google Maps">
                                 <Input maxLength={255} />
                             </Form.Item>
-                            <Form.Item name="facebook_url" label="Facebook">
-                                <Input maxLength={255} />
-                            </Form.Item>
-                            <Form.Item name="youtube_url" label="YouTube">
-                                <Input maxLength={255} />
-                            </Form.Item>
+                            <div className="grid gap-4 md:grid-cols-3">
+                                <Form.Item name="instagram_url" label="Instagram">
+                                    <Input maxLength={255} />
+                                </Form.Item>
+                                <Form.Item name="facebook_url" label="Facebook">
+                                    <Input maxLength={255} />
+                                </Form.Item>
+                                <Form.Item name="youtube_url" label="YouTube">
+                                    <Input maxLength={255} />
+                                </Form.Item>
+                            </div>
                         </div>
-                    </div>
+                    ) : null}
                     <div className="grid gap-4 md:grid-cols-2">
                         <Form.Item name="sort_order" label="Urutan">
                             <InputNumber min={0} className="w-full" />

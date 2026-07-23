@@ -1,1 +1,0 @@
-import{j as r}from"./client-BhtuhNUU.js";import{I as s}from"./index-5Q-0xNMV.js";import{R as a}from"./index-BPWbXvNf.js";function m(t){return r.jsx(s,{prefix:r.jsx(a,{className:"text-zinc-400"}),allowClear:!0,className:"idi-search-input",...t})}export{m as S};

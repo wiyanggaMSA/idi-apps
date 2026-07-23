@@ -123,7 +123,7 @@ export default function Welcome({ auth, portal = {} }) {
 
                 <section
                     id="beranda"
-                    className="relative flex min-h-[92dvh] items-end overflow-hidden pt-20"
+                    className="relative flex min-h-[92dvh] scroll-mt-20 items-end overflow-hidden pt-20"
                 >
                     {slides.map((slide, index) => (
                         <img
@@ -187,7 +187,7 @@ export default function Welcome({ auth, portal = {} }) {
                     ) : null}
                 </section>
 
-                <section id="tentang" className="bg-white py-20">
+                <section id="tentang" className="scroll-mt-20 bg-white py-20">
                     <div className="mx-auto grid max-w-7xl gap-10 px-5 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
                         {about.image_url ? (
                             <img
@@ -225,7 +225,7 @@ export default function Welcome({ auth, portal = {} }) {
                     </div>
                 </section>
 
-                <section id="visi-misi" className="bg-zinc-100 py-20">
+                <section id="visi-misi" className="scroll-mt-20 bg-zinc-100 py-20">
                     <div className="mx-auto max-w-7xl px-5 lg:px-8">
                         <p className="text-xs font-bold uppercase tracking-[0.28em] text-red-700">
                             {visionMission.subtitle || "Arah Organisasi"}
@@ -254,7 +254,7 @@ export default function Welcome({ auth, portal = {} }) {
                     </div>
                 </section>
 
-                <section id="layanan" className="bg-white py-20">
+                <section id="layanan" className="scroll-mt-20 bg-white py-20">
                     <div className="mx-auto max-w-7xl px-5 lg:px-8">
                         <p className="text-xs font-bold uppercase tracking-[0.28em] text-red-700">
                             Pusat Informasi Anggota
@@ -281,7 +281,7 @@ export default function Welcome({ auth, portal = {} }) {
                     </div>
                 </section>
 
-                <section id="pengurus" className="bg-zinc-100 py-20">
+                <section id="pengurus" className="scroll-mt-20 bg-zinc-100 py-20">
                     <div className="mx-auto max-w-7xl px-5 lg:px-8">
                         <p className="text-xs font-bold uppercase tracking-[0.28em] text-red-700">
                             Struktur Organisasi
@@ -329,7 +329,7 @@ export default function Welcome({ auth, portal = {} }) {
 
                 <footer
                     id="kontak"
-                    className="relative overflow-hidden bg-[#8d111d] px-5 py-12 text-red-100 md:py-16"
+                    className="relative scroll-mt-20 overflow-hidden bg-[#8d111d] px-5 py-12 text-red-100 md:py-16"
                 >
                     <div className="mx-auto max-w-7xl">
                         <div className="grid gap-8 lg:grid-cols-[1.05fr_0.55fr_0.95fr] lg:items-start">
