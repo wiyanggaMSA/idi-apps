@@ -200,7 +200,12 @@ class PublicLandingController extends Controller
             ->select('id')
             ->where('is_active', true)
             ->orderByDesc('start_date')
-            ->first();
+            ->first()
+            ?: OrganizationPeriod::query()
+                ->select('organization_periods.id')
+                ->whereHas('assignments', fn ($query) => $query->current())
+                ->orderByDesc('start_date')
+                ->first();
 
         if (! $activePeriod) {
             return [];
@@ -214,7 +219,9 @@ class PublicLandingController extends Controller
                 'organizationUnit:id,name',
             ])
             ->where('period_id', $activePeriod->id)
-            ->active()
+            ->current()
+            ->orderBy('started_at')
+            ->orderBy('id')
             ->limit(8)
             ->get()
             ->map(function (OrganizationAssignment $assignment) {

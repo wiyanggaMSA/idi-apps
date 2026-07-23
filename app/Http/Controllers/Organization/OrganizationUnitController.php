@@ -36,10 +36,12 @@ class OrganizationUnitController extends Controller
             OrganizationAssignment::STATUS_DRAFT,
             OrganizationAssignment::STATUS_ACTIVE,
         ];
-        $assignmentScope = fn ($query) => $query->when(
-            ! $organizationPeriod->isReadOnly(),
-            fn ($assignment) => $assignment->whereIn('status', $currentStatuses)
-        );
+        $assignmentScope = fn ($query) => $query
+            ->where('period_id', $organizationPeriod->id)
+            ->when(
+                ! $organizationPeriod->isReadOnly(),
+                fn ($assignment) => $assignment->whereIn('status', $currentStatuses)
+            );
         $sort = $validated['sort'] ?? 'display_order';
         $direction = $validated['direction'] ?? 'asc';
 
@@ -127,6 +129,7 @@ class OrganizationUnitController extends Controller
                         ->with([
                             'position:id,name,code,level,is_leadership',
                             'assignments' => fn ($query) => $query
+                                ->where('period_id', $organizationUnit->period_id)
                                 ->when(
                                     ! $organizationUnit->period?->isReadOnly(),
                                     fn ($assignment) => $assignment->whereIn('status', $currentStatuses)
@@ -145,10 +148,12 @@ class OrganizationUnitController extends Controller
                     'unitPositions as positions_count' => fn ($query) => $query->where('is_active', true),
                     'unitPositions as filled_positions_count' => fn ($query) => $query
                         ->where('is_active', true)
-                        ->whereHas('assignments', fn ($assignment) => $assignment->when(
-                            ! $organizationUnit->period?->isReadOnly(),
-                            fn ($query) => $query->whereIn('status', $currentStatuses)
-                        )),
+                        ->whereHas('assignments', fn ($assignment) => $assignment
+                            ->where('period_id', $organizationUnit->period_id)
+                            ->when(
+                                ! $organizationUnit->period?->isReadOnly(),
+                                fn ($query) => $query->whereIn('status', $currentStatuses)
+                            )),
                 ])
         );
     }

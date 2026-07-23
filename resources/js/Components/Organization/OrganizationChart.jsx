@@ -464,7 +464,7 @@ export default function OrganizationChart({ period, canManage = false, onManage 
         setSelectedUnitId(null);
         setPan({ x: 0, y: 0 });
         setScale(1);
-        loadChart();
+        loadChart({ force: true });
 
         return () => requestRef.current?.abort();
     }, [loadChart]);

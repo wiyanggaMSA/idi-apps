@@ -175,6 +175,7 @@ class OrganizationPeriodController extends Controller
                     ->with([
                         'position:id,name,code,level,is_leadership',
                         'assignments' => fn ($assignmentQuery) => $assignmentQuery
+                            ->where('period_id', $organizationPeriod->id)
                             ->when(
                                 ! $organizationPeriod->isReadOnly(),
                                 fn ($query) => $query->whereIn('status', $currentStatuses)
