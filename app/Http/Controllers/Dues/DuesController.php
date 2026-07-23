@@ -6,8 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\DuesPayment;
 use App\Models\FinancialActionRequest;
 use App\Models\Member;
-use App\Services\Dues\DuesLedgerService;
 use App\Services\Dues\DuesInvoiceService;
+use App\Services\Dues\DuesLedgerService;
 use App\Services\Finance\FinancePeriodService;
 use App\Services\Finance\FinancialActionRequestService;
 use Carbon\Carbon;
@@ -23,7 +23,7 @@ class DuesController extends Controller
     {
         $this->authorize('viewAny', DuesPayment::class);
 
-        $perPage = 10;
+        $perPage = min(max($request->integer('perPage', 10), 10), 100);
         $page = max((int) $request->input('page', 1), 1);
         $filters = [
             'search' => $request->input('search'),
@@ -147,7 +147,7 @@ class DuesController extends Controller
             ->get();
 
         $pendingVoidIds = FinancialActionRequest::query()
-            ->where('actionable_type', (new DuesPayment())->getMorphClass())
+            ->where('actionable_type', (new DuesPayment)->getMorphClass())
             ->where('action', FinancialActionRequest::ACTION_VOID)
             ->where('status', FinancialActionRequest::STATUS_PENDING)
             ->whereIn('actionable_id', $payments->pluck('id'))
@@ -241,6 +241,7 @@ class DuesController extends Controller
                     'can_void' => false,
                 ];
                 $cursor->addMonth();
+
                 continue;
             }
 

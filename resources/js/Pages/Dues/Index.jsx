@@ -593,8 +593,11 @@ export default function DuesIndex() {
                         pagination={{
                             current: meta.current_page || filters.page || 1,
                             total: meta.total || 0,
-                            pageSize: meta.per_page || 20,
-                            onChange: (page) => applyFilters({ page }),
+                            pageSize: meta.per_page || filters.perPage || 10,
+                            showSizeChanger: true,
+                            pageSizeOptions: [10, 20, 50, 100],
+                            onChange: (page, pageSize) => applyFilters({ page, perPage: pageSize }),
+                            onShowSizeChange: (_page, pageSize) => applyFilters({ page: 1, perPage: pageSize }),
                         }}
                         emptyTitle={t("dues.noDues")}
                         emptyDescription={t("dues.noDuesDesc")}

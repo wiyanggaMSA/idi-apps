@@ -5,7 +5,6 @@ namespace Tests\Feature\Finance;
 use App\Models\CashCategory;
 use App\Models\CashMethod;
 use App\Models\CashTransaction;
-use App\Models\DuesPayment;
 use App\Models\DuesPaymentAllocation;
 use App\Models\DuesSetting;
 use App\Models\Member;
@@ -91,12 +90,14 @@ class DuesLedgerActionsPhase6Test extends TestCase
         $user->givePermissionTo('dues.view');
 
         $this->actingAs($user)
-            ->get(route('dues.index'))
+            ->get(route('dues.index', ['perPage' => 100]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Dues/Index')
                 ->has('dues.data')
                 ->has('dues.meta.current_page')
+                ->where('dues.meta.per_page', 100)
+                ->where('filters.perPage', 100)
                 ->has('summary.total_members')
                 ->has('members')
                 ->has('active_period')

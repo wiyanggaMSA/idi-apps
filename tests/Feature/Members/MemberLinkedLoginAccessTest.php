@@ -6,6 +6,7 @@ use App\Models\Member;
 use App\Models\MemberStatus;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -106,6 +107,24 @@ class MemberLinkedLoginAccessTest extends TestCase
             'full_name' => 'Dokter Legacy Aktif Updated',
             'status' => 'aktif',
         ]);
+    }
+
+    public function test_member_index_accepts_page_size_for_sorting_larger_pages(): void
+    {
+        $actor = $this->userWithRoleAndPermissions('superadmin', ['members.view']);
+        Member::factory()->count(16)->create();
+
+        $this
+            ->actingAs($actor)
+            ->get(route('members.index', ['perPage' => 100, 'sortBy' => 'npa', 'sortDir' => 'desc']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Members/Index')
+                ->where('members.per_page', 100)
+                ->where('filters.perPage', 100)
+                ->where('filters.sortBy', 'npa')
+                ->where('filters.sortDir', 'desc')
+            );
     }
 
     private function userWithRoleAndPermissions(string $roleName, array $permissions): User

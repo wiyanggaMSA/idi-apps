@@ -21,7 +21,7 @@ class MemberController extends Controller
 {
     public function index(Request $request, MemberQueryService $queryService): Response
     {
-        $perPage = 15;
+        $perPage = min(max($request->integer('perPage', 15), 10), 100);
         $canManageLinkedLoginAccount = $request->user()
             ? RoleName::hasAny($request->user(), [RoleName::ADMIN, RoleName::SUPERADMIN])
             : false;
@@ -103,6 +103,7 @@ class MemberController extends Controller
                 'page' => $request->input('page', 1),
                 'sortBy' => $request->input('sortBy', 'full_name'),
                 'sortDir' => $request->input('sortDir', 'asc'),
+                'perPage' => $perPage,
             ],
         ]);
     }

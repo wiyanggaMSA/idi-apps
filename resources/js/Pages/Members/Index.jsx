@@ -707,10 +707,12 @@ export default function MembersIndex() {
             pagination={{
               current:
                 meta.current_page || props.members?.current_page || filters.page || 1,
-              pageSize: meta.per_page || props.members?.per_page || 20,
+              pageSize: meta.per_page || props.members?.per_page || filters.perPage || 15,
               total: meta.total || props.members?.total || 0,
-              showSizeChanger: false,
-              onChange: (page) => applyFilters({ page }),
+              showSizeChanger: true,
+              pageSizeOptions: [10, 15, 20, 50, 100],
+              onChange: (page, pageSize) => applyFilters({ page, perPage: pageSize }),
+              onShowSizeChange: (_page, pageSize) => applyFilters({ page: 1, perPage: pageSize }),
             }}
             style={{ borderRadius: 12, overflow: "hidden" }}
           />

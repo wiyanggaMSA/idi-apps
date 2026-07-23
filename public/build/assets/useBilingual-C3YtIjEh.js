@@ -1,1 +1,0 @@
-import{r as a}from"./client-CuAv3WcI.js";import{u}from"./app-BqhcD1P2.js";function c(){const{language:n}=u(),s=n==="en",t=a.useCallback((o,r)=>s?r:o,[s]);return{language:n,isEnglish:s,tx:t}}export{c as u};
