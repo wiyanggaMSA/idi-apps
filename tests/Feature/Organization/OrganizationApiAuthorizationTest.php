@@ -276,6 +276,30 @@ class OrganizationApiAuthorizationTest extends TestCase
             ->assertJsonStructure(['data', 'links', 'meta']);
     }
 
+    public function test_member_search_accepts_one_character_and_raw_active_status(): void
+    {
+        $viewer = $this->userWithRole('ketua');
+        $context = $this->draftStructure();
+        $member = Member::factory()->create([
+            'npa' => 'R-001',
+            'full_name' => 'Raka Raw Status',
+            'email' => 'raka.raw@example.test',
+            'status' => 'aktif',
+        ]);
+
+        $this->actingAs($viewer)->getJson(route('organization.members.search', [
+            'q' => 'r',
+            'period_id' => $context['period']->id,
+        ]))->assertOk()
+            ->assertJsonPath('data.0.id', $member->id);
+
+        $this->actingAs($viewer)->getJson(route('organization.members.eligibility', [
+            'member' => $member,
+            'period_id' => $context['period']->id,
+        ]))->assertOk()
+            ->assertJsonPath('data.eligible', true);
+    }
+
     public function test_structure_edit_updates_parent_atomically_and_rejects_cycles(): void
     {
         $actor = $this->userWithRole('sekretaris');

@@ -153,10 +153,6 @@ class OrganizationAssignmentValidator
 
     private function memberIsActive(Member $member): bool
     {
-        if ($member->relationLoaded('memberStatus')) {
-            return (bool) ($member->memberStatus?->is_active && $member->memberStatus?->is_active_member);
-        }
-
-        return $member->memberStatus()->active()->activeMember()->exists();
+        return $member->hasAssignableActiveStatus();
     }
 }

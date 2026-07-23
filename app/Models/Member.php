@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,6 +12,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Member extends Model
 {
     use HasFactory, SoftDeletes;
+
+    public const ACTIVE_STATUS_CODES = ['aktif', 'active'];
 
     protected $fillable = [
         'user_id',
@@ -51,6 +54,27 @@ class Member extends Model
     public function memberStatus(): BelongsTo
     {
         return $this->belongsTo(MemberStatus::class, 'status', 'code');
+    }
+
+    public function scopeAssignableActive(Builder $query): Builder
+    {
+        return $query->where(function (Builder $nested) {
+            $nested->whereHas('memberStatus', fn (Builder $status) => $status->active()->activeMember())
+                ->orWhereIn('status', self::ACTIVE_STATUS_CODES);
+        });
+    }
+
+    public function hasAssignableActiveStatus(): bool
+    {
+        if (in_array($this->status, self::ACTIVE_STATUS_CODES, true)) {
+            return true;
+        }
+
+        if ($this->relationLoaded('memberStatus')) {
+            return (bool) ($this->memberStatus?->is_active && $this->memberStatus?->is_active_member);
+        }
+
+        return $this->memberStatus()->active()->activeMember()->exists();
     }
 
     public function user(): BelongsTo

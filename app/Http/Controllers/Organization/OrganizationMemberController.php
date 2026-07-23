@@ -14,7 +14,7 @@ class OrganizationMemberController extends Controller
     {
         abort_unless($request->user()?->can('organization.assignment.manage'), 403);
         $validated = $request->validate([
-            'q' => ['required', 'string', 'min:2', 'max:100'],
+            'q' => ['required', 'string', 'min:1', 'max:100'],
             'period_id' => ['nullable', 'integer', 'exists:organization_periods,id'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
         ]);
@@ -23,7 +23,7 @@ class OrganizationMemberController extends Controller
 
         $members = Member::query()
             ->select(['id', 'user_id', 'npa', 'full_name', 'education', 'email', 'phone', 'status'])
-            ->whereHas('memberStatus', fn ($status) => $status->active()->activeMember())
+            ->assignableActive()
             ->where(function ($query) use ($search) {
                 $query->where('full_name', 'like', "%{$search}%")
                     ->orWhere('npa', 'like', "%{$search}%")
@@ -78,7 +78,7 @@ class OrganizationMemberController extends Controller
             ->where('period_id', $validated['period_id'])
             ->with(['organizationUnit:id,name', 'unitPosition:id,custom_title,position_id', 'unitPosition.position:id,name'])
             ->first();
-        $active = (bool) ($member->memberStatus?->is_active && $member->memberStatus?->is_active_member);
+        $active = $member->hasAssignableActiveStatus();
 
         return response()->json([
             'data' => [

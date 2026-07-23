@@ -55,7 +55,7 @@ function MemberPreview({ member, eligibility, loading, period }) {
                 showIcon
                 icon={<SearchOutlined />}
                 message={tx("Cari anggota dari database", "Search members in the database")}
-                description={tx("Ketik minimal dua karakter nama, NPA, email, atau ID internal.", "Enter at least two characters from a name, NPA, email, or internal ID.")}
+                description={tx("Ketik nama, NPA, email, atau ID internal.", "Enter a name, NPA, email, or internal ID.")}
             />
         );
     }
@@ -154,7 +154,7 @@ export default function AssignmentManagementDrawer({
     }, []);
 
     const fetchMembers = useCallback(async (query, page = 1, append = false) => {
-        if (!period?.id || query.trim().length < 2) return;
+        if (!period?.id || query.trim().length < 1) return;
         memberRequestRef.current?.abort();
         const controller = new AbortController();
         memberRequestRef.current = controller;
@@ -248,7 +248,7 @@ export default function AssignmentManagementDrawer({
     const handleMemberSearch = (query) => {
         setMemberQuery(query);
         window.clearTimeout(searchTimerRef.current);
-        if (query.trim().length < 2) {
+        if (query.trim().length < 1) {
             setMemberOptions([]);
             return;
         }
@@ -358,7 +358,7 @@ export default function AssignmentManagementDrawer({
                                 onSearch={handleMemberSearch}
                                 onPopupScroll={handleMemberScroll}
                                 loading={memberLoading}
-                                notFoundContent={memberLoading ? <Spin size="small" /> : tx("Ketik minimal dua karakter", "Enter at least two characters")}
+                                notFoundContent={memberLoading ? <Spin size="small" /> : tx("Ketik nama, NPA, email, atau ID", "Enter a name, NPA, email, or ID")}
                                 onChange={(_value, option) => {
                                     setSelectedMember(option.member);
                                     validateMember(option.member);
