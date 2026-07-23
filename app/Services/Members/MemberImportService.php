@@ -29,7 +29,7 @@ class MemberImportService
             'original_filename' => $file->getClientOriginalName(),
         ]);
 
-        $rows = Excel::toArray(new MemberImportRows(), $file)[0] ?? [];
+        $rows = Excel::toArray(new MemberImportRows, $file)[0] ?? [];
 
         $createdCount = 0;
         $conflictCount = 0;
@@ -43,6 +43,7 @@ class MemberImportService
 
             if (! $payload['npa'] || ! $payload['full_name']) {
                 $errorCount++;
+
                 continue;
             }
 
@@ -90,6 +91,7 @@ class MemberImportService
     private function mapRow(array $row): array
     {
         $normalized = $this->normalizeRowKeys($row);
+        $normalized = $this->normalizeRegionalTemplateShift($normalized);
 
         $divisionName = trim((string) Arr::get($normalized, 'divisi'));
         $positionName = trim((string) Arr::get($normalized, 'jabatan'));
@@ -130,6 +132,42 @@ class MemberImportService
         }
 
         return $normalized;
+    }
+
+    private function normalizeRegionalTemplateShift(array $normalized): array
+    {
+        if (! $this->isRegionalTemplateShift($normalized)) {
+            return $normalized;
+        }
+
+        return [
+            ...$normalized,
+            'npa' => Arr::get($normalized, 'pendidikan'),
+            'nama lengkap' => Arr::get($normalized, 'no. hp'),
+            'pendidikan' => Arr::get($normalized, 'jenis kelamin'),
+            'no. hp' => Arr::get($normalized, 'tempat lahir'),
+            'jenis kelamin' => Arr::get($normalized, 'tanggal lahir'),
+            'tempat lahir' => Arr::get($normalized, 'email'),
+            'tanggal lahir' => Arr::get($normalized, 'divisi'),
+            'email' => Arr::get($normalized, 'jabatan'),
+            'divisi' => null,
+            'jabatan' => null,
+        ];
+    }
+
+    private function isRegionalTemplateShift(array $normalized): bool
+    {
+        $shiftedNpa = $this->stringValue(Arr::get($normalized, 'pendidikan'));
+        $shiftedName = $this->stringValue(Arr::get($normalized, 'no. hp'));
+        $shiftedGender = $this->normalizeGender(Arr::get($normalized, 'tanggal lahir'));
+        $shiftedBirthDate = $this->normalizeDate(Arr::get($normalized, 'divisi'));
+        $shiftedEmail = $this->stringValue(Arr::get($normalized, 'jabatan'));
+
+        return $shiftedNpa
+            && $shiftedName
+            && $shiftedGender
+            && $shiftedBirthDate
+            && (! $shiftedEmail || filter_var($shiftedEmail, FILTER_VALIDATE_EMAIL));
     }
 
     private function detectConflicts(?string $npa, ?string $email): array
@@ -293,6 +331,7 @@ class MemberImportService
         }
 
         $trimmed = trim((string) $value);
+
         return $trimmed === '' ? null : $trimmed;
     }
 }
