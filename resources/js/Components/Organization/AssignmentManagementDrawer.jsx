@@ -135,6 +135,25 @@ export default function AssignmentManagementDrawer({
     const copy = modeCopy[mode] || modeCopy.create;
     const isCreate = mode === "create";
     const needsMember = mode === "create" || mode === "replace";
+    const savedMessage = (assignmentData) => {
+        if (mode === "create" || mode === "replace") {
+            if (assignmentData?.status === "active" && assignmentData?.account_access?.applied_at) {
+                return tx(
+                    "Pengurus disimpan. Akun login dan role portal sudah disinkronkan.",
+                    "Manager saved. Login account and portal role have been synchronized."
+                );
+            }
+
+            if (assignmentData?.status === "draft") {
+                return tx(
+                    "Pengurus disimpan sebagai draft. Akun login akan dibuat saat periode/penugasan diaktifkan.",
+                    "Manager saved as draft. The login account will be created when the period or assignment is activated."
+                );
+            }
+        }
+
+        return `${copy.title} ${tx("berhasil disimpan.", "was saved successfully.")}`;
+    };
 
     const fetchSlots = useCallback(async (unitId) => {
         if (!unitId) {
@@ -268,8 +287,10 @@ export default function AssignmentManagementDrawer({
         form.setFields(Object.keys(values).map((name) => ({ name, errors: [] })));
 
         try {
+            let response = null;
+
             if (mode === "create") {
-                await axios.post(route("organization.assignments.store"), {
+                response = await axios.post(route("organization.assignments.store"), {
                     ...values,
                     period_id: period.id,
                     organization_unit_id: values.organization_unit_id,
@@ -277,14 +298,14 @@ export default function AssignmentManagementDrawer({
                     member_id: values.member_id,
                 });
             } else if (mode === "replace") {
-                await axios.post(route("organization.assignments.replace", assignment.id), values);
+                response = await axios.post(route("organization.assignments.replace", assignment.id), values);
             } else if (mode === "edit") {
-                await axios.patch(route("organization.assignments.update", assignment.id), values);
+                response = await axios.patch(route("organization.assignments.update", assignment.id), values);
             } else if (mode === "end") {
-                await axios.post(route("organization.assignments.end", assignment.id), values);
+                response = await axios.post(route("organization.assignments.end", assignment.id), values);
             }
 
-            message.success(`${copy.title} ${tx("berhasil disimpan.", "was saved successfully.")}`);
+            message.success(savedMessage(response?.data?.data));
             notifyOrganizationDataChanged(period.id);
             onSaved?.();
             onClose?.();

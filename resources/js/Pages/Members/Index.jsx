@@ -55,6 +55,19 @@ const ELLIPSIS_WIDTHS = {
   sip: 88,
 };
 
+function applyServerErrors(form, errors = {}, fallback) {
+  const fields = Object.entries(errors).map(([name, messages]) => ({
+    name,
+    errors: Array.isArray(messages) ? messages : [String(messages)],
+  }));
+
+  if (fields.length > 0) {
+    form.setFields(fields);
+  }
+
+  return fields[0]?.errors?.[0] || fallback;
+}
+
 export default function MembersIndex() {
   const { language } = useI18n();
   const isEn = language === "en";
@@ -138,6 +151,8 @@ export default function MembersIndex() {
     linkedAccountHint: isEn
       ? "This account will receive signature requests for this member."
       : "Akun ini akan menerima daftar surat yang perlu ditandatangani anggota ini.",
+    saveFailed: isEn ? "Member could not be saved." : "Anggota gagal disimpan.",
+    checkHighlightedFields: isEn ? "Please check the highlighted fields." : "Periksa field yang ditandai.",
   };
 
   const canCreate = props?.auth?.permissions?.includes("members.create");
@@ -300,7 +315,10 @@ export default function MembersIndex() {
             message.success(copy.updated);
             setModalOpen(false);
           },
-          });
+          onError: (errors) => {
+            message.error(applyServerErrors(form, errors, copy.saveFailed));
+          },
+        });
       } else {
         router.post(route("members.store"), payload, {
           preserveScroll: true,
@@ -308,9 +326,15 @@ export default function MembersIndex() {
             message.success(copy.added);
             setModalOpen(false);
           },
+          onError: (errors) => {
+            message.error(applyServerErrors(form, errors, copy.saveFailed));
+          },
         });
       }
-    } catch {}
+    } catch (error) {
+      const firstError = error?.errorFields?.[0]?.errors?.[0];
+      message.error(firstError || copy.checkHighlightedFields);
+    }
   };
 
   const openDetail = (member) => {
