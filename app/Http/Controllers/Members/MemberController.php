@@ -156,12 +156,6 @@ class MemberController extends Controller
             ]);
         }
 
-        foreach (MemberStatus::LEGACY_STATUS_LABELS as $code => $label) {
-            if (! $options->contains('value', $code)) {
-                $options->push(['value' => $code, 'label' => $label]);
-            }
-        }
-
         return $options->values();
     }
 }

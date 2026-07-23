@@ -68,6 +68,21 @@ function applyServerErrors(form, errors = {}, fallback) {
   return fields[0]?.errors?.[0] || fallback;
 }
 
+function canonicalStatus(value) {
+  const normalized = String(value || "").toLowerCase();
+  const map = {
+    aktif: "active",
+    active: "active",
+    nonaktif: "inactive",
+    inactive: "inactive",
+    meninggal: "deceased",
+    deceased: "deceased",
+    mutasi: "mutasi",
+  };
+
+  return map[normalized] || normalized;
+}
+
 export default function MembersIndex() {
   const { language } = useI18n();
   const isEn = language === "en";
@@ -182,14 +197,26 @@ export default function MembersIndex() {
     };
     return map[String(value || "").toLowerCase()] || value;
   };
-  const translatedStatuses = useMemo(
-    () =>
-      (statuses || []).map((status) => ({
+  const translatedStatuses = useMemo(() => {
+    const currentStatus = editingMember?.status;
+    const grouped = new Map();
+
+    (statuses || []).forEach((status) => {
+      const option = {
         ...status,
-        label: translateStatus(status.label || status.value),
-      })),
-    [statuses, language]
-  );
+        label: translateStatus(status.value || status.label),
+      };
+      const key = canonicalStatus(status.value);
+      const existing = grouped.get(key);
+      const isCurrent = currentStatus && status.value === currentStatus;
+
+      if (!existing || isCurrent) {
+        grouped.set(key, option);
+      }
+    });
+
+    return Array.from(grouped.values());
+  }, [statuses, language, editingMember?.status]);
   const translatedGenders = useMemo(
     () =>
       (genders || []).map((gender) => ({
