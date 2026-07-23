@@ -733,7 +733,7 @@ export default function SettingsIndex() {
     const confirmDeleteRole = (role) => {
         Modal.confirm({
             title: tx("Hapus role?", "Remove role?"),
-            content: tx(`Role ${role.name} akan dihapus.`, `Role ${role.name} will be removed.`),
+            content: tx(`Role ${role.label || role.name} akan dihapus.`, `Role ${role.label || role.name} will be removed.`),
             okText: tx("Hapus", "Remove"),
             okButtonProps: { danger: true },
             cancelText: tx("Batal", "Cancel"),
@@ -1872,7 +1872,7 @@ export default function SettingsIndex() {
                                                                                 role,
                                                                             ) => ({
                                                                                 value: role.name,
-                                                                                label: role.name,
+                                                                                label: role.label || role.name,
                                                                             }),
                                                                         )}
                                                                     />
@@ -1947,8 +1947,9 @@ export default function SettingsIndex() {
                                                             {
                                                                 title: tx("Nama", "Name"),
                                                                 dataIndex:
-                                                                    "name",
+                                                                    "label",
                                                                 key: "name",
+                                                                render: (_, role) => role.label || role.name,
                                                             },
                                                             {
                                                                 title: "Email",
@@ -1964,6 +1965,7 @@ export default function SettingsIndex() {
                                                                 width: 180,
                                                                 render: (
                                                                     roles,
+                                                                    record,
                                                                 ) =>
                                                                     roles?.length ? (
                                                                         <Space
@@ -1972,6 +1974,7 @@ export default function SettingsIndex() {
                                                                             {roles.map(
                                                                                 (
                                                                                     role,
+                                                                                    index,
                                                                                 ) => (
                                                                                     <Tag
                                                                                         key={
@@ -1980,7 +1983,7 @@ export default function SettingsIndex() {
                                                                                         color="blue"
                                                                                     >
                                                                                         {
-                                                                                            role
+                                                                                            record.role_labels?.[index] || role
                                                                                         }
                                                                                     </Tag>
                                                                                 ),
@@ -2769,7 +2772,7 @@ export default function SettingsIndex() {
                                 placeholder={tx("Pilih role", "Select role")}
                                 options={roles.map((role) => ({
                                     value: role.name,
-                                    label: role.name,
+                                    label: role.label || role.name,
                                 }))}
                             />
                         </Form.Item>

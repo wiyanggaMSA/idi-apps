@@ -11,6 +11,7 @@ use App\Models\MemberStatus;
 use App\Models\Position;
 use App\Models\User;
 use App\Services\Members\MemberQueryService;
+use App\Support\RoleName;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -21,7 +22,9 @@ class MemberController extends Controller
     public function index(Request $request, MemberQueryService $queryService): Response
     {
         $perPage = 15;
-        $canManageLinkedLoginAccount = $request->user()?->hasAnyRole(['admin', 'superadmin']) ?? false;
+        $canManageLinkedLoginAccount = $request->user()
+            ? RoleName::hasAny($request->user(), [RoleName::ADMIN, RoleName::SUPERADMIN])
+            : false;
         $memberStatuses = MemberStatus::query()
             ->active()
             ->orderBy('sort_order')

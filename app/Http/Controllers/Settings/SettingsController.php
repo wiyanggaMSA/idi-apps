@@ -14,6 +14,7 @@ use App\Models\PaymentStatus;
 use App\Models\Position;
 use App\Models\User;
 use App\Models\WorkProgramPeriod;
+use App\Support\RoleName;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -72,6 +73,9 @@ class SettingsController extends Controller
                 'email' => $user->email,
                 'is_active' => $user->is_active,
                 'roles' => $user->roles->pluck('name')->values(),
+                'role_labels' => $user->roles
+                    ->map(fn (Role $role) => RoleName::display($role->name))
+                    ->values(),
                 'permissions' => $user->permissions->pluck('name')->values(),
             ]);
 
@@ -82,6 +86,7 @@ class SettingsController extends Controller
             ->map(fn (Role $role) => [
                 'id' => $role->id,
                 'name' => $role->name,
+                'label' => RoleName::display($role->name),
                 'permissions' => $role->permissions->pluck('name')->values(),
             ]);
 

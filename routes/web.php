@@ -513,7 +513,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('permission:reports.export|reports.print')
         ->name('reports.financial-summary.pdf');
     // SETTINGS
-    Route::middleware(['role:admin|superadmin'])->group(function () {
+    Route::middleware(['role_or_permission:admin|superadmin|Admin|Superadmin|settings.view'])->group(function () {
         Route::get('/settings', SettingsController::class)->name('settings.index');
         Route::patch('/settings/profile', [OrganizationProfileController::class, 'update'])->name('settings.profile.update');
         Route::patch('/settings/dues', [DuesSettingsController::class, 'update'])->name('settings.dues.update');

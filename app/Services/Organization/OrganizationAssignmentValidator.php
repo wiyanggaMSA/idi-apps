@@ -6,6 +6,7 @@ use App\Models\Member;
 use App\Models\OrganizationPeriod;
 use App\Models\OrganizationUnit;
 use App\Models\OrganizationUnitPosition;
+use App\Support\RoleName;
 use Carbon\CarbonImmutable;
 use Spatie\Permission\Models\Role;
 
@@ -71,7 +72,7 @@ class OrganizationAssignmentValidator
             );
         }
 
-        if ($role->guard_name !== 'web' || $role->name === 'anggota') {
+        if ($role->guard_name !== 'web' || RoleName::normalize($role->name) === RoleName::MEMBER) {
             throw new OrganizationDomainException(
                 'portal_role_id',
                 'Role portal pengurus tidak valid.'

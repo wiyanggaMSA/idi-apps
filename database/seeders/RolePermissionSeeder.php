@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\User;
+use App\Support\RoleName;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -115,12 +116,12 @@ class RolePermissionSeeder extends Seeder
             Permission::firstOrCreate(['name' => $permission, 'guard_name' => 'web']);
         }
 
-        $superadmin = Role::firstOrCreate(['name' => 'superadmin', 'guard_name' => 'web']);
-        $admin = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
-        $sekretaris = Role::firstOrCreate(['name' => 'sekretaris', 'guard_name' => 'web']);
-        $ketua = Role::firstOrCreate(['name' => 'ketua', 'guard_name' => 'web']);
-        $bendahara = Role::firstOrCreate(['name' => 'bendahara', 'guard_name' => 'web']);
-        $anggota = Role::firstOrCreate(['name' => 'anggota', 'guard_name' => 'web']);
+        $superadmin = $this->role(RoleName::SUPERADMIN);
+        $admin = $this->role(RoleName::ADMIN);
+        $sekretaris = $this->role(RoleName::SECRETARY);
+        $ketua = $this->role(RoleName::CHAIR);
+        $bendahara = $this->role(RoleName::TREASURER);
+        $anggota = $this->role(RoleName::MEMBER);
 
         $superadmin->syncPermissions($permissions);
         $admin->syncPermissions($permissions);
@@ -243,7 +244,25 @@ class RolePermissionSeeder extends Seeder
 
         $firstUser = User::query()->orderBy('id')->first();
         if ($firstUser) {
-            $firstUser->assignRole('superadmin');
+            $firstUser->assignRole(RoleName::SUPERADMIN);
         }
+    }
+
+    private function role(string $name): Role
+    {
+        $role = Role::query()
+            ->whereRaw('lower(name) = ?', [$name])
+            ->where('guard_name', 'web')
+            ->first();
+
+        if (! $role) {
+            return Role::create(['name' => $name, 'guard_name' => 'web']);
+        }
+
+        if ($role->name !== $name) {
+            $role->forceFill(['name' => $name])->save();
+        }
+
+        return $role;
     }
 }

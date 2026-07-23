@@ -46,9 +46,10 @@ return new class extends Migration
         ];
 
         $roles = DB::table('roles')
-            ->whereIn('name', array_keys($rolePermissions))
+            ->whereIn(DB::raw('lower(name)'), array_keys($rolePermissions))
             ->where('guard_name', 'web')
-            ->pluck('id', 'name');
+            ->get(['id', 'name'])
+            ->mapWithKeys(fn ($role) => [mb_strtolower($role->name) => $role->id]);
 
         foreach ($rolePermissions as $role => $permissions) {
             $roleId = $roles[$role] ?? null;

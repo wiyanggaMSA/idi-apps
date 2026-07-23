@@ -11,6 +11,7 @@ use App\Models\OrganizationUnitPosition;
 use App\Models\Position;
 use App\Models\User;
 use App\Services\Organization\OrganizationAssignmentService;
+use App\Support\RoleName;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -29,8 +30,14 @@ class OrganizationDemoSeeder extends Seeder
         }
 
         DB::transaction(function (): void {
-            $actor = User::role('superadmin')->orderBy('id')->first()
-                ?? User::role('admin')->orderBy('id')->first()
+            $actor = User::query()
+                ->whereHas('roles', fn ($query) => $query->whereRaw('lower(name) = ?', [RoleName::SUPERADMIN]))
+                ->orderBy('id')
+                ->first()
+                ?? User::query()
+                    ->whereHas('roles', fn ($query) => $query->whereRaw('lower(name) = ?', [RoleName::ADMIN]))
+                    ->orderBy('id')
+                    ->first()
                 ?? throw new RuntimeException('Seeder membutuhkan user superadmin atau admin.');
 
             $period = $this->period($actor);
@@ -56,7 +63,7 @@ class OrganizationDemoSeeder extends Seeder
                     'organization_unit_id' => $slot->organization_unit_id,
                     'unit_position_id' => $slot->id,
                     'member_id' => $member->id,
-                    'portal_role_id' => Role::findByName($appointment['role'], 'web')->id,
+                    'portal_role_id' => RoleName::findOrFail($appointment['role'])->id,
                     'started_at' => '2025-01-18',
                     'appointment_number' => sprintf('001/IDI-PC/SK/I/2025-%02d', $appointment['number']),
                     'appointment_date' => '2025-01-18',

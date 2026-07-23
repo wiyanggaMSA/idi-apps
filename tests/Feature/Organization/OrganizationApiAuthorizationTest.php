@@ -52,6 +52,25 @@ class OrganizationApiAuthorizationTest extends TestCase
         $this->assertFalse(Role::findByName('anggota')->hasPermissionTo('organization.view'));
     }
 
+    public function test_role_seed_normalizes_default_role_name_casing(): void
+    {
+        foreach (['Superadmin', 'Admin', 'Sekretaris', 'Ketua', 'Bendahara', 'Anggota'] as $roleName) {
+            Role::create(['name' => $roleName, 'guard_name' => 'web']);
+        }
+
+        $this->seed(RolePermissionSeeder::class);
+
+        foreach (['superadmin', 'admin', 'sekretaris', 'ketua', 'bendahara', 'anggota'] as $roleName) {
+            $this->assertDatabaseHas('roles', ['name' => $roleName, 'guard_name' => 'web']);
+            $this->assertDatabaseMissing('roles', ['name' => ucfirst($roleName), 'guard_name' => 'web']);
+        }
+
+        $this->assertTrue(Role::findByName('sekretaris')->hasPermissionTo('organization.view'));
+        $this->assertTrue(Role::findByName('ketua')->hasPermissionTo('work_program.approve'));
+        $this->assertTrue(Role::findByName('bendahara')->hasPermissionTo('dues.manage'));
+        $this->assertTrue(Role::findByName('anggota')->hasPermissionTo('work_program.update_progress'));
+    }
+
     public function test_portal_manager_can_read_period_chart_and_assignment_contracts(): void
     {
         $viewer = $this->userWithRole('bendahara');

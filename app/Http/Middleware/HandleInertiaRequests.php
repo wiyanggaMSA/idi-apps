@@ -2,11 +2,12 @@
 
 namespace App\Http\Middleware;
 
-use Illuminate\Http\Request;
 use App\Models\AppSetting;
-use Inertia\Middleware;
+use App\Support\RoleName;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -45,7 +46,12 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'auth' => [
                 'user' => $request->user(),
-                'roles' => $request->user()?->getRoleNames() ?? [],
+                'roles' => $request->user()
+                    ? $request->user()->getRoleNames()->map(fn (string $role) => RoleName::normalize($role))
+                    : [],
+                'role_labels' => $request->user()
+                    ? $request->user()->getRoleNames()->map(fn (string $role) => RoleName::display($role))
+                    : [],
                 'permissions' => $request->user()?->getAllPermissions()->pluck('name') ?? [],
             ],
             'orgProfile' => [

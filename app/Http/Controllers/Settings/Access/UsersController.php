@@ -10,6 +10,7 @@ use App\Http\Requests\Settings\Access\SyncUserPermissionsRequest;
 use App\Http\Requests\Settings\Access\UpdateUserRequest;
 use App\Models\User;
 use App\Services\Settings\Access\UserAccessService;
+use App\Support\RoleName;
 use Illuminate\Http\RedirectResponse;
 
 class UsersController extends Controller
@@ -50,7 +51,10 @@ class UsersController extends Controller
 
     public function assignRole(AssignRoleRequest $request, User $user, UserAccessService $service): RedirectResponse
     {
-        if ($user->id === $request->user()->id && $request->validated()['role'] !== 'Admin') {
+        if (
+            $user->id === $request->user()->id
+            && RoleName::normalize($request->validated()['role']) !== RoleName::ADMIN
+        ) {
             return back()->withErrors(['role' => 'Tidak bisa menurunkan role Admin pada akun sendiri.']);
         }
 

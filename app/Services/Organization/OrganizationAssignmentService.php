@@ -10,6 +10,7 @@ use App\Models\OrganizationUnitPosition;
 use App\Models\User;
 use App\Services\Settings\Access\UserAccessException;
 use App\Services\Settings\Access\UserAccessService;
+use App\Support\RoleName;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Role;
@@ -397,7 +398,10 @@ class OrganizationAssignmentService
 
     private function assertRoleAssignable(Role $role, User $actor): void
     {
-        if ($role->name === 'superadmin' && ! $actor->hasRole('superadmin')) {
+        if (
+            RoleName::normalize($role->name) === RoleName::SUPERADMIN
+            && ! RoleName::is($actor, RoleName::SUPERADMIN)
+        ) {
             throw new OrganizationDomainException(
                 'portal_role_id',
                 'Role superadmin hanya dapat diberikan oleh superadmin.'

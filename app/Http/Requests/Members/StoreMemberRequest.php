@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Members;
 
+use App\Support\RoleName;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -44,6 +45,8 @@ class StoreMemberRequest extends FormRequest
 
     private function canManageLinkedLoginAccount(): bool
     {
-        return $this->user()?->hasAnyRole(['admin', 'superadmin']) ?? false;
+        return $this->user()
+            ? RoleName::hasAny($this->user(), [RoleName::ADMIN, RoleName::SUPERADMIN])
+            : false;
     }
 }

@@ -5,6 +5,7 @@ namespace App\Services\Settings\Access;
 use App\Models\Member;
 use App\Models\User;
 use App\Services\Organization\OrganizationAuditLogger;
+use App\Support\RoleName;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
@@ -14,7 +15,7 @@ use Spatie\Permission\Models\Role;
 
 class UserAccessService
 {
-    public const MEMBER_ROLE = 'anggota';
+    public const MEMBER_ROLE = RoleName::MEMBER;
 
     public function __construct(private readonly OrganizationAuditLogger $organizationAuditLogger) {}
 
@@ -221,8 +222,14 @@ class UserAccessService
         $wasPreexisting = $user->hasRole($role);
         $before = $user->getRoleNames()->values()->all();
 
-        if ($role->name !== self::MEMBER_ROLE && $user->hasRole(self::MEMBER_ROLE)) {
-            $user->removeRole(self::MEMBER_ROLE);
+        $memberRole = RoleName::find(self::MEMBER_ROLE);
+
+        if (
+            RoleName::normalize($role->name) !== self::MEMBER_ROLE
+            && $memberRole
+            && $user->hasRole($memberRole)
+        ) {
+            $user->removeRole($memberRole);
         }
 
         if (! $wasPreexisting) {
@@ -264,10 +271,7 @@ class UserAccessService
             $user->removeRole($managedRole);
         }
 
-        $memberRole = Role::query()
-            ->where('name', self::MEMBER_ROLE)
-            ->where('guard_name', 'web')
-            ->first();
+        $memberRole = RoleName::find(self::MEMBER_ROLE);
 
         if (! $memberRole) {
             throw new UserAccessException('Role anggota belum tersedia pada master role.');

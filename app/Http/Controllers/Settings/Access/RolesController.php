@@ -7,6 +7,7 @@ use App\Http\Requests\Settings\Access\StoreRoleRequest;
 use App\Http\Requests\Settings\Access\SyncRolePermissionsRequest;
 use App\Http\Requests\Settings\Access\UpdateRoleRequest;
 use App\Services\Settings\Access\RoleAccessService;
+use App\Support\RoleName;
 use Illuminate\Http\RedirectResponse;
 use Spatie\Permission\Models\Role;
 
@@ -30,7 +31,7 @@ class RolesController extends Controller
     {
         abort_unless(request()->user()->can('roles.delete'), 403);
 
-        if ($role->name === 'Admin') {
+        if (RoleName::normalize($role->name) === RoleName::ADMIN) {
             return back()->withErrors(['role' => 'Role Admin tidak boleh dihapus.']);
         }
 

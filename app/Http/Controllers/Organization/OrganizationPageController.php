@@ -9,6 +9,7 @@ use App\Models\OrganizationUnit;
 use App\Models\OrganizationUnitPosition;
 use App\Models\Position;
 use App\Models\User;
+use App\Support\RoleName;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -271,8 +272,11 @@ class OrganizationPageController extends Controller
                 ])
                 ->values(),
             'roles' => Role::query()
-                ->where('name', '!=', 'anggota')
-                ->when(! $user->hasRole('superadmin'), fn ($query) => $query->where('name', '!=', 'superadmin'))
+                ->whereRaw('lower(name) != ?', [RoleName::MEMBER])
+                ->when(
+                    ! RoleName::is($user, RoleName::SUPERADMIN),
+                    fn ($query) => $query->whereRaw('lower(name) != ?', [RoleName::SUPERADMIN])
+                )
                 ->orderBy('name')
                 ->get(['id', 'name'])
                 ->map(fn (Role $role) => [
