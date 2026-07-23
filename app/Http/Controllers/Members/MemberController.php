@@ -89,10 +89,7 @@ class MemberController extends Controller
                     'email' => $user->email,
                 ])
                 ->values() : [],
-            'statuses' => $memberStatuses->map(fn (MemberStatus $status) => [
-                'value' => $status->code,
-                'label' => $status->name,
-            ])->values(),
+            'statuses' => $this->memberStatusOptions($memberStatuses),
             'genders' => [
                 ['value' => 'M', 'label' => 'Laki-laki'],
                 ['value' => 'F', 'label' => 'Perempuan'],
@@ -134,5 +131,37 @@ class MemberController extends Controller
         $member->delete();
 
         return redirect()->back();
+    }
+
+    private function memberStatusOptions($memberStatuses)
+    {
+        $options = $memberStatuses->map(fn (MemberStatus $status) => [
+            'value' => $status->code,
+            'label' => $status->name,
+        ]);
+
+        $usedStatusCodes = Member::query()
+            ->whereNotNull('status')
+            ->distinct()
+            ->pluck('status');
+
+        foreach ($usedStatusCodes as $code) {
+            if ($options->contains('value', $code)) {
+                continue;
+            }
+
+            $options->push([
+                'value' => $code,
+                'label' => MemberStatus::LEGACY_STATUS_LABELS[$code] ?? $code,
+            ]);
+        }
+
+        foreach (MemberStatus::LEGACY_STATUS_LABELS as $code => $label) {
+            if (! $options->contains('value', $code)) {
+                $options->push(['value' => $code, 'label' => $label]);
+            }
+        }
+
+        return $options->values();
     }
 }

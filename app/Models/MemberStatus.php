@@ -10,6 +10,16 @@ class MemberStatus extends Model
 {
     use SoftDeletes;
 
+    public const LEGACY_STATUS_LABELS = [
+        'aktif' => 'Aktif',
+        'active' => 'Aktif',
+        'nonaktif' => 'Nonaktif',
+        'inactive' => 'Nonaktif',
+        'mutasi' => 'Mutasi',
+        'meninggal' => 'Meninggal',
+        'deceased' => 'Meninggal',
+    ];
+
     protected $fillable = [
         'code',
         'name',
@@ -41,5 +51,16 @@ class MemberStatus extends Model
     public function scopeBillable(Builder $query): Builder
     {
         return $query->where('is_billable', true);
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function acceptedCodes(): array
+    {
+        return array_values(array_unique([
+            ...static::query()->pluck('code')->all(),
+            ...array_keys(self::LEGACY_STATUS_LABELS),
+        ]));
     }
 }

@@ -3,6 +3,7 @@
 namespace Tests\Feature\Members;
 
 use App\Models\Member;
+use App\Models\MemberStatus;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Permission;
@@ -77,6 +78,34 @@ class MemberLinkedLoginAccessTest extends TestCase
             ->assertRedirect('/members');
 
         $this->assertNull($member->refresh()->user_id);
+    }
+
+    public function test_superadmin_can_update_member_with_legacy_active_status_when_master_status_is_missing(): void
+    {
+        $actor = $this->userWithRoleAndPermissions('superadmin', ['members.update']);
+        MemberStatus::query()->where('code', 'aktif')->forceDelete();
+        $member = Member::factory()->create([
+            'status' => 'aktif',
+            'email' => 'legacy-active@example.test',
+        ]);
+
+        $this
+            ->actingAs($actor)
+            ->from('/members')
+            ->patch(route('members.update', $member), [
+                'npa' => $member->npa,
+                'full_name' => 'Dokter Legacy Aktif Updated',
+                'email' => $member->email,
+                'status' => 'aktif',
+            ])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect('/members');
+
+        $this->assertDatabaseHas('members', [
+            'id' => $member->id,
+            'full_name' => 'Dokter Legacy Aktif Updated',
+            'status' => 'aktif',
+        ]);
     }
 
     private function userWithRoleAndPermissions(string $roleName, array $permissions): User

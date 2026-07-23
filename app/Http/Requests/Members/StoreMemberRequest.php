@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Members;
 
+use App\Models\MemberStatus;
 use App\Support\RoleName;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -34,7 +35,7 @@ class StoreMemberRequest extends FormRequest
             'division_id' => ['nullable', 'exists:divisions,id'],
             'position_id' => ['nullable', 'exists:positions,id'],
             'join_date' => ['nullable', 'date'],
-            'status' => ['nullable', 'exists:member_statuses,code'],
+            'status' => ['nullable', Rule::in(MemberStatus::acceptedCodes())],
             'sip_1' => ['nullable', 'string', 'max:255'],
             'sip_2' => ['nullable', 'string', 'max:255'],
             'sip_3' => ['nullable', 'string', 'max:255'],
